@@ -20,6 +20,7 @@ def test_agent_system_exposes_future_multi_agent_boundaries():
     assert importlib.util.find_spec("agent.integrations") is not None
     assert importlib.util.find_spec("agent.assembly") is not None
     assert importlib.util.find_spec("agent.runs") is not None
+    assert importlib.util.find_spec("agent.persistence") is not None
     assert importlib.util.find_spec("agent.identity") is not None
 
 

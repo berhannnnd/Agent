@@ -25,6 +25,7 @@ class AgentConfig(BaseSettings):
     WORKSPACE_ROOT: str = ".agents/workspaces"
     RUN_STORE: str = "memory"
     RUN_ROOT: str = ".agents/runs"
+    DB_PATH: str = ".agents/agents.db"
     HTTP_PROXY: str = ""
     HTTPS_PROXY: str = ""
     ALL_PROXY: str = ""

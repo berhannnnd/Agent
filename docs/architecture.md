@@ -43,9 +43,10 @@ graph TB
 - `agent.runtime`: 智能体内核包。`loop` 负责单 Agent 执行循环，`turns.model` 负责单轮模型请求，`turns.tools` 负责工具执行边界，`state` 承载运行状态，`session` 负责会话历史，`checkpoints` 负责断点恢复存储协议。
 - `agent.models`: 模型协议包。`adapters` 负责 provider wire protocol，`protocol` 负责 provider-neutral stream 语义，`transports` 负责 HTTP/SSE，根层保留模型客户端、retry 和错误类型。
 - `agent.context`: 上下文系统。按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层组织上下文，由 `ContextBuilder` 编译并输出 trace；`ModelRequestCompiler` 负责把 runtime state 转为模型请求。
-- `agent.storage`: 数据隔离边界。包含 workspace/run/memory/artifact store，当前提供本地 workspace 分配器。
-- `agent.runs`: 运行记录边界。定义 `RunRecord`、`RunStore`、内存存储和本地 JSON 文件存储，后续 DB-backed run/session 持久化从这里替换。
-- `agent.security`: 权限与安全边界。包含 tool permission 规则和 approval policy，后续继续承载 sandbox、secrets、encryption。
+- `agent.storage`: 数据隔离边界。包含 workspace/memory/artifact store，当前提供本地 workspace 分配器。
+- `agent.persistence`: 本地持久化基础设施。当前提供 SQLite schema/连接管理，不承载 run/runtime/security 业务语义。
+- `agent.runs`: 运行记录边界。定义 `RunRecord`、`RunStore`、内存、本地 JSON 和 SQLite 存储。
+- `agent.security`: 权限与安全边界。包含 tool permission 规则和 approval audit，后续继续承载 sandbox、secrets、encryption。
 - `agent.identity`: 身份引用边界。定义 Principal、Tenant/User/Agent 引用；登录鉴权仍属于 gateway。
 - `agent.tools`: 工具注册表、本地工具执行、MCP stdio 工具接入。
 - `agent.hooks`: Runtime 扩展点，支持意图引导、thinking 提取、审批拦截和组合 hook。
@@ -60,7 +61,7 @@ graph TB
 - `gateway.core`: settings、logger、middleware、exceptions。
 - `gateway.shared.server`: FastAPI 注册器、统一响应、请求 ID、server launcher。
 - `gateway.auth`: 鉴权授权边界。
-- `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 running/awaiting_approval/finished/error，并按配置选择 memory/file run store。
+- `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 running/awaiting_approval/finished/error，并按配置选择 memory/file/sqlite run/checkpoint/audit store。
 - `gateway.streaming`: SSE 和 future WebSocket 协议边界。
 - `gateway.engines`: 可注册引擎的生命周期管理边界。
 - `gateway.static_ui`: 挂载 `web/dist` 到 `/ui/`。
@@ -78,7 +79,7 @@ graph TB
 9. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
 10. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行。
 11. 当工具需要用户确认时，runtime 发出 `tool_approval_required`，保存 `approval_required` checkpoint，gateway 将 run 标记为 `awaiting_approval`。
-12. `POST /api/v1/agent/runs/{run_id}/approval` 写入 approval decision，runtime 从同一 checkpoint 恢复执行，并继续产出 `tool_start`、`tool_result` 或 denied tool result。
+12. `POST /api/v1/agent/runs/{run_id}/approval` 写入 approval audit 和 runtime approval decision，runtime 从同一 checkpoint 恢复执行，并继续产出 `tool_start`、`tool_result` 或 denied tool result。
 13. `agent.runs.RunStore` 记录 run events 和最终状态；`GET /api/v1/agent/runs/{run_id}` 可查询记录。
 14. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
 
@@ -87,7 +88,7 @@ graph TB
 1. 新增模型能力：provider 适配放入 `agent/models/adapters/`，通用 stream 协议放入 `agent/models/protocol/`，传输层放入 `agent/models/transports/`。
 2. 新增工具能力：放入 `agent/tools/` 或通过 MCP 接入。
 3. 新增 Agent 定义字段：优先放入 `agent/definitions/`，再由 assembly 消费。
-4. 新增 run/session 持久化：实现 `agent.runs.RunStore`，gateway 只接 adapter。
+4. 新增 run/session 持久化：实现 `agent.runs.RunStore`、`agent.runtime.CheckpointStore` 或 `agent.security.ApprovalAuditStore`，gateway 只接 adapter。
 5. 新增多智能体编排：放入 `agent/orchestration/`。
 6. 新增记忆能力：放入 `agent/memory/`。
 7. 新增 HTTP 协议能力：放入 `gateway/api/`，必要时配合 `gateway/sessions/` 或 `gateway/streaming/`。

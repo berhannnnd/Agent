@@ -1,5 +1,11 @@
 from agent.runtime.config import RuntimeConfig
-from agent.runtime.checkpoints import CheckpointStore, InMemoryCheckpointStore, NullCheckpointStore, RuntimeCheckpoint
+from agent.runtime.checkpoints import (
+    CheckpointStore,
+    InMemoryCheckpointStore,
+    NullCheckpointStore,
+    RuntimeCheckpoint,
+    SQLiteCheckpointStore,
+)
 from agent.runtime.errors import AgentRuntimeError
 from agent.runtime.loop import AgentRuntime
 from agent.security.permissions import (
@@ -31,6 +37,7 @@ __all__ = [
     "RuntimeCheckpoint",
     "RuntimeState",
     "ScriptedModelClient",
+    "SQLiteCheckpointStore",
     "StaticToolPermissionPolicy",
     "ToolPermissionDecision",
     "ToolPermissionPolicy",

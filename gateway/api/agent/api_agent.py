@@ -18,11 +18,17 @@ from fastapi.responses import StreamingResponse
 
 from agent.assembly import create_agent_session_async as _create_agent_session_async
 from agent.config import AgentConfigError
-from agent.runtime import InMemoryCheckpointStore
 from agent.schema import RuntimeEvent
+from agent.security import ApprovalAuditRecord
 from gateway.api.agent.schemas import AgentChatRequest, RunApprovalRequest
 from gateway.core.config import settings
-from gateway.sessions import GatewayRunService, create_run_store, run_created_event
+from gateway.sessions import (
+    GatewayRunService,
+    create_approval_audit_store,
+    create_checkpoint_store,
+    create_run_store,
+    run_created_event,
+)
 from gateway.shared.server.common import resp
 
 router = APIRouter(prefix="/agent")
@@ -30,7 +36,8 @@ router = APIRouter(prefix="/agent")
 # 全局并发限制：同时处理的 agent 请求数
 _agent_semaphore = asyncio.Semaphore(settings.agent.MAX_CONCURRENT_REQUESTS)
 run_service = GatewayRunService(create_run_store(settings))
-checkpoint_store = InMemoryCheckpointStore()
+checkpoint_store = create_checkpoint_store(settings)
+approval_audit_store = create_approval_audit_store(settings)
 
 
 async def create_agent_session(**kwargs):
@@ -128,6 +135,7 @@ async def approve_run_tools(run_id: str, request_data: RunApprovalRequest):
 
         approvals = _approval_map(request_data, checkpoint.pending_tool_calls)
         try:
+            await _record_approval_audit(run_id, request_data, checkpoint.pending_tool_calls, approvals)
             await run_service.mark_running(run_id)
             session = await create_agent_session(spec=record.to_agent_spec())
             result = await session.resume(run_id, approvals=approvals)
@@ -188,3 +196,19 @@ def _approval_map(request_data: RunApprovalRequest, pending_calls) -> dict[str, 
 def _new_runtime_events(record_events, result_events) -> list[RuntimeEvent]:
     recorded_runtime_events = [event for event in record_events if event.type != "run_created"]
     return list(result_events)[len(recorded_runtime_events):]
+
+
+async def _record_approval_audit(run_id: str, request_data: RunApprovalRequest, pending_calls, approvals: dict[str, bool]) -> None:
+    reason = request_data.reason or ""
+    for call in pending_calls:
+        approval_id = call.id or call.name
+        if approval_id not in approvals:
+            continue
+        await approval_audit_store.record(
+            ApprovalAuditRecord.from_tool_call(
+                run_id=run_id,
+                call=call,
+                approved=approvals[approval_id],
+                reason=reason,
+            )
+        )
