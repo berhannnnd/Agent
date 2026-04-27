@@ -19,7 +19,7 @@ import typer
 from app.agent.factory import AgentConfigError, create_agent_session as _create_agent_session
 from app.core.config import settings
 from app.utils import utils
-from app.utils.logger import logger
+from app.core.logging import logger
 
 client = typer.Typer(rich_markup_mode="rich")
 

@@ -16,9 +16,9 @@ from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from pydantic_core import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.shared.server.common.base_exception import AuthenticationException, ServerException
-from app.shared.server.common.base_resp import NotFound, ServerError, UnProcessable, fail
-from app.utils.logger import logger
+from app.core.exceptions import AuthenticationException, ServerException
+from app.core.logging import logger
+from app.shared.server.common.base_resp import NotFound, ServerError, UnProcessable, Unauthorized, fail
 
 
 async def log_error(
@@ -32,9 +32,12 @@ async def log_error(
     elif isinstance(exc, ResponseValidationError):
         error_msg = exc.errors()
         response = ServerError.model_copy(deep=True)
+    elif isinstance(exc, AuthenticationException):
+        error_msg = exc.errors
+        response = Unauthorized.model_copy(deep=True)
     elif isinstance(exc, ServerException):
         error_msg = exc.errors
-        response = exc.resp
+        response = ServerError.model_copy(deep=True)
     elif isinstance(exc, ValidationError):
         error_msg = exc.errors()
         response = ServerError.model_copy(deep=True)

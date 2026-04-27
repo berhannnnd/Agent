@@ -8,7 +8,7 @@
 # 2026/04/24   Create
 # =====================================================
 
+from app.core.exceptions import AuthenticationException, ServerException
 from app.shared.server.common import base_resp as resp
-from app.shared.server.common.base_exception import AuthenticationException, ServerException
 
 __all__ = ["resp", "ServerException", "AuthenticationException"]

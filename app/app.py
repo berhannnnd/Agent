@@ -17,7 +17,7 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.engines.manager import engine_manager
 from app.shared.server.register import register_exception, register_hook, register_middleware
-from app.utils.logger import logger
+from app.core.logging import logger
 from app.web import register_web_ui
 
 

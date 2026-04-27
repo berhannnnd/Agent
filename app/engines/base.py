@@ -12,7 +12,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Any
 
-from app.utils.logger import logger
+from app.core.logging import logger
 
 
 class BaseEngine(ABC):

@@ -6,18 +6,15 @@
 # @Author ：Zegen
 #
 # 2026/04/24   Create
+# 2026/04/27   Deprecated: moved to app.core.exceptions
 # =====================================================
 
-from app.shared.server.common.base_resp import ServerError, Unauthorized
+import warnings
 
+warnings.warn(
+    "app.shared.server.common.base_exception is deprecated, use app.core.exceptions",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-class ServerException(Exception):
-    def __init__(self, errors):
-        self.errors = errors
-        self.resp = ServerError.model_copy(deep=True)
-
-
-class AuthenticationException(ServerException):
-    def __init__(self, errors: str = "Permission denied"):
-        self.errors = errors
-        self.resp = Unauthorized.model_copy(deep=True)
+from app.core.exceptions import *  # noqa: F401,F403

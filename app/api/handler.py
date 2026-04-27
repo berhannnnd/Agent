@@ -13,7 +13,7 @@ from typing import Union
 from fastapi import Request
 from pydantic import BaseModel
 
-from app.utils.logger import logger
+from app.core.logging import logger
 
 
 class BaseHandler:

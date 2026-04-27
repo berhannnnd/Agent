@@ -15,7 +15,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from app.utils.logger import logger
+from app.core.logging import logger
 
 
 class Resp(BaseModel):

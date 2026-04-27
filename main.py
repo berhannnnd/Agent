@@ -18,7 +18,7 @@ import uvicorn
 
 from app.core.config import settings
 from app.utils import utils
-from app.utils.logger import logger
+from app.core.logging import logger
 
 
 def create_app():

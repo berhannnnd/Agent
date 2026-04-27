@@ -60,7 +60,7 @@ def print_info(settings, logger) -> None:
 
 @contextmanager
 def timeblock(label: str):
-    from app.utils.logger import logger
+    from app.core.logging import logger
 
     start = time.time()
     try:
@@ -74,7 +74,7 @@ def runtime(_func=None, *, prefix: str = ""):
         prefix = f"{prefix} - "
 
     def decorator(func):
-        from app.utils.logger import logger
+        from app.core.logging import logger
 
         @wraps(func)
         def wrap(*args, **kwargs):

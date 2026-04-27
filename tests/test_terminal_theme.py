@@ -9,7 +9,7 @@
 # =====================================================
 
 from app.core.config import settings
-from app.utils.logger import remove_ansi_escape
+from app.core.logging import remove_ansi_escape
 from app.utils.terminal import TermColors, colorize
 
 

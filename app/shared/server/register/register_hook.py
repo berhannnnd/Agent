@@ -13,7 +13,7 @@ from datetime import datetime
 
 from fastapi import FastAPI, Request
 
-from app.utils.logger import logger
+from app.core.logging import logger
 
 
 def register_hook(app: FastAPI) -> None:

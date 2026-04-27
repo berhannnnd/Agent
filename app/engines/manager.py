@@ -12,8 +12,8 @@ from typing import Optional
 
 from app.engines.base import BaseEngine
 from app.engines.registry import engine_registry
-from app.shared.server.common.base_exception import ServerException
-from app.utils.logger import logger
+from app.core.exceptions import ServerException
+from app.core.logging import logger
 
 
 class EngineManager:
