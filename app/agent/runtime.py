@@ -11,8 +11,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import AsyncIterable, List, Protocol
+from typing import AsyncIterable, List, Optional, Protocol
 
+from app.agent.hooks import AgentHooks
+from app.agent.providers.errors import ModelClientError
 from app.agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, RuntimeEvent, ToolResult
 from app.agent.tools.registry import ToolRegistry
 
@@ -75,6 +77,7 @@ class AgentRuntime:
         model: str,
         enabled_tools: List[str] = None,
         max_tool_iterations: int = 8,
+        hooks: Optional[AgentHooks] = None,
     ):
         self.model_client = model_client
         self.tools = tools
@@ -82,83 +85,108 @@ class AgentRuntime:
         self.model = model
         self.enabled_tools = list(enabled_tools or [])
         self.max_tool_iterations = max_tool_iterations
+        self.hooks = hooks or AgentHooks()
 
     async def run(self, messages: List[Message]) -> AgentResult:
         working = list(messages)
         tool_results: List[ToolResult] = []
         events: List[RuntimeEvent] = []
-        for _ in range(self.max_tool_iterations):
-            response = await self.model_client.async_complete(self._request(working))
-            working.append(response.message)
-            calls = response.tool_calls
-            events.append(
-                RuntimeEvent(
-                    type="model_message",
-                    name="assistant",
-                    payload={"content": response.content_text(), "tool_call_count": len(calls)},
-                )
-            )
-            if not calls:
-                return AgentResult(response.content_text(), working, tool_results, events)
-            results = await self.tools.execute_many(calls)
-            tool_results.extend(results)
-            for result in results:
+        try:
+            for _ in range(self.max_tool_iterations):
+                working = await self.hooks.before_request(working)
+                response = await self.model_client.async_complete(self._request(working))
+                response = await self.hooks.after_response(response)
+                working.append(response.message)
+                calls = response.tool_calls
                 events.append(
                     RuntimeEvent(
-                        type="tool_result",
-                        name=result.name,
-                        payload=result.to_dict(),
+                        type="model_message",
+                        name="assistant",
+                        payload={"content": response.content_text(), "tool_call_count": len(calls)},
                     )
                 )
-                working.append(
-                    Message.from_text(
-                        "tool",
-                        result.content,
-                        tool_call_id=result.tool_call_id,
-                        name=result.name,
-                        raw=result.to_dict(),
+                if not calls:
+                    return AgentResult(response.content_text(), working, tool_results, events)
+                results = await self.tools.execute_many(calls)
+                tool_results.extend(results)
+                for result in results:
+                    events.append(
+                        RuntimeEvent(
+                            type="tool_result",
+                            name=result.name,
+                            payload=result.to_dict(),
+                        )
                     )
-                )
-        raise AgentRuntimeError("tool-call loop exceeded max iterations")
+                    working.append(self.hooks.format_tool_result(result))
+        except ModelClientError as exc:
+            recovery = await self.hooks.on_error(exc, working)
+            if recovery is not None:
+                return recovery
+            error_msg = "model error: %s" % exc
+            events.append(RuntimeEvent(type="error", name="model", payload={"message": error_msg}))
+            return AgentResult(error_msg, working, tool_results, events)
+        except AgentRuntimeError as exc:
+            recovery = await self.hooks.on_error(exc, working)
+            if recovery is not None:
+                return recovery
+            error_msg = str(exc)
+            events.append(RuntimeEvent(type="error", name="runtime", payload={"message": error_msg}))
+            return AgentResult(error_msg, working, tool_results, events)
+        except Exception as exc:
+            recovery = await self.hooks.on_error(exc, working)
+            if recovery is not None:
+                return recovery
+            error_msg = "unexpected error: %s" % exc
+            events.append(RuntimeEvent(type="error", name="runtime", payload={"message": error_msg}))
+            return AgentResult(error_msg, working, tool_results, events)
+        error_msg = "tool-call loop exceeded max iterations"
+        events.append(RuntimeEvent(type="error", name="runtime", payload={"message": error_msg}))
+        return AgentResult(error_msg, working, tool_results, events)
 
     async def stream(self, messages: List[Message]) -> AsyncIterable[RuntimeEvent]:
         working = list(messages)
-        for _ in range(self.max_tool_iterations):
-            final_response = None
-            async for event in self.model_client.async_stream(self._request(working)):
-                if event.type == "text_delta":
-                    yield RuntimeEvent(type="text_delta", name="assistant", payload={"delta": event.delta})
-                elif event.type == "message" and event.response is not None:
-                    final_response = event.response
-            if final_response is None:
-                raise AgentRuntimeError("model stream did not include final message")
-            working.append(final_response.message)
-            calls = final_response.tool_calls
-            if not calls:
-                yield RuntimeEvent(
-                    type="done",
-                    name="assistant",
-                    payload={
-                        "content": final_response.content_text(),
-                        "messages": [message.to_dict() for message in working],
-                    },
-                )
-                return
-            for call in calls:
-                yield RuntimeEvent(type="tool_start", name=call.name, payload=call.to_dict())
-            results = await self.tools.execute_many(calls)
-            for result in results:
-                yield RuntimeEvent(type="tool_result", name=result.name, payload=result.to_dict())
-                working.append(
-                    Message.from_text(
-                        "tool",
-                        result.content,
-                        tool_call_id=result.tool_call_id,
-                        name=result.name,
-                        raw=result.to_dict(),
-                    )
-                )
-        raise AgentRuntimeError("tool-call loop exceeded max iterations")
+        error_msg = None
+        try:
+            for _ in range(self.max_tool_iterations):
+                working = await self.hooks.before_request(working)
+                final_response = None
+                async for event in self.model_client.async_stream(self._request(working)):
+                    if event.type == "text_delta":
+                        yield RuntimeEvent(type="text_delta", name="assistant", payload={"delta": event.delta})
+                    elif event.type == "message" and event.response is not None:
+                        final_response = event.response
+                if final_response is None:
+                    raise AgentRuntimeError("model stream did not include final message")
+                final_response = await self.hooks.after_response(final_response)
+                working.append(final_response.message)
+                calls = final_response.tool_calls
+                if not calls:
+                    return
+                for call in calls:
+                    yield RuntimeEvent(type="tool_start", name=call.name, payload=call.to_dict())
+                results = await self.tools.execute_many(calls)
+                for result in results:
+                    yield RuntimeEvent(type="tool_result", name=result.name, payload=result.to_dict())
+                    working.append(self.hooks.format_tool_result(result))
+        except ModelClientError as exc:
+            error_msg = "model error: %s" % exc
+            yield RuntimeEvent(type="error", name="model", payload={"message": error_msg})
+        except AgentRuntimeError as exc:
+            error_msg = str(exc)
+            yield RuntimeEvent(type="error", name="runtime", payload={"message": error_msg})
+        except Exception as exc:
+            error_msg = "unexpected error: %s" % exc
+            yield RuntimeEvent(type="error", name="runtime", payload={"message": error_msg})
+        finally:
+            yield RuntimeEvent(
+                type="done",
+                name="assistant",
+                payload={
+                    "content": working[-1].content_text() if working else "",
+                    "messages": [message.to_dict() for message in working],
+                    "error": error_msg,
+                },
+            )
 
     def _request(self, messages: List[Message]) -> ModelRequest:
         tool_names = self.enabled_tools or None
@@ -171,7 +199,7 @@ class AgentRuntime:
 
 
 class AgentSession:
-    def __init__(self, runtime: AgentRuntime, system_prompt: str = "", max_context_tokens: int = 8000):
+    def __init__(self, runtime: AgentRuntime, system_prompt: str = "", max_context_tokens: int = 256000):
         self.runtime = runtime
         self.system_prompt = system_prompt.strip()
         self.max_context_tokens = max_context_tokens
@@ -187,61 +215,39 @@ class AgentSession:
         return sum(message.approx_token_count() for message in messages)
 
     def _truncate_messages(self, messages: List[Message]) -> List[Message]:
-        """从头部截断消息（保留 system prompt），直到总 token 低于阈值。
+        """从头部截断消息（保留 system prompt），以完整轮次为单位。
 
-        截断以完整轮次为单位，避免留下孤立的 tool call/tool result。
+        丢弃 system 之后、第一个 user 之前的不完整消息，然后按轮次（user → ... → user）移除。
         """
         if not messages:
             return messages
 
-        # 保留 system prompt（如果在开头）
-        system_messages = []
-        rest_start = 0
-        if messages and messages[0].role == "system":
-            system_messages = [messages[0]]
-            rest_start = 1
+        # 分离 system prompt
+        system_messages: List[Message] = []
+        rest = list(messages)
+        if rest and rest[0].role == "system":
+            system_messages = [rest.pop(0)]
 
-        rest = list(messages[rest_start:])
+        # 丢弃开头不完整的消息（在第一个 user 之前的 assistant/tool）
+        while rest and rest[0].role != "user":
+            rest.pop(0)
+
+        # 按轮次分组（每个轮次以 user 开头）
+        turns: List[List[Message]] = []
+        i = 0
+        while i < len(rest):
+            turn_start = i
+            i += 1
+            while i < len(rest) and rest[i].role != "user":
+                i += 1
+            turns.append(rest[turn_start:i])
+
+        # 从最早的轮次开始移除，直到 token 数达标
         system_tokens = self._estimate_tokens(system_messages)
+        while turns and system_tokens + self._estimate_tokens([msg for turn in turns for msg in turn]) > self.max_context_tokens:
+            turns.pop(0)
 
-        # 如果 system 本身就超了，那也没办法，只能保留
-        while rest and system_tokens + self._estimate_tokens(rest) > self.max_context_tokens:
-            # 找到最早的一个完整轮次并移除
-            # 一轮通常从 user 开始，到下一个 user 之前结束
-            # 简单策略：移除从开头到下一个 user 之前的所有消息
-            if not rest:
-                break
-
-            # 找到第一个 user 消息的位置（轮次起点）
-            first_user_idx = None
-            for i, msg in enumerate(rest):
-                if msg.role == "user":
-                    first_user_idx = i
-                    break
-
-            if first_user_idx is None:
-                # 没有 user 消息，直接移除最早的一条
-                rest.pop(0)
-                continue
-
-            # 找到下一个 user 消息的位置（下一轮起点）
-            next_user_idx = None
-            for i in range(first_user_idx + 1, len(rest)):
-                if rest[i].role == "user":
-                    next_user_idx = i
-                    break
-
-            # 移除从开头到 next_user_idx 之前的所有消息（即第一个完整轮次）
-            if next_user_idx is not None:
-                rest = rest[next_user_idx:]
-            else:
-                # 只剩最后一轮，不能全删，至少保留最后一条
-                if len(rest) > 1:
-                    rest.pop(0)
-                else:
-                    break
-
-        return system_messages + rest
+        return system_messages + [msg for turn in turns for msg in turn]
 
     async def send(self, text: str) -> AgentResult:
         candidate = self.messages + [Message.from_text("user", text)]
@@ -253,10 +259,7 @@ class AgentSession:
     async def stream(self, text: str) -> AsyncIterable[RuntimeEvent]:
         candidate = self.messages + [Message.from_text("user", text)]
         candidate = self._truncate_messages(candidate)
-        committed_messages = None
         async for event in self.runtime.stream(candidate):
-            if event.type == "done" and event.payload.get("messages"):
-                committed_messages = [Message.from_dict(message) for message in event.payload["messages"]]
             yield event
-        if committed_messages is not None:
-            self.messages = committed_messages
+            if event.type == "done" and event.payload.get("messages"):
+                self.messages = [Message.from_dict(message) for message in event.payload["messages"]]

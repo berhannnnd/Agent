@@ -14,7 +14,8 @@ from app.agent.providers.adapters import (
     OpenAIChatCompletionsAdapter,
     OpenAIResponsesAdapter,
 )
-from app.agent.providers.client import HttpxModelTransport, ModelClient, ModelClientConfig, _parse_sse_json_line
+from app.agent.providers.client import HttpxModelTransport, ModelClient, ModelClientConfig
+from app.agent.providers.stream import parse_sse_json_line
 from app.agent.schema import Message, ModelRequest, ToolCall, ToolSpec
 
 
@@ -80,11 +81,11 @@ def test_transport_skips_sse_event_metadata():
     events = [
         parsed
         for parsed in [
-            _parse_sse_json_line("event: response.created"),
-            _parse_sse_json_line('data: {"type":"response.output_text.delta","delta":"ok"}'),
-            _parse_sse_json_line(""),
-            _parse_sse_json_line("event: response.completed"),
-            _parse_sse_json_line('data: {"type":"response.completed","response":{"output":[]}}'),
+            parse_sse_json_line("event: response.created"),
+            parse_sse_json_line('data: {"type":"response.output_text.delta","delta":"ok"}'),
+            parse_sse_json_line(""),
+            parse_sse_json_line("event: response.completed"),
+            parse_sse_json_line('data: {"type":"response.completed","response":{"output":[]}}'),
         ]
         if parsed is not None
     ]
@@ -120,7 +121,7 @@ def test_httpx_transport_uses_configured_proxy(monkeypatch):
             captured["url"] = url
             return FakeResponse()
 
-    monkeypatch.setattr("app.agent.providers.client.httpx.AsyncClient", FakeClient)
+    monkeypatch.setattr("app.agent.providers.transport.httpx.AsyncClient", FakeClient)
 
     response = asyncio.run(
         HttpxModelTransport("https://api.example/v1", proxy_url="http://127.0.0.1:7890").async_post_json(

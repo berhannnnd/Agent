@@ -30,9 +30,10 @@ class RegisteredTool:
 
 
 class ToolRegistry:
-    def __init__(self, max_concurrent: int = 10):
+    def __init__(self, max_concurrent: int = 10, tool_timeout: float = 60.0):
         self._tools: Dict[str, RegisteredTool] = {}
         self._semaphore = asyncio.Semaphore(max_concurrent)
+        self._tool_timeout = tool_timeout
 
     def register(self, name: str, description: str, parameters: Dict[str, Any], handler: ToolHandler) -> None:
         if name in self._tools:
@@ -52,10 +53,13 @@ class ToolRegistry:
         tool = self._tools[name]
         try:
             async with self._semaphore:
-                result = tool.handler(**arguments)
-                if inspect.isawaitable(result):
-                    result = await result
+                result = await asyncio.wait_for(
+                    _call_handler(tool.handler, arguments),
+                    timeout=self._tool_timeout,
+                )
             return ToolResult(tool_call_id="", name=name, content=_format_tool_result(result), raw=result)
+        except asyncio.TimeoutError:
+            return ToolResult(tool_call_id="", name=name, content="tool execution timed out", is_error=True)
         except Exception as exc:  # noqa: BLE001 - tool failures are model-visible tool results.
             return ToolResult(tool_call_id="", name=name, content=str(exc), is_error=True)
 
@@ -84,6 +88,13 @@ class ToolRegistry:
             parameters=tool.parameters,
             source="registry",
         )
+
+
+async def _call_handler(handler: ToolHandler, arguments: Dict[str, Any]) -> Any:
+    result = handler(**arguments)
+    if inspect.isawaitable(result):
+        result = await result
+    return result
 
 
 def _format_tool_result(result: Any) -> str:

@@ -42,16 +42,16 @@ def test_agent_runtime_runs_model_tool_model_loop():
     assert [message.role for message in result.messages] == ["user", "assistant", "tool", "assistant"]
 
 
-def test_agent_session_commits_history_only_after_success():
+def test_agent_session_commits_history_on_error():
     llm = ScriptedModelClient([])
     tools = ToolRegistry()
     runtime = AgentRuntime(model_client=llm, tools=tools, provider="scripted", model="scripted")
     session = AgentSession(runtime=runtime, system_prompt="Be concise.")
 
-    with pytest.raises(RuntimeError):
-        asyncio.run(session.send("hello"))
+    result = asyncio.run(session.send("hello"))
 
-    assert [message.role for message in session.messages] == ["system"]
+    assert result.content.startswith("unexpected error")
+    assert [message.role for message in session.messages] == ["system", "user"]
 
 
 def test_agent_runtime_guard_stops_infinite_tool_loop():
@@ -76,8 +76,10 @@ def test_agent_runtime_guard_stops_infinite_tool_loop():
         max_tool_iterations=1,
     )
 
-    with pytest.raises(AgentRuntimeError):
-        asyncio.run(runtime.run([Message.from_text("user", "loop")]))
+    result = asyncio.run(runtime.run([Message.from_text("user", "loop")]))
+
+    assert "exceeded max iterations" in result.content
+    assert any(event.type == "error" for event in result.events)
 
 
 def test_agent_runtime_streams_text_and_tool_events():

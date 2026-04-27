@@ -30,6 +30,7 @@ class AgentConfig(BaseSettings):
     MAX_CONTEXT_TOKENS: int = 256000
     MAX_CONCURRENT_TOOLS: int = 10
     MAX_CONCURRENT_REQUESTS: int = 20
+    TOOL_TIMEOUT: float = 60.0
 
     # Claude provider 的备选配置（优先级高于 ANTHROPIC_*）
     CLAUDE_API_KEY: str = ""

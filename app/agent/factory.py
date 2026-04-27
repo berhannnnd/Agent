@@ -13,7 +13,9 @@ from __future__ import annotations
 import shlex
 from typing import Any, List, Optional
 
+from app.agent.hooks import AgentHooks
 from app.agent.providers import ModelClient, ModelClientConfig
+from app.agent.providers.constants import normalize_provider
 from app.agent.runtime import AgentRuntime, AgentSession
 from app.agent.skills import SkillLoader, SkillRegistry
 from app.agent.tools.mcp import MCPServerConfig, MCPStdioClient, MCPToolProvider
@@ -24,6 +26,31 @@ class AgentConfigError(ValueError):
     """Raised when agent runtime config is incomplete."""
 
 
+# provider → 配置属性优先级列表（从高到低）
+_PROVIDER_CONFIG_SOURCES: dict[str, dict[str, list[str]]] = {
+    "claude-messages": {
+        "api_key": ["agent.CLAUDE_API_KEY", "models.anthropic.API_KEY"],
+        "base_url": ["agent.CLAUDE_BASE_URL", "models.anthropic.BASE_URL"],
+        "model": ["agent.CLAUDE_MODEL", "models.anthropic.MODEL"],
+    },
+    "gemini": {
+        "api_key": ["models.gemini.API_KEY"],
+        "base_url": ["models.gemini.BASE_URL"],
+        "model": ["models.gemini.MODEL"],
+    },
+    "openai-responses": {
+        "api_key": ["models.openai_responses.API_KEY", "models.openai.API_KEY"],
+        "base_url": ["models.openai_responses.BASE_URL", "models.openai.BASE_URL"],
+        "model": ["models.openai_responses.MODEL", "models.openai.MODEL"],
+    },
+    "openai-chat": {
+        "api_key": ["models.openai.API_KEY"],
+        "base_url": ["models.openai.BASE_URL"],
+        "model": ["models.openai.MODEL"],
+    },
+}
+
+
 def create_agent_session(
     settings: Any,
     provider: Optional[str] = None,
@@ -32,9 +59,10 @@ def create_agent_session(
     api_key: Optional[str] = None,
     system_prompt: Optional[str] = None,
     enabled_tools: Optional[List[str]] = None,
+    hooks: Optional[AgentHooks] = None,
 ) -> AgentSession:
     config = resolve_model_client_config(settings, provider=provider, model=model, base_url=base_url, api_key=api_key)
-    registry = ToolRegistry(max_concurrent=settings.agent.MAX_CONCURRENT_TOOLS)
+    registry = ToolRegistry(max_concurrent=settings.agent.MAX_CONCURRENT_TOOLS, tool_timeout=settings.agent.TOOL_TIMEOUT)
     load_configured_skills(settings, registry)
     load_configured_mcp_sync(settings, registry)
 
@@ -46,6 +74,7 @@ def create_agent_session(
         model=config.model,
         enabled_tools=active_tools,
         max_tool_iterations=settings.agent.MAX_TOOL_ITERATIONS,
+        hooks=hooks,
     )
     prompt = settings.agent.SYSTEM_PROMPT if system_prompt is None else system_prompt
     return AgentSession(runtime=runtime, system_prompt=prompt, max_context_tokens=settings.agent.MAX_CONTEXT_TOKENS)
@@ -58,25 +87,12 @@ def resolve_model_client_config(
     base_url: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> ModelClientConfig:
-    active_provider = _normalize(provider or settings.agent.PROVIDER)
+    active_provider = normalize_provider(provider or settings.agent.PROVIDER)
+    sources = _PROVIDER_CONFIG_SOURCES.get(active_provider, _PROVIDER_CONFIG_SOURCES["openai-chat"])
 
-    # 根据 provider 选择对应的模型配置
-    if active_provider == "claude-messages":
-        resolved_api_key = _coalesce(api_key, settings.agent.CLAUDE_API_KEY or settings.models.anthropic.API_KEY)
-        resolved_base_url = _coalesce(base_url, settings.agent.CLAUDE_BASE_URL or settings.models.anthropic.BASE_URL)
-        resolved_model = _coalesce(model, settings.agent.CLAUDE_MODEL or settings.models.anthropic.MODEL)
-    elif active_provider == "gemini":
-        resolved_api_key = _coalesce(api_key, settings.models.gemini.API_KEY)
-        resolved_base_url = _coalesce(base_url, settings.models.gemini.BASE_URL)
-        resolved_model = _coalesce(model, settings.models.gemini.MODEL)
-    elif active_provider == "openai-responses":
-        resolved_api_key = _coalesce(api_key, settings.models.openai_responses.API_KEY or settings.models.openai.API_KEY)
-        resolved_base_url = _coalesce(base_url, settings.models.openai_responses.BASE_URL or settings.models.openai.BASE_URL)
-        resolved_model = _coalesce(model, settings.models.openai_responses.MODEL or settings.models.openai.MODEL)
-    else:  # openai-chat
-        resolved_api_key = _coalesce(api_key, settings.models.openai.API_KEY)
-        resolved_base_url = _coalesce(base_url, settings.models.openai.BASE_URL)
-        resolved_model = _coalesce(model, settings.models.openai.MODEL)
+    resolved_api_key = _coalesce(api_key, _resolve_config_value(settings, sources["api_key"]))
+    resolved_base_url = _coalesce(base_url, _resolve_config_value(settings, sources["base_url"]))
+    resolved_model = _coalesce(model, _resolve_config_value(settings, sources["model"]))
 
     if not resolved_api_key or not resolved_model:
         missing = []
@@ -97,6 +113,21 @@ def resolve_model_client_config(
         max_retries=settings.agent.MAX_RETRIES,
         retry_base_delay=settings.agent.RETRY_BASE_DELAY,
     )
+
+
+def _resolve_config_value(settings: Any, attr_paths: list[str]) -> str:
+    """按优先级列表读取嵌套配置属性，返回第一个非空值。"""
+    for path in attr_paths:
+        value = settings
+        for part in path.split("."):
+            value = getattr(value, part, None)
+            if value is None:
+                break
+        if value is not None:
+            result = str(value).strip()
+            if result:
+                return result
+    return ""
 
 
 def load_configured_skills(settings: Any, registry: ToolRegistry) -> SkillRegistry:
@@ -130,19 +161,6 @@ def load_configured_mcp_sync(settings: Any, registry: ToolRegistry) -> None:
 def _coalesce(override: Optional[str], configured: Any) -> str:
     value = configured if override is None else override
     return str(value).strip() if value is not None else ""
-
-
-def _normalize(value: str) -> str:
-    normalized = str(value or "").strip().lower()
-    if normalized in {"openai", "chat", "openai-chat-completions"}:
-        return "openai-chat"
-    if normalized in {"responses", "response"}:
-        return "openai-responses"
-    if normalized in {"anthropic", "claude"}:
-        return "claude-messages"
-    if normalized in {"google", "gemini-generate-content"}:
-        return "gemini"
-    return normalized or "openai-chat"
 
 
 def _csv_setting(raw: str) -> List[str]:
