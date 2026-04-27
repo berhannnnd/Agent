@@ -8,6 +8,6 @@
 # 2026/04/24   Create
 # =====================================================
 
-from agent.providers.client import ModelClient, ModelClientConfig, create_model_client
+from agent.models.client import ModelClient, ModelClientConfig, create_model_client
 
 __all__ = ["ModelClient", "ModelClientConfig", "create_model_client"]

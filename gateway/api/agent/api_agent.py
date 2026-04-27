@@ -42,6 +42,10 @@ async def chat(request_data: AgentChatRequest):
                 api_key=request_data.api_key,
                 system_prompt=request_data.system_prompt,
                 enabled_tools=request_data.enabled_tools,
+                tenant_id=request_data.tenant_id or "",
+                user_id=request_data.user_id or "",
+                agent_id=request_data.agent_id or "",
+                workspace_id=request_data.workspace_id or "",
             )
             result = await session.send(request_data.message)
         except AgentConfigError as exc:
@@ -69,6 +73,10 @@ async def chat_stream(request_data: AgentChatRequest):
                 api_key=request_data.api_key,
                 system_prompt=request_data.system_prompt,
                 enabled_tools=request_data.enabled_tools,
+                tenant_id=request_data.tenant_id or "",
+                user_id=request_data.user_id or "",
+                agent_id=request_data.agent_id or "",
+                workspace_id=request_data.workspace_id or "",
             )
             async for event in session.stream(request_data.message):
                 yield _sse(event.type, event.to_dict())

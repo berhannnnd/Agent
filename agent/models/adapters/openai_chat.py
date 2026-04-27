@@ -1,8 +1,8 @@
 import json
 from typing import Any, Dict, List, Optional
 
-from agent.providers.adapters.base import ProviderAdapter, ProviderParseError
-from agent.providers.constants import is_azure_openai_endpoint
+from agent.models.adapters.base import ProviderAdapter, ProviderParseError
+from agent.models.constants import is_azure_openai_endpoint
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 

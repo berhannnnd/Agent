@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import AsyncIterable, List, Optional
 
 from agent.hooks import AgentHooks
-from agent.providers.errors import ModelClientError
+from agent.models.errors import ModelClientError
 from agent.runtime.checkpoints import CheckpointStore, NullCheckpointStore, RuntimeCheckpoint
-from agent.runtime.context import RuntimeConfig
+from agent.runtime.config import RuntimeConfig
 from agent.runtime.errors import AgentRuntimeError
 from agent.runtime.events import error_event, model_message_event, tool_start_event
-from agent.runtime.permissions import ToolPermissionPolicy
-from agent.runtime.prompt import PromptCompiler
+from agent.security.permissions import ToolPermissionPolicy
+from agent.context.compiler import ModelRequestCompiler
 from agent.runtime.state import RuntimeState
 from agent.runtime.tool_orchestrator import ToolOrchestrator
 from agent.runtime.types import AgentResult, ModelClientProtocol
@@ -39,7 +39,7 @@ class AgentRuntime:
             max_tool_iterations=max_tool_iterations,
         )
         self.hooks = hooks or AgentHooks()
-        self.prompt_compiler = PromptCompiler(tools)
+        self.model_request_compiler = ModelRequestCompiler(tools)
         self.tool_orchestrator = ToolOrchestrator(tools, self.hooks, permission_policy=permission_policy)
         self.checkpoints = checkpoint_store or NullCheckpointStore()
 
@@ -122,7 +122,7 @@ class AgentRuntime:
             while state.iteration < self.config.max_tool_iterations:
                 state.messages = await self.hooks.before_request(state.messages)
                 final_response: Optional[ModelResponse] = None
-                request = self.prompt_compiler.compile(state.messages, self.config)
+                request = self.model_request_compiler.compile(state.messages, self.config)
                 async for event in self.model_client.async_stream(request):
                     if event.type == "text_delta":
                         yield RuntimeEvent(type="text_delta", name="assistant", payload={"delta": event.delta})
@@ -183,7 +183,7 @@ class AgentRuntime:
 
     async def _complete_once(self, messages: List[Message]) -> ModelResponse:
         working = await self.hooks.before_request(messages)
-        response = await self.model_client.async_complete(self.prompt_compiler.compile(working, self.config))
+        response = await self.model_client.async_complete(self.model_request_compiler.compile(working, self.config))
         return await self.hooks.after_response(response)
 
     async def _execute_pending_tools(self, state: RuntimeState, run_id: str | None) -> None:

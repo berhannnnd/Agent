@@ -1,8 +1,8 @@
-from agent.runtime.context import RuntimeConfig
+from agent.runtime.config import RuntimeConfig
 from agent.runtime.checkpoints import CheckpointStore, InMemoryCheckpointStore, NullCheckpointStore, RuntimeCheckpoint
 from agent.runtime.errors import AgentRuntimeError
 from agent.runtime.loop import AgentRuntime
-from agent.runtime.permissions import (
+from agent.security.permissions import (
     AllowAllToolPermissionPolicy,
     CallbackToolPermissionPolicy,
     StaticToolPermissionPolicy,

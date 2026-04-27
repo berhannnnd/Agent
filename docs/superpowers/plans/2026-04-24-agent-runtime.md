@@ -14,8 +14,8 @@
 
 **Files:**
 - Create: `agent/schema.py`
-- Create: `agent/providers/adapters.py`
-- Create: `agent/providers/client.py`
+- Create: `agent/models/adapters.py`
+- Create: `agent/models/client.py`
 - Create: `tests/test_agent_providers.py`
 
 - [ ] Write tests for request payload and response parsing for OpenAI Chat, OpenAI Responses, Claude Messages, and Gemini.

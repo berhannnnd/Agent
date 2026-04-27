@@ -4,11 +4,11 @@ import asyncio
 from dataclasses import dataclass, replace
 from typing import AsyncIterable, Dict, Iterable, List, Optional
 
-from agent.providers.adapters import GeminiGenerateContentAdapter, adapter_for_provider
-from agent.providers.constants import normalize_base_url
-from agent.providers.retry import RetryPolicy, _run_with_retry
-from agent.providers.stream import _StreamToolCallAccumulator, _final_stream_response
-from agent.providers.transport import HttpxModelTransport
+from agent.models.adapters import GeminiGenerateContentAdapter, adapter_for_provider
+from agent.models.constants import normalize_base_url
+from agent.models.retry import RetryPolicy, _run_with_retry
+from agent.models.stream import _StreamToolCallAccumulator, _final_stream_response
+from agent.models.transport import HttpxModelTransport
 from agent.schema import ModelRequest, ModelResponse, ModelStreamEvent
 
 

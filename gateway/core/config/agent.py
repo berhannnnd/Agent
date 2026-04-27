@@ -22,6 +22,7 @@ class AgentConfig(BaseSettings):
     SYSTEM_PROMPT: str = ""
     ENABLED_TOOLS: str = ""
     SKILLS: str = ""
+    WORKSPACE_ROOT: str = ".agents/workspaces"
     HTTP_PROXY: str = ""
     HTTPS_PROXY: str = ""
     ALL_PROXY: str = ""

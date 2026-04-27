@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from agent.providers.errors import (
+from agent.models.errors import (
     ModelClientError,
     ModelRateLimitError,
     ModelServerError,

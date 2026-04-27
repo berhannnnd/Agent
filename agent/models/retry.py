@@ -2,7 +2,7 @@ import asyncio
 import random
 from dataclasses import dataclass
 
-from agent.providers.errors import (
+from agent.models.errors import (
     ModelClientError,
     ModelRateLimitError,
     ModelServerError,

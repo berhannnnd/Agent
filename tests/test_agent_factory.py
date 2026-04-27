@@ -37,6 +37,7 @@ class FakeAgentConfig:
     SYSTEM_PROMPT = ""
     ENABLED_TOOLS = ""
     SKILLS = ""
+    WORKSPACE_ROOT = ".agents/workspaces"
     MAX_RETRIES = 3
     RETRY_BASE_DELAY = 1.0
     MAX_CONTEXT_TOKENS = 256000
@@ -158,8 +159,15 @@ def test_create_session_composes_skill_prompt_and_declared_tools(tmp_path, monke
 
     session = create_agent_session(settings)
 
-    assert session.system_prompt == "Base prompt.\n\nFocus on agents."
+    assert "## system: system.user_configured\nBase prompt." in session.system_prompt
+    assert "## skills: skill.focus.0\nFocus on agents." in session.system_prompt
+    assert "## runtime_policy: runtime.tool_contract" in session.system_prompt
     assert session.runtime.enabled_tools == ["base_tool", "skill_tool"]
+    assert session.workspace.tenant_id == "default"
+    assert session.workspace.user_id == "anonymous"
+    assert session.workspace.agent_id == "default"
+    assert session.workspace.workspace_id == "default"
+    assert any(item.id == "skill.focus.0" and item.included for item in session.context_trace)
 
 
 def test_create_session_respects_explicit_enabled_tools(tmp_path, monkeypatch):
@@ -178,3 +186,22 @@ def test_create_session_respects_explicit_enabled_tools(tmp_path, monkeypatch):
     session = create_agent_session(settings, enabled_tools=["explicit_tool"])
 
     assert session.runtime.enabled_tools == ["explicit_tool"]
+
+
+def test_create_session_loads_workspace_agents_md(tmp_path, monkeypatch):
+    monkeypatch.setattr("agent.factory.ModelClient", lambda config: FakeRuntimeClient())
+    settings = FakeSettings()
+    settings.server.ROOT_PATH = tmp_path
+    settings.models.openai.API_KEY = "key"
+    settings.models.openai.MODEL = "model"
+    workspace = tmp_path / ".agents" / "workspaces" / "default" / "user-1" / "agent-1" / "default"
+    workspace.mkdir(parents=True)
+    (workspace / "AGENTS.md").write_text("Workspace instruction.", encoding="utf-8")
+
+    session = create_agent_session(settings, user_id="user 1", agent_id="agent 1")
+
+    assert session.workspace.tenant_id == "default"
+    assert session.workspace.user_id == "user-1"
+    assert session.workspace.agent_id == "agent-1"
+    assert session.workspace.workspace_id == "default"
+    assert "## project_instructions: workspace.agents\nWorkspace instruction." in session.system_prompt

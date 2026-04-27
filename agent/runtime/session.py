@@ -1,16 +1,27 @@
 from __future__ import annotations
 
-from typing import AsyncIterable, List
+from typing import AsyncIterable, List, Optional
 
-from agent.runtime.compaction import ContextWindowManager
+from agent.context.window import ContextWindowManager
+from agent.context.workspace import WorkspaceContext
 from agent.runtime.loop import AgentRuntime
 from agent.runtime.types import AgentResult
 from agent.schema import Message, RuntimeEvent
+from agent.context import ContextTraceItem
 
 
 class AgentSession:
-    def __init__(self, runtime: AgentRuntime, system_prompt: str = "", max_context_tokens: int = 256000):
+    def __init__(
+        self,
+        runtime: AgentRuntime,
+        system_prompt: str = "",
+        max_context_tokens: int = 256000,
+        context_trace: Optional[List[ContextTraceItem]] = None,
+        workspace: Optional[WorkspaceContext] = None,
+    ):
         self.runtime = runtime
+        self.context_trace = list(context_trace or [])
+        self.workspace = workspace
         self.context_window = ContextWindowManager(system_prompt, max_context_tokens)
         self.messages: List[Message] = []
         self.clear()

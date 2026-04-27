@@ -23,3 +23,7 @@ class AgentChatRequest(AppSchema):
     api_key: Optional[str] = Field(None, description="API key override")
     system_prompt: Optional[str] = Field(None, description="System prompt override")
     enabled_tools: Optional[List[str]] = Field(None, description="Enabled tool names")
+    tenant_id: Optional[str] = Field(None, description="Tenant id for workspace resolution")
+    user_id: Optional[str] = Field(None, description="User id for workspace resolution")
+    agent_id: Optional[str] = Field(None, description="Agent id for workspace resolution")
+    workspace_id: Optional[str] = Field(None, description="Workspace id for workspace resolution")

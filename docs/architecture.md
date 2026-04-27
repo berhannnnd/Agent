@@ -9,9 +9,13 @@ graph TB
     Gateway --> Sessions["gateway.sessions run/session 状态"]
     Gateway --> Streaming["gateway.streaming SSE/WebSocket 边界"]
     Gateway --> Auth["gateway.auth 鉴权授权"]
-    Agent --> Providers["agent.providers 模型 Provider"]
+    Agent --> Models["agent.models 模型协议"]
+    Agent --> Context["agent.context 上下文"]
     Agent --> Tools["agent.tools / MCP"]
     Agent --> Hooks["agent.hooks"]
+    Agent --> Storage["agent.storage 数据隔离"]
+    Agent --> Security["agent.security 权限安全"]
+    Agent --> Identity["agent.identity 身份引用"]
     Agent --> Orchestration["agent.orchestration 多智能体编排"]
     Agent --> Memory["agent.memory"]
     Agent --> Workflows["agent.workflows"]
@@ -19,7 +23,7 @@ graph TB
 
 ## 顶层边界
 
-- `agent`: 智能体系统核心。包含 runtime、schema、provider、tool、hook、skill，以及多智能体编排、记忆、工作流等长期演进边界。该层不依赖 FastAPI。
+- `agent`: 智能体系统核心。按模型、上下文、工具三条主轴组织，并包含 runtime、storage、security、identity、skill、多智能体编排、记忆和工作流等长期演进边界。该层不依赖 FastAPI。
 - `gateway`: 后端网关。负责 HTTP API、请求/响应协议转换、鉴权、中间件、异常处理、日志、服务生命周期、SSE 和 Web UI 静态产物挂载。
 - `cli`: 终端界面。面向本地交互，直接复用 `agent` 核心能力。
 - `web`: 浏览器界面。通过 gateway HTTP/SSE API 调用智能体能力。
@@ -27,8 +31,12 @@ graph TB
 ## Agent 核心层
 
 - `agent.schema`: Message、ToolCall、ToolSpec、ModelRequest、ModelResponse、RuntimeEvent 等核心数据结构。
-- `agent.runtime`: 智能体内核包。`loop` 负责单 Agent 执行循环，`state` 承载运行状态，`prompt` 负责编译模型请求，`session` 负责会话历史，`compaction` 负责上下文窗口，`tool_orchestrator` 负责工具执行边界，`permissions` 负责工具授权策略，`checkpoints` 负责断点恢复存储协议。
-- `agent.providers`: 模型客户端、provider adapter、HTTP transport、retry、stream parser 和错误类型。
+- `agent.runtime`: 智能体内核包。`loop` 负责单 Agent 执行循环，`state` 承载运行状态，`session` 负责会话历史，`tool_orchestrator` 负责工具执行边界，`checkpoints` 负责断点恢复存储协议。
+- `agent.models`: 模型协议包。包含模型客户端、provider adapter、HTTP transport、retry、stream parser 和错误类型。
+- `agent.context`: 上下文系统。按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层组织上下文，由 `ContextBuilder` 编译并输出 trace；`ModelRequestCompiler` 负责把 runtime state 转为模型请求。
+- `agent.storage`: 数据隔离边界。包含 workspace/run/memory/artifact store，当前提供本地 workspace 分配器。
+- `agent.security`: 权限与安全边界。包含 tool permission，后续承载 approval、sandbox、secrets、encryption。
+- `agent.identity`: 身份引用边界。定义 Principal、Tenant/User/Agent 引用；登录鉴权仍属于 gateway。
 - `agent.tools`: 工具注册表、本地工具执行、MCP stdio 工具接入。
 - `agent.hooks`: Runtime 扩展点，支持意图引导、thinking 提取、审批拦截和组合 hook。
 - `agent.skills`: skill manifest、prompt fragment、工具名声明加载。
@@ -52,15 +60,16 @@ graph TB
 1. `web` 通过 HTTP/SSE 调用 `gateway.api`；`cli` 直接调用 `agent.factory`。
 2. `gateway.api` 将请求模型转换成 `agent.factory.create_agent_session()` 参数。
 3. `agent.factory` 解析配置，创建 `ModelClient`、`ToolRegistry`、MCP tools 和 hooks。
-4. `agent.factory` 把 skill prompt 拼入 system prompt，并把 skill 声明的工具名并入 runtime enabled tools。
-5. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
-6. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
-7. `PromptCompiler` 编译请求，`ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行，`CheckpointStore` 保存可恢复节点。
-8. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件。
+4. `agent.factory` 根据 `tenant_id / user_id / agent_id / workspace_id` 解析 workspace，并把 workspace `AGENTS.md` 作为 project instructions。
+5. `agent.factory` 把 system prompt、runtime policy、workspace instructions、skills、tool hints 放入 `ContextPack`，由 `ContextBuilder` 编译为上下文。
+6. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
+7. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
+8. `ModelRequestCompiler` 编译请求，`ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行，`CheckpointStore` 保存可恢复节点。
+9. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件。
 
 ## 新模块接入流程
 
-1. 新增模型能力：放入 `agent/providers/`，并补充 provider adapter 测试。
+1. 新增模型能力：放入 `agent/models/`，并补充 provider adapter 测试。
 2. 新增工具能力：放入 `agent/tools/` 或通过 MCP 接入。
 3. 新增多智能体编排：放入 `agent/orchestration/`。
 4. 新增记忆能力：放入 `agent/memory/`。

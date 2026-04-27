@@ -53,6 +53,22 @@ def chat(
         Optional[str],
         typer.Option("--system", help="本次会话的 system prompt。"),
     ] = None,
+    tenant_id: Annotated[
+        Optional[str],
+        typer.Option("--tenant-id", help="用于解析本地工作区的租户 ID。"),
+    ] = None,
+    user_id: Annotated[
+        Optional[str],
+        typer.Option("--user-id", help="用于解析本地工作区的用户 ID。"),
+    ] = None,
+    agent_id: Annotated[
+        Optional[str],
+        typer.Option("--agent-id", help="用于解析本地工作区的智能体 ID。"),
+    ] = None,
+    workspace_id: Annotated[
+        Optional[str],
+        typer.Option("--workspace-id", help="用于解析本地工作区的 workspace ID。"),
+    ] = None,
 ):
     """打开完整 agent 终端聊天窗口。"""
     try:
@@ -62,6 +78,10 @@ def chat(
             base_url=base_url,
             api_key=api_key,
             system_prompt=system_prompt,
+            tenant_id=tenant_id or "",
+            user_id=user_id or "",
+            agent_id=agent_id or "",
+            workspace_id=workspace_id or "",
         )
     except AgentConfigError as exc:
         typer.echo(str(exc))

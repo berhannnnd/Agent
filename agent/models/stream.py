@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, List, Optional
 
-from agent.providers.errors import ModelClientError
+from agent.models.errors import ModelClientError
 from agent.schema import Message, ModelResponse, ModelStreamEvent, ToolCall
 
 

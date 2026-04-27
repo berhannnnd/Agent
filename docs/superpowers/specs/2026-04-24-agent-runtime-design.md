@@ -18,12 +18,15 @@ The CLI and FastAPI routes both call the same `AgentSession` and `AgentRuntime` 
 
 Runtime internals are split by responsibility:
 
-- `PromptCompiler` converts state into provider-neutral model requests.
+- `ContextPack` groups system, runtime policy, workspace instructions, skills, memory, and tool hints as typed fragments before they become a model-facing prompt.
+- `ModelRequestCompiler` converts state into provider-neutral model requests.
 - `ContextWindowManager` owns session context fitting.
 - `RuntimeState` tracks messages, pending tool calls, tool results, events, and loop iteration.
 - `ToolOrchestrator` executes tool calls and formats tool result messages.
 - `ToolPermissionPolicy` gates tool calls before execution.
 - `CheckpointStore` persists resumable nodes such as model responses with pending tool calls and completed tool-result batches.
+
+Agent sessions resolve a workspace from `tenant_id / user_id / agent_id / workspace_id`. Workspace `AGENTS.md` files are project instructions; memory remains a separate source of learned facts and summaries that can be injected as context fragments later.
 
 ## Interfaces
 

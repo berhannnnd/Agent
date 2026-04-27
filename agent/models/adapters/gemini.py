@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
-from agent.providers.adapters.base import ProviderAdapter
+from agent.models.adapters.base import ProviderAdapter
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 

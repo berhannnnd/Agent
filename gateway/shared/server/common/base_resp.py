@@ -91,7 +91,7 @@ UnProcessable = Resp(
     code="422",
     message="请求参数错误",
     success=False,
-    http_status=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+    http_status=http_status.HTTP_422_UNPROCESSABLE_CONTENT,
 )
 ServerError = Resp(
     code="500",

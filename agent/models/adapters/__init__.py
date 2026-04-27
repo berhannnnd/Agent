@@ -1,7 +1,7 @@
-from agent.providers.adapters.claude import ClaudeMessagesAdapter
-from agent.providers.adapters.gemini import GeminiGenerateContentAdapter
-from agent.providers.adapters.openai_chat import OpenAIChatCompletionsAdapter
-from agent.providers.adapters.openai_responses import OpenAIResponsesAdapter
+from agent.models.adapters.claude import ClaudeMessagesAdapter
+from agent.models.adapters.gemini import GeminiGenerateContentAdapter
+from agent.models.adapters.openai_chat import OpenAIChatCompletionsAdapter
+from agent.models.adapters.openai_responses import OpenAIResponsesAdapter
 
 
 _ADAPTERS = {
@@ -13,7 +13,7 @@ _ADAPTERS = {
 
 
 def adapter_for_provider(provider: str):
-    from agent.providers.constants import normalize_provider
+    from agent.models.constants import normalize_provider
 
     standard = normalize_provider(provider)
     cls = _ADAPTERS.get(standard)

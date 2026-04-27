@@ -11,13 +11,16 @@
 from __future__ import annotations
 
 import shlex
+from pathlib import Path
 from typing import Any, List, Optional
 
 from agent.hooks import AgentHooks, hooks_from_settings
-from agent.providers import ModelClient, ModelClientConfig
-from agent.providers.constants import normalize_provider
+from agent.context import ContextBuilder, build_context_pack
+from agent.models import ModelClient, ModelClientConfig
+from agent.models.constants import normalize_provider
 from agent.runtime import AgentRuntime, AgentSession
 from agent.skills import SkillLoader, SkillRegistry
+from agent.storage import LocalWorkspaceStore
 from agent.tools.mcp import MCPServerConfig, MCPStdioClient, MCPToolProvider
 from agent.tools.registry import ToolRegistry
 
@@ -60,6 +63,10 @@ def create_agent_session(
     system_prompt: Optional[str] = None,
     enabled_tools: Optional[List[str]] = None,
     hooks: Optional[AgentHooks] = None,
+    tenant_id: str = "",
+    user_id: str = "",
+    agent_id: str = "",
+    workspace_id: str = "",
 ) -> AgentSession:
     config = resolve_model_client_config(settings, provider=provider, model=model, base_url=base_url, api_key=api_key)
     registry = ToolRegistry(max_concurrent=settings.agent.MAX_CONCURRENT_TOOLS, tool_timeout=settings.agent.TOOL_TIMEOUT)
@@ -67,6 +74,20 @@ def create_agent_session(
     load_configured_mcp_sync(settings, registry)
 
     active_tools = _resolve_active_tools(settings, skill_registry, enabled_tools)
+    workspace = _resolve_workspace(
+        settings,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        agent_id=agent_id,
+        workspace_id=workspace_id,
+    )
+    context_pack = build_context_pack(
+        system_prompt=settings.agent.SYSTEM_PROMPT if system_prompt is None else system_prompt,
+        skill_registry=skill_registry,
+        enabled_tools=active_tools,
+        workspace=workspace,
+    )
+    compiled_context = ContextBuilder().compile(context_pack, budget_tokens=settings.agent.MAX_CONTEXT_TOKENS)
     active_hooks = hooks if hooks is not None else hooks_from_settings(settings)
     runtime = AgentRuntime(
         model_client=ModelClient(config),
@@ -77,8 +98,13 @@ def create_agent_session(
         max_tool_iterations=settings.agent.MAX_TOOL_ITERATIONS,
         hooks=active_hooks,
     )
-    prompt = _compose_system_prompt(settings.agent.SYSTEM_PROMPT if system_prompt is None else system_prompt, skill_registry)
-    return AgentSession(runtime=runtime, system_prompt=prompt, max_context_tokens=settings.agent.MAX_CONTEXT_TOKENS)
+    return AgentSession(
+        runtime=runtime,
+        system_prompt=compiled_context.system_text,
+        max_context_tokens=settings.agent.MAX_CONTEXT_TOKENS,
+        context_trace=compiled_context.trace,
+        workspace=workspace,
+    )
 
 
 def resolve_model_client_config(
@@ -178,10 +204,6 @@ def _resolve_active_tools(
     return _merge_unique(_csv_setting(settings.agent.ENABLED_TOOLS), skill_registry.tool_names())
 
 
-def _compose_system_prompt(base_prompt: str, skill_registry: SkillRegistry) -> str:
-    return "\n\n".join(part for part in [str(base_prompt or "").strip(), skill_registry.prompt_text()] if part)
-
-
 def _merge_unique(*groups: List[str]) -> List[str]:
     names: List[str] = []
     seen = set()
@@ -191,6 +213,24 @@ def _merge_unique(*groups: List[str]) -> List[str]:
                 seen.add(name)
                 names.append(name)
     return names
+
+
+def _resolve_workspace(
+    settings: Any,
+    tenant_id: str = "",
+    user_id: str = "",
+    agent_id: str = "",
+    workspace_id: str = "",
+):
+    configured_root = Path(str(getattr(settings.agent, "WORKSPACE_ROOT", ".agents/workspaces")))
+    root = configured_root if configured_root.is_absolute() else Path(settings.server.ROOT_PATH) / configured_root
+    return LocalWorkspaceStore(root).allocate(
+        tenant_id=tenant_id,
+        user_id=user_id,
+        agent_id=agent_id,
+        workspace_id=workspace_id,
+        create=True,
+    )
 
 
 def _proxy_url(settings: Any) -> str:

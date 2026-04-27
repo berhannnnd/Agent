@@ -16,6 +16,7 @@ htmlcov/
 logs/
 cache/
 data/
+.agents/workspaces/
 .idea/
 .vscode/
 old/
