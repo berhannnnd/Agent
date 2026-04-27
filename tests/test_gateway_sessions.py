@@ -3,7 +3,7 @@ import asyncio
 from agent.definitions import AgentSpec
 from agent.runs import RunStatus
 from agent.schema import RuntimeEvent
-from gateway.sessions import GatewayRunService
+from gateway.sessions import GatewayRunService, create_run_store
 
 
 def test_gateway_run_service_records_lifecycle_events():
@@ -35,3 +35,28 @@ def test_gateway_run_service_marks_error_status():
     record = asyncio.run(execute())
 
     assert record.status == RunStatus.ERROR
+
+
+def test_gateway_run_store_factory_uses_file_store(tmp_path):
+    class AgentConfig:
+        RUN_STORE = "file"
+        RUN_ROOT = "runs"
+
+    class ServerConfig:
+        ROOT_PATH = tmp_path
+
+    class Settings:
+        agent = AgentConfig()
+        server = ServerConfig()
+
+    store = create_run_store(Settings())
+    spec = AgentSpec.from_overrides(agent_id="agent-1")
+
+    async def execute():
+        run = await store.create_run(spec, run_id="run-1")
+        return await store.load_run(run.run_id)
+
+    record = asyncio.run(execute())
+
+    assert record.run_id == "run-1"
+    assert (tmp_path / "runs" / "run-1.json").exists()

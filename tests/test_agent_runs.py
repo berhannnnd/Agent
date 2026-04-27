@@ -1,7 +1,7 @@
 import asyncio
 
 from agent.definitions import AgentSpec
-from agent.runs import InMemoryRunStore, RunStatus
+from agent.runs import InMemoryRunStore, LocalFileRunStore, RunRecord, RunStatus
 from agent.schema import RuntimeEvent
 
 
@@ -29,3 +29,35 @@ def test_in_memory_run_store_tracks_agent_scope_and_events():
     assert loaded.user_id == "user 1"
     assert loaded.workspace_id == "workspace 1"
     assert loaded.events[0].payload["delta"] == "ok"
+
+
+def test_run_record_serializes_stable_payload():
+    record = RunRecord(
+        run_id="run-1",
+        status=RunStatus.RUNNING,
+        events=[RuntimeEvent(type="text_delta", payload={"delta": "ok"})],
+    )
+
+    restored = RunRecord.from_dict(record.to_dict())
+
+    assert restored.run_id == "run-1"
+    assert restored.status == RunStatus.RUNNING
+    assert restored.events[0].type == "text_delta"
+    assert restored.events[0].payload == {"delta": "ok"}
+
+
+def test_local_file_run_store_persists_records(tmp_path):
+    store = LocalFileRunStore(tmp_path)
+    spec = AgentSpec.from_overrides(agent_id="agent-1")
+
+    async def execute():
+        run = await store.create_run(spec, run_id="run-1")
+        await store.append_event(run.run_id, RuntimeEvent(type="done", payload={"content": "ok"}))
+        await store.set_status(run.run_id, RunStatus.FINISHED)
+        return await LocalFileRunStore(tmp_path).load_run("run-1")
+
+    loaded = asyncio.run(execute())
+
+    assert loaded is not None
+    assert loaded.status == RunStatus.FINISHED
+    assert loaded.events[0].payload["content"] == "ok"

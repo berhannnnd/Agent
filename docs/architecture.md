@@ -44,7 +44,7 @@ graph TB
 - `agent.models`: 模型协议包。`adapters` 负责 provider wire protocol，`protocol` 负责 provider-neutral stream 语义，`transports` 负责 HTTP/SSE，根层保留模型客户端、retry 和错误类型。
 - `agent.context`: 上下文系统。按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层组织上下文，由 `ContextBuilder` 编译并输出 trace；`ModelRequestCompiler` 负责把 runtime state 转为模型请求。
 - `agent.storage`: 数据隔离边界。包含 workspace/run/memory/artifact store，当前提供本地 workspace 分配器。
-- `agent.runs`: 运行记录边界。定义 `RunRecord`、`RunStore` 和 `InMemoryRunStore`，后续 DB-backed run/session 持久化从这里替换。
+- `agent.runs`: 运行记录边界。定义 `RunRecord`、`RunStore`、内存存储和本地 JSON 文件存储，后续 DB-backed run/session 持久化从这里替换。
 - `agent.security`: 权限与安全边界。包含 tool permission，后续承载 approval、sandbox、secrets、encryption。
 - `agent.identity`: 身份引用边界。定义 Principal、Tenant/User/Agent 引用；登录鉴权仍属于 gateway。
 - `agent.tools`: 工具注册表、本地工具执行、MCP stdio 工具接入。
@@ -60,7 +60,7 @@ graph TB
 - `gateway.core`: settings、logger、middleware、exceptions。
 - `gateway.shared.server`: FastAPI 注册器、统一响应、请求 ID、server launcher。
 - `gateway.auth`: 鉴权授权边界。
-- `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 finished/error，并以 `agent.runs.RunStore` 作为持久化协议。
+- `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 finished/error，并按配置选择 memory/file run store。
 - `gateway.streaming`: SSE 和 future WebSocket 协议边界。
 - `gateway.engines`: 可注册引擎的生命周期管理边界。
 - `gateway.static_ui`: 挂载 `web/dist` 到 `/ui/`。
@@ -77,7 +77,7 @@ graph TB
 8. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
 9. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
 10. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行，`CheckpointStore` 保存可恢复节点。
-11. `agent.runs.RunStore` 记录 run events 和最终状态，gateway 后续可接 DB-backed adapter。
+11. `agent.runs.RunStore` 记录 run events 和最终状态；`GET /api/v1/agent/runs/{run_id}` 可查询记录。
 12. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
 
 ## 新模块接入流程

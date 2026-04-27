@@ -21,14 +21,14 @@ from agent.config import AgentConfigError
 from agent.schema import RuntimeEvent
 from gateway.api.agent.schemas import AgentChatRequest
 from gateway.core.config import settings
-from gateway.sessions import GatewayRunService, run_created_event
+from gateway.sessions import GatewayRunService, create_run_store, run_created_event
 from gateway.shared.server.common import resp
 
 router = APIRouter(prefix="/agent")
 
 # 全局并发限制：同时处理的 agent 请求数
 _agent_semaphore = asyncio.Semaphore(settings.agent.MAX_CONCURRENT_REQUESTS)
-run_service = GatewayRunService()
+run_service = GatewayRunService(create_run_store(settings))
 
 
 async def create_agent_session(**kwargs):
@@ -96,6 +96,14 @@ async def chat_stream(request_data: AgentChatRequest):
             _agent_semaphore.release()
 
     return StreamingResponse(_release_on_close(), media_type="text/event-stream")
+
+
+@router.get("/runs/{run_id}")
+async def get_run(run_id: str):
+    record = await run_service.store.load_run(run_id)
+    if record is None:
+        return resp.fail(resp.Resp(code="404", detail="run not found: %s" % run_id, http_status=404))
+    return resp.ok(response=resp.Resp(data=record.to_dict()))
 
 
 def _sse(event: str, data: dict) -> str:

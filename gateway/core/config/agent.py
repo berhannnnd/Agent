@@ -23,6 +23,8 @@ class AgentConfig(BaseSettings):
     ENABLED_TOOLS: str = ""
     SKILLS: str = ""
     WORKSPACE_ROOT: str = ".agents/workspaces"
+    RUN_STORE: str = "memory"
+    RUN_ROOT: str = ".agents/runs"
     HTTP_PROXY: str = ""
     HTTPS_PROXY: str = ""
     ALL_PROXY: str = ""
