@@ -10,8 +10,11 @@
 
 __all__ = [
     "AgentConfigError",
+    "AgentModelSpec",
+    "AgentSpec",
     "AgentRuntime",
     "AgentSession",
+    "WorkspaceRef",
     "create_agent_session",
     "create_agent_session_async",
 ]
@@ -26,6 +29,10 @@ def __getattr__(name):
         from agent.config import AgentConfigError
 
         return AgentConfigError
+    if name in {"AgentModelSpec", "AgentSpec", "WorkspaceRef"}:
+        from agent import definitions
+
+        return getattr(definitions, name)
     if name in {"AgentRuntime", "AgentSession"}:
         from agent import runtime
 

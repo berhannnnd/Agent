@@ -19,6 +19,8 @@
 - **多智能体预留边界**：`agent/orchestration`、`agent/memory`、`agent/workflows` 已作为后续 planner/router/supervisor、记忆和 DAG 工作流边界。
 - **Gateway 网关边界**：`gateway/auth`、`gateway/sessions`、`gateway/streaming` 预留鉴权、run/session 状态和协议流式输出层。
 - **SDK 装配入口**：`agent.assembly` 组装 AgentSession；`agent.config` 解析模型配置；`agent.integrations` 接入 skills/MCP。
+- **Agent 定义层**：`AgentSpec` 统一描述模型、工具、skills、workspace、权限和记忆 profile。
+- **Run 边界**：`agent.runs` 定义 run record/store 协议，当前提供内存实现，后续可替换为数据库。
 
 ## 目录结构
 
@@ -29,12 +31,14 @@
 │   ├── assembly/            # AgentSession 组装入口，提供 sync/async 两种创建方式
 │   ├── config/              # 模型配置解析、provider fallback、代理设置
 │   ├── context/             # ContextPack、ContextBuilder、AGENTS.md、window、model request compiler
+│   ├── definitions/         # AgentSpec、AgentModelSpec、WorkspaceRef
 │   ├── identity/            # Principal、Tenant/User/Agent 引用
 │   ├── integrations/        # skills / MCP 等外部能力接入装配
 │   ├── memory/              # session memory / long-term memory 边界
 │   ├── models/              # ModelClient、adapters、protocol、transports、retry、errors
 │   ├── orchestration/       # 多智能体 planner/router/supervisor 边界
 │   ├── runtime/             # Agent loop、state、session、events、turns、checkpoints
+│   ├── runs/                # RunRecord、RunStore、InMemoryRunStore
 │   ├── security/            # permissions、approval、sandbox、secrets、encryption 边界
 │   ├── skills/              # skill manifest、prompt fragment、工具名声明加载
 │   ├── storage/             # workspace/run/memory/artifact store 边界
@@ -178,17 +182,19 @@ Provider 标准名：
 
 ## Agent 调用链
 
-1. gateway API 调用 `agent.factory.create_agent_session_async`；CLI 调用同步 `agent.factory.create_agent_session`。
-2. `agent.config` 解析 provider/model/base_url/api_key，创建 `ModelClientConfig`。
-3. `agent.assembly` 创建 `ToolRegistry`，通过 `agent.integrations` 读取 skill manifests 和 MCP tools。
-4. `agent.storage` 根据 `tenant_id / user_id / agent_id / workspace_id` 解析 workspace，读取 workspace `AGENTS.md` 作为 project instructions。
-5. `ContextPack` 汇总 system、runtime policy、workspace instructions、skills 和 tool hints，`ContextBuilder` 编译最终上下文并保留 trace。
-6. `agent.integrations` 把 MCP tools 注册进工具表；`agent.assembly` 根据 `AGENT_GUIDED_TOOLS` 创建 `AgentHooks`，再组装 `AgentRuntime` 和 `AgentSession`。
-7. `AgentSession` 维护消息历史，并通过 `ContextWindowManager` 保持上下文窗口。
-8. `AgentRuntime` 使用 `RuntimeState` 跟踪消息、事件、工具结果和 pending tool calls。
-9. `ModelRequestCompiler` 生成模型请求；`ToolOrchestrator` 执行工具调用，并通过 `ToolPermissionPolicy` 判断工具是否可执行。
-10. 可选 `CheckpointStore` 在模型响应、工具结果、完成和错误节点保存检查点，用于从 pending tool calls 恢复。
-11. `ModelClient` 选择 provider adapter，经 `HttpxModelTransport` 发起请求，并按 retry policy 处理 429、5xx 和 timeout。
+1. gateway API 和 CLI 先把外部参数归一成 `AgentSpec`。
+2. gateway API 调用 `agent.factory.create_agent_session_async`；CLI 调用同步 `agent.factory.create_agent_session`。
+3. `agent.config` 解析 provider/model/base_url/api_key，创建 `ModelClientConfig`。
+4. `agent.assembly` 创建 `ToolRegistry`，通过 `agent.integrations` 读取 skill manifests 和 MCP tools。
+5. `agent.storage` 根据 `AgentSpec.workspace` 解析 workspace，读取 workspace `AGENTS.md` 作为 project instructions。
+6. `ContextPack` 汇总 system、runtime policy、workspace instructions、skills 和 tool hints，`ContextBuilder` 编译最终上下文并保留 trace。
+7. `agent.integrations` 把 MCP tools 注册进工具表；`agent.assembly` 根据 `AGENT_GUIDED_TOOLS` 创建 `AgentHooks`，再组装 `AgentRuntime` 和 `AgentSession`。
+8. `AgentSession` 维护消息历史，并通过 `ContextWindowManager` 保持上下文窗口。
+9. `AgentRuntime` 使用 `RuntimeState` 跟踪消息、事件、工具结果和 pending tool calls。
+10. `ModelRequestCompiler` 生成模型请求；`ToolOrchestrator` 执行工具调用，并通过 `ToolPermissionPolicy` 判断工具是否可执行。
+11. 可选 `CheckpointStore` 在模型响应、工具结果、完成和错误节点保存检查点，用于从 pending tool calls 恢复。
+12. `agent.runs.RunStore` 是 run/session 持久化边界，当前提供 `InMemoryRunStore`，后续可替换为 DB-backed 实现。
+13. `ModelClient` 选择 provider adapter，经 `HttpxModelTransport` 发起请求，并按 retry policy 处理 429、5xx 和 timeout。
 
 ## 扩展方向
 
@@ -199,7 +205,8 @@ Provider 标准名：
 5. 新增 workspace 指令：写入对应 workspace 的 `AGENTS.md`。
 6. 新增工具权限策略：实现 `ToolPermissionPolicy`，注入 `AgentRuntime`。
 7. 新增断点恢复存储：实现 `CheckpointStore`，注入 `AgentRuntime`。
-8. 新增多智能体能力：放入 `agent/orchestration/`，保持对 gateway transport 无依赖。
-9. 新增记忆能力：放入 `agent/memory/`，由 context/runtime/orchestration 调用。
-10. 新增工作流能力：放入 `agent/workflows/`，用于 DAG、计划执行和多步骤任务。
-11. 新增后端协议能力：放入 `gateway/auth/`、`gateway/sessions/` 或 `gateway/streaming/`。
+8. 新增 run/session 持久化：实现 `RunStore`，放入 `agent/runs/` 或 gateway 的 DB adapter。
+9. 新增多智能体能力：放入 `agent/orchestration/`，保持对 gateway transport 无依赖。
+10. 新增记忆能力：放入 `agent/memory/`，由 context/runtime/orchestration 调用。
+11. 新增工作流能力：放入 `agent/workflows/`，用于 DAG、计划执行和多步骤任务。
+12. 新增后端协议能力：放入 `gateway/auth/`、`gateway/sessions/` 或 `gateway/streaming/`。

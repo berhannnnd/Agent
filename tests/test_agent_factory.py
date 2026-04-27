@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from agent.factory import AgentConfigError, create_agent_session, resolve_model_client_config
+from agent.factory import AgentConfigError, AgentSpec, create_agent_session, resolve_model_client_config
 
 
 class FakeModelConfig:
@@ -187,6 +187,33 @@ def test_create_session_respects_explicit_enabled_tools(tmp_path, monkeypatch):
     session = create_agent_session(settings, enabled_tools=["explicit_tool"])
 
     assert session.runtime.enabled_tools == ["explicit_tool"]
+
+
+def test_create_session_accepts_agent_spec(tmp_path, monkeypatch):
+    (tmp_path / "skills").mkdir()
+    (tmp_path / "skills" / "focus.json").write_text(
+        json.dumps({"name": "focus", "tools": ["skill_tool"]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
+    settings = FakeSettings()
+    settings.server.ROOT_PATH = tmp_path
+    settings.models.openai.API_KEY = "key"
+    settings.models.openai.MODEL = "settings-model"
+    spec = AgentSpec.from_overrides(
+        provider="openai-chat",
+        model="spec-model",
+        agent_id="agent 1",
+        user_id="user 1",
+        skills=["focus"],
+    )
+
+    session = create_agent_session(settings, spec=spec)
+
+    assert session.runtime.model == "spec-model"
+    assert session.runtime.enabled_tools == ["skill_tool"]
+    assert session.workspace.user_id == "user-1"
+    assert session.workspace.agent_id == "agent-1"
 
 
 def test_create_session_loads_workspace_agents_md(tmp_path, monkeypatch):

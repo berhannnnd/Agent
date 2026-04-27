@@ -17,6 +17,7 @@ import click
 import typer
 
 from agent.factory import AgentConfigError, create_agent_session as _create_agent_session
+from agent.definitions import AgentSpec
 from gateway.core.config import settings
 
 client = typer.Typer(rich_markup_mode="rich")
@@ -73,15 +74,17 @@ def chat(
     """打开完整 agent 终端聊天窗口。"""
     try:
         session = create_agent_session(
-            provider=provider,
-            model=model,
-            base_url=base_url,
-            api_key=api_key,
-            system_prompt=system_prompt,
-            tenant_id=tenant_id or "",
-            user_id=user_id or "",
-            agent_id=agent_id or "",
-            workspace_id=workspace_id or "",
+            spec=AgentSpec.from_overrides(
+                provider=provider,
+                model=model,
+                base_url=base_url,
+                api_key=api_key,
+                system_prompt=system_prompt,
+                tenant_id=tenant_id or "",
+                user_id=user_id or "",
+                agent_id=agent_id or "",
+                workspace_id=workspace_id or "",
+            )
         )
     except AgentConfigError as exc:
         typer.echo(str(exc))

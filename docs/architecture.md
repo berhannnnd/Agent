@@ -12,11 +12,13 @@ graph TB
     Agent --> Models["agent.models 模型协议"]
     Agent --> Assembly["agent.assembly 装配入口"]
     Agent --> Config["agent.config 配置解析"]
+    Agent --> Definitions["agent.definitions AgentSpec"]
     Agent --> Integrations["agent.integrations 外部能力接入"]
     Agent --> Context["agent.context 上下文"]
     Agent --> Tools["agent.tools / MCP"]
     Agent --> Hooks["agent.hooks"]
     Agent --> Storage["agent.storage 数据隔离"]
+    Agent --> Runs["agent.runs 运行记录"]
     Agent --> Security["agent.security 权限安全"]
     Agent --> Identity["agent.identity 身份引用"]
     Agent --> Orchestration["agent.orchestration 多智能体编排"]
@@ -34,6 +36,7 @@ graph TB
 ## Agent 核心层
 
 - `agent.schema`: Message、ToolCall、ToolSpec、ModelRequest、ModelResponse、RuntimeEvent 等核心数据结构。
+- `agent.definitions`: Agent 定义层。`AgentSpec` 统一描述模型、工具、skills、workspace、权限 profile、记忆 profile 和 metadata。
 - `agent.assembly`: SDK 装配入口。负责把 settings、模型配置、工具、skills、MCP、workspace、context 和 hooks 组装成 `AgentSession`，并提供 sync/async 两种入口。
 - `agent.config`: 配置解析边界。负责模型 provider fallback、API key/base URL/model/proxy 解析。
 - `agent.integrations`: 外部能力接入边界。负责 skills 和 MCP 等能力装配。
@@ -41,6 +44,7 @@ graph TB
 - `agent.models`: 模型协议包。`adapters` 负责 provider wire protocol，`protocol` 负责 provider-neutral stream 语义，`transports` 负责 HTTP/SSE，根层保留模型客户端、retry 和错误类型。
 - `agent.context`: 上下文系统。按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层组织上下文，由 `ContextBuilder` 编译并输出 trace；`ModelRequestCompiler` 负责把 runtime state 转为模型请求。
 - `agent.storage`: 数据隔离边界。包含 workspace/run/memory/artifact store，当前提供本地 workspace 分配器。
+- `agent.runs`: 运行记录边界。定义 `RunRecord`、`RunStore` 和 `InMemoryRunStore`，后续 DB-backed run/session 持久化从这里替换。
 - `agent.security`: 权限与安全边界。包含 tool permission，后续承载 approval、sandbox、secrets、encryption。
 - `agent.identity`: 身份引用边界。定义 Principal、Tenant/User/Agent 引用；登录鉴权仍属于 gateway。
 - `agent.tools`: 工具注册表、本地工具执行、MCP stdio 工具接入。
@@ -64,21 +68,25 @@ graph TB
 ## 调用链
 
 1. `web` 通过 HTTP/SSE 调用 `gateway.api`；`cli` 直接调用 `agent.factory`。
-2. `gateway.api` 将请求模型转换成 `agent.factory.create_agent_session_async()` 参数；CLI 使用同步 `create_agent_session()`。
-3. `agent.config` 解析模型配置；`agent.assembly` 创建 `ModelClient`、`ToolRegistry` 和 hooks。
-4. `agent.integrations` 装配 skills/MCP；`agent.storage` 根据 `tenant_id / user_id / agent_id / workspace_id` 解析 workspace。
-5. `agent.context` 把 system prompt、runtime policy、workspace instructions、skills、tool hints 放入 `ContextPack`，由 `ContextBuilder` 编译为上下文。
-6. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
-7. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
-8. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行，`CheckpointStore` 保存可恢复节点。
-9. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件。
+2. `gateway.api` 和 CLI 将外部参数转换成 `AgentSpec`。
+3. `gateway.api` 将 `AgentSpec` 传给 `agent.factory.create_agent_session_async()`；CLI 使用同步 `create_agent_session()`。
+4. `agent.config` 解析模型配置；`agent.assembly` 创建 `ModelClient`、`ToolRegistry` 和 hooks。
+5. `agent.integrations` 装配 skills/MCP；`agent.storage` 根据 `AgentSpec.workspace` 解析 workspace。
+6. `agent.context` 把 system prompt、runtime policy、workspace instructions、skills、tool hints 放入 `ContextPack`，由 `ContextBuilder` 编译为上下文。
+7. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
+8. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
+9. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行，`CheckpointStore` 保存可恢复节点。
+10. `agent.runs.RunStore` 是 run/session 持久化协议，gateway 后续可接 DB-backed adapter。
+11. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件。
 
 ## 新模块接入流程
 
 1. 新增模型能力：provider 适配放入 `agent/models/adapters/`，通用 stream 协议放入 `agent/models/protocol/`，传输层放入 `agent/models/transports/`。
 2. 新增工具能力：放入 `agent/tools/` 或通过 MCP 接入。
-3. 新增多智能体编排：放入 `agent/orchestration/`。
-4. 新增记忆能力：放入 `agent/memory/`。
-5. 新增 HTTP 协议能力：放入 `gateway/api/`，必要时配合 `gateway/sessions/` 或 `gateway/streaming/`。
-6. 新增终端交互：放入 `cli/`。
-7. 新增浏览器界面：放入 `web/`。
+3. 新增 Agent 定义字段：优先放入 `agent/definitions/`，再由 assembly 消费。
+4. 新增 run/session 持久化：实现 `agent.runs.RunStore`，gateway 只接 adapter。
+5. 新增多智能体编排：放入 `agent/orchestration/`。
+6. 新增记忆能力：放入 `agent/memory/`。
+7. 新增 HTTP 协议能力：放入 `gateway/api/`，必要时配合 `gateway/sessions/` 或 `gateway/streaming/`。
+8. 新增终端交互：放入 `cli/`。
+9. 新增浏览器界面：放入 `web/`。

@@ -37,16 +37,7 @@ async def chat(request_data: AgentChatRequest):
     async with _agent_semaphore:
         try:
             session = await _resolve_agent_session(
-                provider=request_data.provider,
-                model=request_data.model,
-                base_url=request_data.base_url,
-                api_key=request_data.api_key,
-                system_prompt=request_data.system_prompt,
-                enabled_tools=request_data.enabled_tools,
-                tenant_id=request_data.tenant_id or "",
-                user_id=request_data.user_id or "",
-                agent_id=request_data.agent_id or "",
-                workspace_id=request_data.workspace_id or "",
+                spec=request_data.to_agent_spec(),
             )
             result = await session.send(request_data.message)
         except AgentConfigError as exc:
@@ -68,16 +59,7 @@ async def chat_stream(request_data: AgentChatRequest):
     async def event_source():
         try:
             session = await _resolve_agent_session(
-                provider=request_data.provider,
-                model=request_data.model,
-                base_url=request_data.base_url,
-                api_key=request_data.api_key,
-                system_prompt=request_data.system_prompt,
-                enabled_tools=request_data.enabled_tools,
-                tenant_id=request_data.tenant_id or "",
-                user_id=request_data.user_id or "",
-                agent_id=request_data.agent_id or "",
-                workspace_id=request_data.workspace_id or "",
+                spec=request_data.to_agent_spec(),
             )
             async for event in session.stream(request_data.message):
                 yield _sse(event.type, event.to_dict())

@@ -12,6 +12,7 @@ from typing import List, Optional
 
 from pydantic import Field
 
+from agent.definitions import AgentSpec
 from gateway.shared.server.schemas.base_models import AppSchema
 
 
@@ -27,3 +28,17 @@ class AgentChatRequest(AppSchema):
     user_id: Optional[str] = Field(None, description="User id for workspace resolution")
     agent_id: Optional[str] = Field(None, description="Agent id for workspace resolution")
     workspace_id: Optional[str] = Field(None, description="Workspace id for workspace resolution")
+
+    def to_agent_spec(self) -> AgentSpec:
+        return AgentSpec.from_overrides(
+            provider=self.provider,
+            model=self.model,
+            base_url=self.base_url,
+            api_key=self.api_key,
+            system_prompt=self.system_prompt,
+            enabled_tools=self.enabled_tools,
+            tenant_id=self.tenant_id or "",
+            user_id=self.user_id or "",
+            agent_id=self.agent_id or "",
+            workspace_id=self.workspace_id or "",
+        )

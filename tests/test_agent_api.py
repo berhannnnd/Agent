@@ -11,6 +11,7 @@
 from fastapi.testclient import TestClient
 
 from gateway.api.agent import api_agent
+from gateway.api.agent.schemas import AgentChatRequest
 from gateway.app import create_app
 from agent.runtime import AgentResult
 from agent.schema import Message, RuntimeEvent
@@ -38,6 +39,23 @@ def test_agent_chat_api_returns_final_answer(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["data"]["content"] == "ok: hello"
+
+
+def test_agent_chat_request_builds_agent_spec():
+    spec = AgentChatRequest(
+        message="hello",
+        provider="openai-chat",
+        model="gpt-test",
+        user_id="user 1",
+        agent_id="agent 1",
+        enabled_tools=["echo"],
+    ).to_agent_spec()
+
+    assert spec.model.provider == "openai-chat"
+    assert spec.model.model == "gpt-test"
+    assert spec.workspace.user_id == "user 1"
+    assert spec.workspace.agent_id == "agent 1"
+    assert spec.enabled_tools == ["echo"]
 
 
 def test_agent_stream_api_returns_sse_events(monkeypatch):

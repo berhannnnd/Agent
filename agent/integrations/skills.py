@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any, Iterable, List, Optional
 
 from agent.skills import SkillLoader, SkillRegistry
 
 
-def load_configured_skills(settings: Any) -> SkillRegistry:
-    skill_names = _csv_setting(settings.agent.SKILLS)
+def load_configured_skills(settings: Any, skill_names: Optional[Iterable[str]] = None) -> SkillRegistry:
+    names = list(skill_names) if skill_names is not None else _csv_setting(settings.agent.SKILLS)
+    skill_names = [name for name in names if name]
     if not skill_names:
         return SkillRegistry([])
     return SkillRegistry.load(SkillLoader(settings.server.ROOT_PATH), skill_names)
