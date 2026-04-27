@@ -1,0 +1,13 @@
+tool_family	sources	merge_target	notes
+python_execution	to-be-ready/examples/coding-agent-py; to-be-ready/references/experiments/coding-agent-base; to-be-ready/references/experiments/coding-dify; to-be-ready/references/experiments/coding-diy; to-be-ready/archive/superagent-py-*	services/python-sandbox + agents.core.tools.sandbox_client	Many copied python_sandbox.py implementations. Promote service client, archive copies.
+workspace_files	to-be-ready/references/experiments/coding-agent-base/tools/file_manager.py; coding-dify; coding-diy	agents.core.tools.workspace	Keep create/read/modify/list workspace operations as one tool module.
+weather_demo	many agent_base/coding examples	agents.core.tools.examples	Keep only as toy smoke-test tool, not real product tool.
+tavily_search	to-be-ready/examples/data-agent-demo; to-be-ready/references/experiments/deep-research-aibox; to-be-ready/archive/superagent-py-*	agents.core.tools.search	Identical wrappers after scrubbing. One env-based implementation.
+sql_database	to-be-ready/examples/data-agent-demo/data_ana.py; data_profile.py	agents.core.tools.sql_database	Keep DB config env-based; large local SQL dump lives under data/data-agent-demo/.
+table_profile	to-be-ready/examples/data-agent-demo/data_profile.py	agents.core.tools.table_profile	Reusable for data-agent profile.
+deep_research	to-be-ready/references/experiments/deep-research-aibox; to-be-ready/archive/superagent-py-*/tools/deep_research.py	agents.core.tools.deep_research	Port only after search wrapper and runtime are stable.
+memory_store	to-be-ready/references/experiments/memory; to-be-ready/references/omniagent-py/core/memory	agents.core.tools.memory	Unify JSON memory load/save/extract/update.
+prompt_conversion	to-be-ready/references/experiments/prompt-improve/text_to_json_converter.py	agents.core.tools.prompting	Optional utility, not runtime core.
+attendance_tools	to-be-ready/archive/superagent-py-*/tools; archive backup agents	agents.core.tools.attendance_demo	Only port if still useful; otherwise keep archived.
+tool_generator	to-be-ready/archive/superagent-py-*/tools/tool_generator.py	agents.core.tools.generator_later	Interesting but risky; postpone until core profile system works.
+n8n	to-be-ready/integrations/n8n	standalone integration	Do not merge into Python runtime; expose as tool later if needed.

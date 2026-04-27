@@ -1,0 +1,12 @@
+# server
+fastapi
+uvicorn[standard]
+typer
+pydantic>=2
+pydantic-settings
+python-multipart
+mcp; python_version >= "3.10"
+
+# test
+pytest
+httpx[socks]

@@ -1,0 +1,25 @@
+path	disposition	public_release	action
+agents	core-python-package	yes	Continue productizing as profile-driven Python runtime.
+to-be-ready/references/superagent-go	future-performance-exploration	no-first-version	Freeze for Python MVP; revisit only for gateway/server performance needs.
+services/python-sandbox	standalone-service	yes-after-hardening	Keep separate; add API contract tests and Docker/security docs.
+to-be-ready/integrations/n8n	third-party-integration	maybe-later	Keep only project notes here; full n8n MCP checkout lives in /Users/berhand/program/Third-party/Agents-external/n8n-mcp-server.
+/Users/berhand/program/Third-party/Agents-external/spider2	benchmark-external-reference	maybe-as-submodule	Do not refactor; treat as external benchmark/fixture.
+to-be-ready/examples/coding-agent-py	profile-source	no-direct-publish	Extract coding UI/demo ideas into agents examples.
+to-be-ready/examples/data-agent-demo	profile-source	no-direct-publish	Extract SQL/table-profile tools; large SQL dump lives under data/data-agent-demo for manual tests.
+to-be-ready/references/experiments/coding-agent-base	tool-source	no-direct-publish	Extract workspace/file tools into agents; already started.
+to-be-ready/references/experiments/coding-dify	experiment-source	no-direct-publish	Extract any Dify-specific sandbox ideas if needed.
+to-be-ready/references/experiments/coding-diy	experiment-source	no-direct-publish	Extract any workspace/code-agent ideas if not duplicated.
+to-be-ready/references/experiments/python-sandbox-prototype	archive-or-service-source	no-direct-publish	Compare against services/python-sandbox, then archive.
+to-be-ready/references/experiments/deep-research-aibox	profile-source	no-direct-publish	Extract deep-research profile, search wrapper, judge flow.
+to-be-ready/references/experiments/memory	tool-profile-source	no-direct-publish	Extract JSON memory store and memory-agent profile.
+to-be-ready/references/experiments/prompt-improve	profile-source	no-direct-publish	Convert prompts/examples into prompt-improve profile assets.
+to-be-ready/references/experiments/function-calling	example-source	no-direct-publish	Convert into runtime/tool-call examples and tests.
+to-be-ready/references/experiments/dag-workflow	example-source	no-direct-publish	Keep as examples until workflow engine exists.
+to-be-ready/references/experiments/rag-rat	example-source	no-direct-publish	Extract selected RAG/RAT prompts/patterns only.
+to-be-ready/references/experiments/context-rag	example-source	no-direct-publish	Review later for RAG examples.
+to-be-ready/references/experiments/richinfo-agent-base	legacy-runtime-source	no-direct-publish	Use as reference for old run_conversation pattern, then archive.
+to-be-ready/references/omniagent-py	architecture-reference	maybe	Port useful master/sub-agent and memory ideas into agents.
+to-be-ready/archive/superagent-py-v1	archive	no	Reference only; do not publish as active code.
+to-be-ready/archive/superagent-py-v2	archive	no	Reference only; do not publish as active code.
+to-be-ready/archive/generated	archive	no	Do not publish.
+to-be-ready/archive/ide	archive	no	Do not publish.

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agents"
+version = "0.1.0"
+description = "Agents framework with async model providers and configurable runtime"
+authors = [{ name = "Agents Team" }]
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "typer",
+    "pydantic>=2",
+    "pydantic-settings",
+    "python-multipart",
+    "mcp",
+    "httpx[socks]",
+]
+
+[project.optional-dependencies]
+test = ["pytest", "httpx[socks]"]
+
+[project.scripts]
+agents = "app.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]

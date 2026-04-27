@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: ${IMAGE:-agents/framework-template}:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      - DEBUG=False
+      - HOST=0.0.0.0
+      - PORT=8010
+      - ENABLE_SWAGGER_DOC=True
+    ports:
+      - "${PORT:-8010}:8010"
+    volumes:
+      - ../logs:/opt/app/logs
+      - ../cache:/opt/app/cache
