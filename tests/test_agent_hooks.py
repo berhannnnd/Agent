@@ -21,8 +21,48 @@ from app.agent.hooks import (
     SystemPromptGuidanceHooks,
     ThinkingHooks,
     ToolApprovalError,
+    hooks_from_settings,
 )
 from app.agent.schema import Message, ModelResponse, ToolCall
+
+
+class TestHooksFactory:
+    def test_returns_default_hooks_when_no_config(self):
+        settings = _MockSettings(GUIDED_TOOLS="")
+        hooks = hooks_from_settings(settings)
+        assert isinstance(hooks, AgentHooks)
+        assert not isinstance(hooks, CompositeHooks)
+
+    def test_creates_intent_guidance_from_config(self):
+        settings = _MockSettings(GUIDED_TOOLS="weather:天气,温度")
+        hooks = hooks_from_settings(settings)
+
+        assert isinstance(hooks, IntentGuidanceHooks)
+        messages = [Message.from_text("user", "今天天气怎么样？")]
+        result = asyncio.run(hooks.before_request(messages))
+        assert len(result) == 2
+        assert "weather" in result[1].content_text()
+
+    def test_single_guidance_hooks_for_multiple_tools(self):
+        settings = _MockSettings(GUIDED_TOOLS="weather:天气;search:搜索")
+        hooks = hooks_from_settings(settings)
+
+        assert isinstance(hooks, IntentGuidanceHooks)
+        # 验证两个工具规则都解析成功
+        messages = [Message.from_text("user", "搜索一下")]
+        result = asyncio.run(hooks.before_request(messages))
+        assert len(result) == 2
+        assert "search" in result[1].content_text()
+
+
+class _MockSettings:
+    def __init__(self, GUIDED_TOOLS: str = ""):
+        self.agent = _MockAgentSettings(GUIDED_TOOLS=GUIDED_TOOLS)
+
+
+class _MockAgentSettings:
+    def __init__(self, GUIDED_TOOLS: str = ""):
+        self.GUIDED_TOOLS = GUIDED_TOOLS
 
 
 class TestIntentGuidanceHooks:

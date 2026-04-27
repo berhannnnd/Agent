@@ -13,7 +13,7 @@ from __future__ import annotations
 import shlex
 from typing import Any, List, Optional
 
-from app.agent.hooks import AgentHooks
+from app.agent.hooks import AgentHooks, hooks_from_settings
 from app.agent.providers import ModelClient, ModelClientConfig
 from app.agent.providers.constants import normalize_provider
 from app.agent.runtime import AgentRuntime, AgentSession
@@ -67,6 +67,7 @@ def create_agent_session(
     load_configured_mcp_sync(settings, registry)
 
     active_tools = enabled_tools if enabled_tools is not None else _csv_setting(settings.agent.ENABLED_TOOLS)
+    active_hooks = hooks if hooks is not None else hooks_from_settings(settings)
     runtime = AgentRuntime(
         model_client=ModelClient(config),
         tools=registry,
@@ -74,7 +75,7 @@ def create_agent_session(
         model=config.model,
         enabled_tools=active_tools,
         max_tool_iterations=settings.agent.MAX_TOOL_ITERATIONS,
-        hooks=hooks,
+        hooks=active_hooks,
     )
     prompt = settings.agent.SYSTEM_PROMPT if system_prompt is None else system_prompt
     return AgentSession(runtime=runtime, system_prompt=prompt, max_context_tokens=settings.agent.MAX_CONTEXT_TOKENS)
