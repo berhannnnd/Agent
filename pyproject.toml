@@ -27,3 +27,9 @@ agents = "cli.main:main"
 
 [tool.setuptools.packages.find]
 include = ["agent*", "gateway*", "cli*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore:urllib3 v2 only supports OpenSSL 1.1.1+",
+]

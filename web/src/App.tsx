@@ -29,12 +29,15 @@ export function App() {
           busy={session.busy}
           provider={session.provider}
           model={session.model}
+          permissionMode={session.permissionMode}
           latency={session.latency}
           toolCount={() => session.toolList().length}
+          pendingApprovals={session.pendingApprovals}
           input={session.input}
           setInput={session.setInput}
           canSend={session.canSend}
           send={session.send}
+          decideApproval={session.decideApproval}
           clear={session.clear}
         />
         <ActionTimeline events={session.activity} open={activityOpen} />
@@ -56,6 +59,8 @@ export function App() {
         setApiKey={session.setApiKey}
         enabledTools={session.enabledTools}
         setEnabledTools={session.setEnabledTools}
+        permissionMode={session.permissionMode}
+        setPermissionMode={session.setPermissionMode}
         systemPrompt={session.systemPrompt}
         setSystemPrompt={session.setSystemPrompt}
       />

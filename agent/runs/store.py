@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol
 from uuid import uuid4
 
 from agent.definitions import AgentSpec
@@ -15,6 +15,7 @@ from agent.schema import RuntimeEvent
 class RunStatus(str, Enum):
     CREATED = "created"
     RUNNING = "running"
+    AWAITING_APPROVAL = "awaiting_approval"
     FINISHED = "finished"
     ERROR = "error"
     CANCELED = "canceled"
@@ -32,6 +33,7 @@ class RunRecord:
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
     metadata: dict[str, str] = field(default_factory=dict)
+    spec: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_spec(cls, spec: AgentSpec, run_id: str = "") -> "RunRecord":
@@ -43,6 +45,7 @@ class RunRecord:
             user_id=resolved.workspace.user_id,
             workspace_id=resolved.workspace.workspace_id,
             metadata={key: str(value) for key, value in resolved.metadata.items()},
+            spec=resolved.to_dict(include_secrets=False),
         )
 
     def with_status(self, status: RunStatus) -> "RunRecord":
@@ -63,6 +66,7 @@ class RunRecord:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "metadata": dict(self.metadata),
+            "spec": dict(self.spec),
         }
 
     @classmethod
@@ -78,7 +82,11 @@ class RunRecord:
             created_at=float(payload.get("created_at", time.time())),
             updated_at=float(payload.get("updated_at", time.time())),
             metadata={key: str(value) for key, value in dict(payload.get("metadata", {})).items()},
+            spec=dict(payload.get("spec", {})),
         )
+
+    def to_agent_spec(self) -> AgentSpec:
+        return AgentSpec.from_dict(self.spec)
 
 
 class RunStore(Protocol):

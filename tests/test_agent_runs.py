@@ -46,6 +46,25 @@ def test_run_record_serializes_stable_payload():
     assert restored.events[0].payload == {"delta": "ok"}
 
 
+def test_run_record_persists_redacted_agent_spec():
+    spec = AgentSpec.from_overrides(
+        provider="openai-chat",
+        model="gpt-test",
+        api_key="secret",
+        user_id="user-1",
+        agent_id="agent-1",
+        permission_profile="ask",
+    )
+
+    record = RunRecord.from_spec(spec)
+    restored = RunRecord.from_dict(record.to_dict()).to_agent_spec()
+
+    assert record.spec["model"]["provider"] == "openai-chat"
+    assert "api_key" not in record.spec["model"]
+    assert restored.workspace.user_id == "user-1"
+    assert restored.tool_permissions.mode == "ask"
+
+
 def test_local_file_run_store_persists_records(tmp_path):
     store = LocalFileRunStore(tmp_path)
     spec = AgentSpec.from_overrides(agent_id="agent-1")

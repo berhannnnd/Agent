@@ -22,6 +22,12 @@ class GatewayRunService:
         for event in events:
             await self.record_event(run_id, event)
 
+    async def mark_running(self, run_id: str) -> None:
+        await self.store.set_status(run_id, RunStatus.RUNNING)
+
+    async def pause_for_approval(self, run_id: str) -> None:
+        await self.store.set_status(run_id, RunStatus.AWAITING_APPROVAL)
+
     async def finish(self, run_id: str, error: str = "") -> None:
         status = RunStatus.ERROR if error else RunStatus.FINISHED
         await self.store.set_status(run_id, status)

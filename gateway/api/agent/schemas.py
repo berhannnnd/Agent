@@ -8,7 +8,7 @@
 # 2026/04/24   Create
 # =====================================================
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import Field
 
@@ -24,6 +24,9 @@ class AgentChatRequest(AppSchema):
     api_key: Optional[str] = Field(None, description="API key override")
     system_prompt: Optional[str] = Field(None, description="System prompt override")
     enabled_tools: Optional[List[str]] = Field(None, description="Enabled tool names")
+    permission_profile: Optional[str] = Field(None, description="Tool permission mode: auto, ask, or deny")
+    approval_required_tools: Optional[List[str]] = Field(None, description="Tool names that require approval")
+    denied_tools: Optional[List[str]] = Field(None, description="Tool names that are always denied")
     tenant_id: Optional[str] = Field(None, description="Tenant id for workspace resolution")
     user_id: Optional[str] = Field(None, description="User id for workspace resolution")
     agent_id: Optional[str] = Field(None, description="Agent id for workspace resolution")
@@ -41,4 +44,14 @@ class AgentChatRequest(AppSchema):
             user_id=self.user_id or "",
             agent_id=self.agent_id or "",
             workspace_id=self.workspace_id or "",
+            permission_profile=self.permission_profile or "",
+            approval_required_tools=self.approval_required_tools,
+            denied_tools=self.denied_tools,
         )
+
+
+class RunApprovalRequest(AppSchema):
+    approved: bool = Field(True, description="Whether the selected pending tool calls are approved")
+    tool_call_ids: Optional[List[str]] = Field(None, description="Approval ids to decide; empty means all pending calls")
+    approvals: Optional[Dict[str, bool]] = Field(None, description="Explicit approval id to decision map")
+    reason: Optional[str] = Field(None, description="Optional audit reason")

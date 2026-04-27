@@ -32,7 +32,8 @@ class RegisteredTool:
 class ToolRegistry:
     def __init__(self, max_concurrent: int = 10, tool_timeout: float = 60.0):
         self._tools: Dict[str, RegisteredTool] = {}
-        self._semaphore = asyncio.Semaphore(max_concurrent)
+        self._max_concurrent = max_concurrent
+        self._semaphores: Dict[int, asyncio.Semaphore] = {}
         self._tool_timeout = tool_timeout
 
     def register(self, name: str, description: str, parameters: Dict[str, Any], handler: ToolHandler) -> None:
@@ -52,7 +53,7 @@ class ToolRegistry:
             return ToolResult(tool_call_id="", name=name, content="unknown tool: %s" % name, is_error=True)
         tool = self._tools[name]
         try:
-            async with self._semaphore:
+            async with self._semaphore_for_running_loop():
                 result = await asyncio.wait_for(
                     _call_handler(tool.handler, arguments),
                     timeout=self._tool_timeout,
@@ -88,6 +89,16 @@ class ToolRegistry:
             parameters=tool.parameters,
             source="registry",
         )
+
+
+    def _semaphore_for_running_loop(self) -> asyncio.Semaphore:
+        loop = asyncio.get_running_loop()
+        key = id(loop)
+        semaphore = self._semaphores.get(key)
+        if semaphore is None:
+            semaphore = asyncio.Semaphore(self._max_concurrent)
+            self._semaphores[key] = semaphore
+        return semaphore
 
 
 async def _call_handler(handler: ToolHandler, arguments: Dict[str, Any]) -> Any:

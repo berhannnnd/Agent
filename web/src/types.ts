@@ -6,8 +6,8 @@ export type ChatMessage = {
   content: string;
 };
 
-export type RuntimeEventKind = "system" | "stream" | "tool" | "code" | "search" | "browser" | "error";
-export type RuntimeEventStatus = "queued" | "running" | "done" | "error";
+export type RuntimeEventKind = "system" | "stream" | "tool" | "approval" | "code" | "search" | "browser" | "error";
+export type RuntimeEventStatus = "queued" | "running" | "waiting" | "done" | "error";
 
 export type RuntimeEvent = {
   id: number;
@@ -19,3 +19,13 @@ export type RuntimeEvent = {
 };
 
 export const providers = ["openai-chat", "openai-responses", "claude-messages", "gemini"] as const;
+
+export type PermissionMode = "auto" | "ask" | "deny";
+
+export type ToolApprovalRequest = {
+  approvalId: string;
+  runId: string;
+  toolName: string;
+  arguments: Record<string, unknown>;
+  reason: string;
+};

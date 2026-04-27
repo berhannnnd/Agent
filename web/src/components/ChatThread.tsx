@@ -1,19 +1,23 @@
 import { Bot, Eraser, MessageSquareText, Send, Sparkles } from "lucide-solid";
 import type { Accessor, Setter } from "solid-js";
 import { For, Show } from "solid-js";
-import type { ChatMessage } from "../types";
+import type { ChatMessage, PermissionMode, ToolApprovalRequest } from "../types";
+import { ToolApprovalPanel } from "./ToolApprovalPanel";
 
 type Props = {
   messages: Accessor<ChatMessage[]>;
   busy: Accessor<boolean>;
   provider: Accessor<string>;
   model: Accessor<string>;
+  permissionMode: Accessor<PermissionMode>;
   latency: Accessor<number | null>;
   toolCount: Accessor<number>;
+  pendingApprovals: Accessor<ToolApprovalRequest[]>;
   input: Accessor<string>;
   setInput: Setter<string>;
   canSend: Accessor<boolean>;
   send: () => void;
+  decideApproval: (request: ToolApprovalRequest, approved: boolean) => void;
   clear: () => void;
 };
 
@@ -45,7 +49,9 @@ export function ChatThread(props: Props) {
           <span>{props.model() || "model not set"}</span>
           <span>{props.latency() === null ? "no latency yet" : `${props.latency()} ms`}</span>
           <span>{props.toolCount() ? `${props.toolCount()} tools` : "no tools"}</span>
+          <span>{props.permissionMode()} permissions</span>
         </div>
+        <ToolApprovalPanel requests={props.pendingApprovals} busy={props.busy} decide={props.decideApproval} />
         <div class="composer-row">
           <textarea
             value={props.input()}

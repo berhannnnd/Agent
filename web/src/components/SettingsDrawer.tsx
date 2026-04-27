@@ -1,7 +1,7 @@
-import { ChevronDown, Cpu, KeyRound, Settings2, Wrench, X } from "lucide-solid";
+import { ChevronDown, Cpu, KeyRound, Settings2, ShieldCheck, Wrench, X } from "lucide-solid";
 import type { Accessor, Setter } from "solid-js";
 import { For, Show } from "solid-js";
-import { providers } from "../types";
+import { providers, type PermissionMode } from "../types";
 
 type Props = {
   open: Accessor<boolean>;
@@ -20,6 +20,8 @@ type Props = {
   setApiKey: Setter<string>;
   enabledTools: Accessor<string>;
   setEnabledTools: Setter<string>;
+  permissionMode: Accessor<PermissionMode>;
+  setPermissionMode: Setter<PermissionMode>;
   systemPrompt: Accessor<string>;
   setSystemPrompt: Setter<string>;
 };
@@ -55,6 +57,16 @@ export function SettingsDrawer(props: Props) {
         <section class="config-section">
           <div class="card-title"><Wrench size={16} /><span>Agent</span></div>
           <Control label="Enabled Tools"><input value={props.enabledTools()} onInput={(event) => props.setEnabledTools(event.currentTarget.value)} placeholder="comma separated" /></Control>
+          <Control label="Tool Permission">
+            <span class="select-wrap">
+              <select value={props.permissionMode()} onInput={(event) => props.setPermissionMode(event.currentTarget.value as PermissionMode)}>
+                <option value="ask">ask</option>
+                <option value="auto">auto</option>
+                <option value="deny">deny</option>
+              </select>
+              <ShieldCheck size={14} />
+            </span>
+          </Control>
           <Control label="System Prompt"><textarea value={props.systemPrompt()} onInput={(event) => props.setSystemPrompt(event.currentTarget.value)} /></Control>
         </section>
       </aside>

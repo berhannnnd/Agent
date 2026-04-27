@@ -20,3 +20,4 @@ class AgentResult:
     messages: List[Message]
     tool_results: List[ToolResult] = field(default_factory=list)
     events: List[RuntimeEvent] = field(default_factory=list)
+    status: str = "finished"

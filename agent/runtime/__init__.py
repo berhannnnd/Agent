@@ -5,6 +5,7 @@ from agent.runtime.loop import AgentRuntime
 from agent.security.permissions import (
     AllowAllToolPermissionPolicy,
     CallbackToolPermissionPolicy,
+    DenyAllToolPermissionPolicy,
     StaticToolPermissionPolicy,
     ToolPermissionDecision,
     ToolPermissionPolicy,
@@ -22,6 +23,7 @@ __all__ = [
     "AgentSession",
     "CallbackToolPermissionPolicy",
     "CheckpointStore",
+    "DenyAllToolPermissionPolicy",
     "InMemoryCheckpointStore",
     "ModelClientProtocol",
     "NullCheckpointStore",

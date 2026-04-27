@@ -18,6 +18,12 @@ class ToolExecutionBatch:
     messages: List[Message]
 
 
+@dataclass(frozen=True)
+class ToolAuthorization:
+    call: ToolCall
+    decision: ToolPermissionDecision
+
+
 class ToolOrchestrator:
     """Executes model-requested tools and converts results back into history."""
 
@@ -33,12 +39,26 @@ class ToolOrchestrator:
 
     async def execute(self, calls: Iterable[ToolCall]) -> ToolExecutionBatch:
         call_list = list(calls)
+        authorizations = await self.authorize(call_list)
+        return await self.execute_with_decisions(call_list, [item.decision for item in authorizations])
+
+    async def authorize(self, calls: Iterable[ToolCall]) -> List[ToolAuthorization]:
+        call_list = list(calls)
+        decisions = await asyncio.gather(*(self.permission_policy.authorize(call) for call in call_list))
+        return [ToolAuthorization(call=call, decision=decision) for call, decision in zip(call_list, decisions)]
+
+    async def execute_with_decisions(
+        self,
+        calls: Iterable[ToolCall],
+        decisions: Iterable[ToolPermissionDecision],
+    ) -> ToolExecutionBatch:
+        call_list = list(calls)
+        decision_list = list(decisions)
         allowed_calls: List[ToolCall] = []
         allowed_indexes: List[int] = []
         results_by_index: dict[int, ToolResult] = {}
 
-        decisions = await asyncio.gather(*(self.permission_policy.authorize(call) for call in call_list))
-        for index, (call, decision) in enumerate(zip(call_list, decisions)):
+        for index, (call, decision) in enumerate(zip(call_list, decision_list)):
             if decision.allowed:
                 allowed_indexes.append(index)
                 allowed_calls.append(call)

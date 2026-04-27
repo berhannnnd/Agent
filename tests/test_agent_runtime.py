@@ -80,6 +80,75 @@ def test_agent_runtime_denies_tools_through_permission_policy():
     assert result.messages[2].role == "tool"
 
 
+def test_agent_runtime_pauses_when_tool_requires_approval():
+    call = ToolCall(id="call-1", name="dangerous", arguments={})
+    llm = ScriptedModelClient([ModelResponse(message=Message.from_text("assistant", "", tool_calls=[call]))])
+    store = InMemoryCheckpointStore()
+    tools = ToolRegistry()
+    ran = {"value": False}
+    tools.register("dangerous", "Dangerous", {}, lambda: ran.update(value=True))
+    runtime = AgentRuntime(
+        model_client=llm,
+        tools=tools,
+        provider="scripted",
+        model="scripted",
+        permission_policy=StaticToolPermissionPolicy(approval_required_tools={"dangerous"}),
+        checkpoint_store=store,
+    )
+
+    async def execute():
+        result = await runtime.run([Message.from_text("user", "run it")], run_id="run-1")
+        checkpoint = await store.load("run-1")
+        return result, checkpoint
+
+    result, checkpoint = asyncio.run(execute())
+
+    assert result.status == "awaiting_approval"
+    assert result.content == "tool approval required"
+    assert ran["value"] is False
+    assert checkpoint is not None
+    assert checkpoint.step == "approval_required"
+    assert checkpoint.pending_tool_calls == [call]
+    assert any(event.type == "tool_approval_required" for event in result.events)
+
+
+def test_agent_runtime_resumes_after_tool_approval():
+    call = ToolCall(id="call-1", name="echo", arguments={"text": "hi"})
+    llm = ScriptedModelClient(
+        [
+            ModelResponse(message=Message.from_text("assistant", "", tool_calls=[call])),
+            ModelResponse(message=Message.from_text("assistant", "approved")),
+        ]
+    )
+    store = InMemoryCheckpointStore()
+    tools = ToolRegistry()
+    tools.register("echo", "Echo", {}, lambda text: text)
+    runtime = AgentRuntime(
+        model_client=llm,
+        tools=tools,
+        provider="scripted",
+        model="scripted",
+        permission_policy=StaticToolPermissionPolicy(approval_required_tools={"echo"}),
+        checkpoint_store=store,
+    )
+
+    async def execute():
+        paused = await runtime.run([Message.from_text("user", "say hi")], run_id="run-1")
+        resumed = await runtime.resume("run-1", approvals={"call-1": True})
+        return paused, resumed
+
+    paused, resumed = asyncio.run(execute())
+
+    assert paused.status == "awaiting_approval"
+    assert resumed.status == "finished"
+    assert resumed.content == "approved"
+    assert resumed.tool_results[0].content == "hi"
+    assert [event.type for event in resumed.events if event.type.startswith("tool_approval")] == [
+        "tool_approval_required",
+        "tool_approval_decision",
+    ]
+
+
 def test_agent_runtime_saves_finished_checkpoint():
     llm = ScriptedModelClient([ModelResponse(message=Message.from_text("assistant", "done"))])
     store = InMemoryCheckpointStore()

@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, CheckCircle2, Code2, Globe2, Loader2, Search, TerminalSquare, Wrench } from "lucide-solid";
+import { Activity, AlertTriangle, CheckCircle2, Code2, Globe2, Loader2, Search, ShieldCheck, TerminalSquare, Wrench } from "lucide-solid";
 import type { Accessor } from "solid-js";
 import { For } from "solid-js";
 import type { RuntimeEvent, RuntimeEventKind } from "../types";
@@ -49,6 +49,7 @@ function ActionRow(props: { event: RuntimeEvent }) {
 
 function iconFor(kind: RuntimeEventKind) {
   if (kind === "tool") return <Wrench size={15} />;
+  if (kind === "approval") return <ShieldCheck size={15} />;
   if (kind === "code") return <Code2 size={15} />;
   if (kind === "search") return <Search size={15} />;
   if (kind === "browser") return <Globe2 size={15} />;

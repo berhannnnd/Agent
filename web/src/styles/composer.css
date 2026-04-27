@@ -20,6 +20,89 @@
   color: #bfc3b4;
 }
 
+.approval-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.approval-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(255, 178, 79, 0.34);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 178, 79, 0.10);
+}
+
+.approval-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #ffb24f;
+  background: rgba(255, 178, 79, 0.12);
+  border: 1px solid rgba(255, 178, 79, 0.28);
+}
+
+.approval-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.approval-copy strong {
+  color: #fff8e8;
+  font-size: 13px;
+}
+
+.approval-copy span,
+.approval-copy code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.approval-copy span {
+  color: #d6c9b4;
+  font-size: 12px;
+}
+
+.approval-copy code {
+  color: #ffdaa8;
+  font: 11px/1.4 "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.approval-actions {
+  display: inline-flex;
+  gap: 7px;
+}
+
+.approve-button,
+.deny-button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid rgba(244, 239, 228, 0.12);
+  cursor: pointer;
+}
+
+.approve-button {
+  color: #071008;
+  background: linear-gradient(135deg, #dfff6f, #39d98a);
+}
+
+.deny-button {
+  color: #fff8e8;
+  background: rgba(255, 111, 125, 0.18);
+  border-color: rgba(255, 111, 125, 0.34);
+}
+
 .composer-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 54px;

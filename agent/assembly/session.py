@@ -11,6 +11,8 @@ from agent.hooks import AgentHooks, hooks_from_settings
 from agent.integrations import load_configured_mcp, load_configured_skills, resolve_active_tools
 from agent.models import ModelClient
 from agent.runtime import AgentRuntime, AgentSession
+from agent.runtime.checkpoints import CheckpointStore
+from agent.security import build_tool_permission_policy
 from agent.storage.factory import resolve_workspace
 from agent.tools.registry import ToolRegistry
 
@@ -19,6 +21,7 @@ async def create_agent_session_async(
     settings: Any,
     spec: AgentSpec,
     hooks: Optional[AgentHooks] = None,
+    checkpoint_store: Optional[CheckpointStore] = None,
 ) -> AgentSession:
     resolved_spec = spec.with_workspace_defaults()
     config = resolve_model_client_config(
@@ -48,6 +51,7 @@ async def create_agent_session_async(
     )
     compiled_context = ContextBuilder().compile(context_pack, budget_tokens=settings.agent.MAX_CONTEXT_TOKENS)
     active_hooks = hooks if hooks is not None else hooks_from_settings(settings)
+    permission_policy = build_tool_permission_policy(resolved_spec)
     runtime = AgentRuntime(
         model_client=ModelClient(config),
         tools=registry,
@@ -56,6 +60,8 @@ async def create_agent_session_async(
         enabled_tools=active_tools,
         max_tool_iterations=settings.agent.MAX_TOOL_ITERATIONS,
         hooks=active_hooks,
+        permission_policy=permission_policy,
+        checkpoint_store=checkpoint_store,
     )
     return AgentSession(
         runtime=runtime,
@@ -66,9 +72,14 @@ async def create_agent_session_async(
     )
 
 
-def create_agent_session(settings: Any, spec: AgentSpec, hooks: Optional[AgentHooks] = None) -> AgentSession:
+def create_agent_session(
+    settings: Any,
+    spec: AgentSpec,
+    hooks: Optional[AgentHooks] = None,
+    checkpoint_store: Optional[CheckpointStore] = None,
+) -> AgentSession:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(create_agent_session_async(settings, spec, hooks=hooks))
+        return asyncio.run(create_agent_session_async(settings, spec, hooks=hooks, checkpoint_store=checkpoint_store))
     raise RuntimeError("create_agent_session cannot run inside an active event loop; use create_agent_session_async")

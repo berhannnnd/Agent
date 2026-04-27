@@ -25,7 +25,8 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Agent runtime with tool-call loop, streaming, hook points, checkpoint/resume support, and max-iteration guard.
 - Context system with layered fragments: system, runtime policy, workspace instructions, skills, memory, tool hints, task context.
 - Tool registry with concurrent execution, timeout handling, error-to-tool-result conversion, and MCP stdio loading.
-- `AgentSpec` definition layer for model overrides, enabled tools, skills, workspace scope, permission profile, memory profile, and metadata.
+- `AgentSpec` definition layer for model overrides, enabled tools, skills, workspace scope, tool permissions, memory profile, and metadata.
+- Tool approval flow with `auto`, `ask`, and `deny` modes, checkpoint-backed pause/resume, run status `awaiting_approval`, and web Approve/Deny controls.
 - Workspace isolation under `tenant_id / user_id / agent_id / workspace_id`.
 - Run tracking through `RunStore`, backed by memory or local JSON files.
 - Gateway chat APIs return `run_id`; streaming emits a `run_created` event before model/tool events.
@@ -37,7 +38,7 @@ agent/
   assembly/       Build AgentSession from settings + AgentSpec
   config/         Model/provider config resolution
   context/        ContextPack, ContextBuilder, windowing, request compilation
-  definitions/    AgentSpec, AgentModelSpec, WorkspaceRef
+  definitions/    AgentSpec, AgentModelSpec, WorkspaceRef, ToolPermissionSpec
   hooks/          Runtime hooks and hook composition
   identity/       Tenant/user/agent identity references
   integrations/   Skills and MCP loading
@@ -46,7 +47,7 @@ agent/
   orchestration/  Future multi-agent planner/router/supervisor boundary
   runs/           RunRecord, RunStore, memory/file stores
   runtime/        Agent loop, session, state, events, turns, checkpoints
-  security/       Tool permission policy and future safety boundaries
+  security/       Tool permission rules, approval policy, future safety boundaries
   skills/         Skill manifest and prompt fragment loading
   storage/        Workspace allocation
   tools/          ToolRegistry and MCP tool provider
@@ -147,6 +148,7 @@ Response data includes:
 ```json
 {
   "run_id": "run_...",
+  "status": "finished",
   "content": "...",
   "messages": [],
   "tool_results": [],
@@ -169,7 +171,7 @@ event: run_created
 data: {"type":"run_created","name":"run","payload":{"run_id":"run_..."}}
 ```
 
-Then the stream emits runtime events such as `text_delta`, `reasoning_delta`, `tool_start`, `tool_result`, `error`, and `done`.
+Then the stream emits runtime events such as `text_delta`, `reasoning_delta`, `tool_approval_required`, `tool_approval_decision`, `tool_start`, `tool_result`, `error`, and `done`.
 
 Query a run:
 
@@ -179,6 +181,36 @@ curl http://127.0.0.1:8010/api/v1/agent/runs/run_...
 
 The response contains the run scope, status, timestamps, metadata, and recorded runtime events.
 
+### Tool Approval
+
+Tool permissions are part of `AgentSpec`, not UI state. Request bodies can set:
+
+```json
+{
+  "message": "inspect the workspace",
+  "permission_profile": "ask",
+  "enabled_tools": ["filesystem.read"]
+}
+```
+
+Modes:
+
+| Mode | Behavior |
+|---|---|
+| `auto` | Execute allowed tools without pausing. |
+| `ask` | Pause before tool execution and emit `tool_approval_required`. |
+| `deny` | Return denied tool results without executing tools. |
+
+When a tool requires approval, the run is marked `awaiting_approval` and the runtime checkpoint keeps the pending tool calls. Resume the same run:
+
+```bash
+curl -X POST http://127.0.0.1:8010/api/v1/agent/runs/run_.../approval \
+  -H 'Content-Type: application/json' \
+  -d '{"tool_call_ids":["call_..."],"approved":true}'
+```
+
+The web UI uses this endpoint for the Approve/Deny panel. The gateway owns the HTTP flow; `agent/runtime` owns the pause/resume semantics.
+
 ## Agent And Run Model
 
 External callers construct an `AgentSpec`. The spec carries:
@@ -186,7 +218,7 @@ External callers construct an `AgentSpec`. The spec carries:
 - model override: provider, model, base URL, API key
 - workspace scope: tenant, user, agent, workspace
 - enabled tools and skills
-- permission and memory profile names
+- tool permission mode/rules and memory profile names
 - metadata
 
 Gateway and CLI convert request/options into `AgentSpec`, then call:

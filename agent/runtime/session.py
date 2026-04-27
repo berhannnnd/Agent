@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import AsyncIterable, List, Optional
+from typing import AsyncIterable, List, Mapping, Optional
 
 from agent.context.window import ContextWindowManager
 from agent.context.workspace import WorkspaceContext
@@ -47,6 +47,11 @@ class AgentSession:
         candidate = self.messages + [Message.from_text("user", text)]
         candidate = self.context_window.fit(candidate)
         result = await self.runtime.run(candidate, run_id=run_id)
+        self.messages = list(result.messages)
+        return result
+
+    async def resume(self, run_id: str, approvals: Mapping[str, bool] | None = None) -> AgentResult:
+        result = await self.runtime.resume(run_id, approvals=approvals)
         self.messages = list(result.messages)
         return result
 

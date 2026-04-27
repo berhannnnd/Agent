@@ -37,6 +37,20 @@ def test_gateway_run_service_marks_error_status():
     assert record.status == RunStatus.ERROR
 
 
+def test_gateway_run_service_marks_approval_status():
+    service = GatewayRunService()
+    spec = AgentSpec.from_overrides(agent_id="agent-1")
+
+    async def execute():
+        run = await service.start(spec)
+        await service.pause_for_approval(run.run_id)
+        return await service.store.load_run(run.run_id)
+
+    record = asyncio.run(execute())
+
+    assert record.status == RunStatus.AWAITING_APPROVAL
+
+
 def test_gateway_run_store_factory_uses_file_store(tmp_path):
     class AgentConfig:
         RUN_STORE = "file"

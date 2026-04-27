@@ -45,7 +45,7 @@ graph TB
 - `agent.context`: 上下文系统。按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层组织上下文，由 `ContextBuilder` 编译并输出 trace；`ModelRequestCompiler` 负责把 runtime state 转为模型请求。
 - `agent.storage`: 数据隔离边界。包含 workspace/run/memory/artifact store，当前提供本地 workspace 分配器。
 - `agent.runs`: 运行记录边界。定义 `RunRecord`、`RunStore`、内存存储和本地 JSON 文件存储，后续 DB-backed run/session 持久化从这里替换。
-- `agent.security`: 权限与安全边界。包含 tool permission，后续承载 approval、sandbox、secrets、encryption。
+- `agent.security`: 权限与安全边界。包含 tool permission 规则和 approval policy，后续继续承载 sandbox、secrets、encryption。
 - `agent.identity`: 身份引用边界。定义 Principal、Tenant/User/Agent 引用；登录鉴权仍属于 gateway。
 - `agent.tools`: 工具注册表、本地工具执行、MCP stdio 工具接入。
 - `agent.hooks`: Runtime 扩展点，支持意图引导、thinking 提取、审批拦截和组合 hook。
@@ -60,7 +60,7 @@ graph TB
 - `gateway.core`: settings、logger、middleware、exceptions。
 - `gateway.shared.server`: FastAPI 注册器、统一响应、请求 ID、server launcher。
 - `gateway.auth`: 鉴权授权边界。
-- `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 finished/error，并按配置选择 memory/file run store。
+- `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 running/awaiting_approval/finished/error，并按配置选择 memory/file run store。
 - `gateway.streaming`: SSE 和 future WebSocket 协议边界。
 - `gateway.engines`: 可注册引擎的生命周期管理边界。
 - `gateway.static_ui`: 挂载 `web/dist` 到 `/ui/`。
@@ -76,9 +76,11 @@ graph TB
 7. `agent.context` 把 system prompt、runtime policy、workspace instructions、skills、tool hints 放入 `ContextPack`，由 `ContextBuilder` 编译为上下文。
 8. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
 9. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
-10. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行，`CheckpointStore` 保存可恢复节点。
-11. `agent.runs.RunStore` 记录 run events 和最终状态；`GET /api/v1/agent/runs/{run_id}` 可查询记录。
-12. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
+10. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行。
+11. 当工具需要用户确认时，runtime 发出 `tool_approval_required`，保存 `approval_required` checkpoint，gateway 将 run 标记为 `awaiting_approval`。
+12. `POST /api/v1/agent/runs/{run_id}/approval` 写入 approval decision，runtime 从同一 checkpoint 恢复执行，并继续产出 `tool_start`、`tool_result` 或 denied tool result。
+13. `agent.runs.RunStore` 记录 run events 和最终状态；`GET /api/v1/agent/runs/{run_id}` 可查询记录。
+14. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
 
 ## 新模块接入流程
 

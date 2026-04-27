@@ -1,11 +1,14 @@
 import { createMemo, createSignal } from "solid-js";
-import type { ChatMessage, Role, RuntimeEvent, RuntimeEventKind, RuntimeEventStatus } from "../types";
-
-const welcome: ChatMessage = {
-  id: 1,
-  role: "assistant",
-  content: "目标给我。我会组织上下文、工具和步骤，把它推进到结果。"
-};
+import type {
+  ChatMessage,
+  PermissionMode,
+  Role,
+  RuntimeEvent,
+  RuntimeEventKind,
+  RuntimeEventStatus,
+  ToolApprovalRequest
+} from "../types";
+import { approvalFromEvent, compact, createId, errorText, mergeApproval, safeJson, seedActivity, splitCsv, timeLabel, welcome } from "./sessionUtils";
 
 export function createAgentSession() {
   const [baseUrl, setBaseUrl] = createSignal(window.location.origin);
@@ -16,10 +19,13 @@ export function createAgentSession() {
   const [apiKey, setApiKey] = createSignal("");
   const [systemPrompt, setSystemPrompt] = createSignal("You are a precise, helpful agent.");
   const [enabledTools, setEnabledTools] = createSignal("");
+  const [permissionMode, setPermissionMode] = createSignal<PermissionMode>("ask");
   const [streaming, setStreaming] = createSignal(true);
   const [input, setInput] = createSignal("");
   const [messages, setMessages] = createSignal<ChatMessage[]>([welcome]);
   const [activity, setActivity] = createSignal<RuntimeEvent[]>(seedActivity());
+  const [pendingApprovals, setPendingApprovals] = createSignal<ToolApprovalRequest[]>([]);
+  const [runId, setRunId] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [health, setHealth] = createSignal("unknown");
   const [latency, setLatency] = createSignal<number | null>(null);
@@ -33,6 +39,8 @@ export function createAgentSession() {
     push("user", text);
     setInput("");
     setActivity([]);
+    setPendingApprovals([]);
+    setRunId("");
     record("system", "Request received", text, "done");
     if (streaming()) await sendStream(text);
     else await sendChat(text);
@@ -56,13 +64,41 @@ export function createAgentSession() {
         record("error", "Request failed", data?.message || "Agent request returned an error", "error");
         return;
       }
-      push("assistant", data.data?.content || "(empty response)");
+      setRunId(data.data?.run_id || "");
+      consumeRuntimeEvents(data.data?.events || []);
+      if (data.data?.status !== "awaiting_approval") push("assistant", data.data?.content || "(empty response)");
       for (const item of data.data?.tool_results || []) {
         push("event", `${item.name}: ${item.content}`);
         record("tool", "Tool call", `${item.name}: ${item.content}`, "done");
       }
     } catch (error) {
       updateActivity(requestId, { status: "error", detail: errorText(error) });
+      push("error", errorText(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const decideApproval = async (request: ToolApprovalRequest, approved: boolean) => {
+    setBusy(true);
+    const id = record("approval", approved ? "Tool approved" : "Tool denied", request.toolName, "running");
+    try {
+      const response = await fetch(urlFor(`/api/v1/agent/runs/${request.runId}/approval`), {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ tool_call_ids: [request.approvalId], approved })
+      });
+      const data = await response.json();
+      updateActivity(id, { status: response.ok ? "done" : "error", detail: `${response.status} ${response.statusText}` });
+      if (!response.ok || data.success === false) {
+        push("error", data?.data?.detail || data?.message || "approval request failed");
+        return;
+      }
+      setPendingApprovals((current) => current.filter((item) => item.approvalId !== request.approvalId));
+      consumeRuntimeEvents(data.data?.events || []);
+      if (data.data?.status !== "awaiting_approval") push("assistant", data.data?.content || "(empty response)");
+    } catch (error) {
+      updateActivity(id, { status: "error", detail: errorText(error) });
       push("error", errorText(error));
     } finally {
       setBusy(false);
@@ -137,17 +173,37 @@ export function createAgentSession() {
       updateMessage(assistantId, data.payload?.content || data.content || "");
       return;
     }
-    if (eventType === "tool_start") record("tool", "Tool call", data.name || data.payload?.name || "tool", "running");
-    else if (eventType === "tool_result") record("tool", "Tool result", data.name || data.payload?.name || "tool", "done");
-    else if (eventType === "code_start") record("code", "Code execution", data.payload?.language || "runtime code", "running");
-    else if (eventType === "web_search") record("search", "Web search", data.payload?.query || data.query || "search", "running");
-    else if (eventType === "browser_action") record("browser", "Browser action", data.payload?.action || "browser step", "running");
-    else if (eventType === "error") {
+    if (eventType === "error") {
       removeMessage(assistantId);
       push("error", data.payload?.message || data.message || "stream error");
-      record("error", "Stream error", data.payload?.message || data.message || "stream error", "error");
-    } else {
-      record("stream", eventType, dataText || chunk, "done");
+    }
+    consumeRuntimeEvents([{ type: eventType, name: data.name, payload: data.payload || data }]);
+  };
+
+  const consumeRuntimeEvents = (events: any[]) => {
+    for (const event of events) {
+      if (event.type === "run_created") {
+        setRunId(event.payload?.run_id || "");
+        continue;
+      }
+      if (event.type === "tool_approval_required") {
+        const request = approvalFromEvent(event, runId());
+        setPendingApprovals((current) => mergeApproval(current, request));
+        record("approval", "Approval required", request.toolName, "waiting");
+        continue;
+      }
+      if (event.type === "tool_approval_decision") {
+        const approved = event.payload?.approved ? "approved" : "denied";
+        record("approval", `Tool ${approved}`, event.name || event.payload?.tool_call?.name || "tool", "done");
+        continue;
+      }
+      if (event.type === "tool_start") record("tool", "Tool call", event.name || event.payload?.name || "tool", "running");
+      else if (event.type === "tool_result") record("tool", "Tool result", event.name || event.payload?.name || "tool", "done");
+      else if (event.type === "code_start") record("code", "Code execution", event.payload?.language || "runtime code", "running");
+      else if (event.type === "web_search") record("search", "Web search", event.payload?.query || event.query || "search", "running");
+      else if (event.type === "browser_action") record("browser", "Browser action", event.payload?.action || "browser step", "running");
+      else if (event.type === "error") record("error", "Stream error", event.payload?.message || event.message || "stream error", "error");
+      else record("stream", event.type || "event", JSON.stringify(event.payload || event), "done");
     }
   };
 
@@ -158,7 +214,8 @@ export function createAgentSession() {
     base_url: modelBaseUrl(),
     api_key: apiKey(),
     system_prompt: systemPrompt(),
-    enabled_tools: toolList()
+    enabled_tools: toolList(),
+    permission_profile: permissionMode()
   });
 
   const headers = () => {
@@ -188,43 +245,8 @@ export function createAgentSession() {
 
   return {
     baseUrl, setBaseUrl, token, setToken, provider, setProvider, model, setModel, modelBaseUrl, setModelBaseUrl,
-    apiKey, setApiKey, systemPrompt, setSystemPrompt, enabledTools, setEnabledTools, streaming, setStreaming,
-    input, setInput, messages, activity, busy, health, latency, canSend, toolList, send, clear, checkHealth
+    apiKey, setApiKey, systemPrompt, setSystemPrompt, enabledTools, setEnabledTools, permissionMode, setPermissionMode,
+    streaming, setStreaming, input, setInput, messages, activity, pendingApprovals, busy, health, latency, canSend,
+    toolList, send, decideApproval, clear, checkHealth
   };
-}
-
-function seedActivity(): RuntimeEvent[] {
-  return [
-    { id: 101, kind: "search", title: "Web search", detail: "Standby for external research", status: "queued", time: "--:--:--" },
-    { id: 102, kind: "tool", title: "Tool call", detail: "Waiting for tool selection", status: "queued", time: "--:--:--" },
-    { id: 103, kind: "code", title: "Code execution", detail: "Sandbox ready", status: "queued", time: "--:--:--" }
-  ];
-}
-
-function createId() {
-  return Date.now() + Math.floor(Math.random() * 1000);
-}
-
-function timeLabel() {
-  return new Date().toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
-
-function splitCsv(value: string) {
-  return value.split(",").map((item) => item.trim()).filter(Boolean);
-}
-
-function compact(payload: Record<string, unknown>) {
-  return Object.fromEntries(Object.entries(payload).filter(([, value]) => Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== ""));
-}
-
-function safeJson(value: string): any {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return { payload: { message: value } };
-  }
-}
-
-function errorText(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }

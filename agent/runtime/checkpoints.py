@@ -17,6 +17,7 @@ class RuntimeCheckpoint:
     tool_results: List[ToolResult] = field(default_factory=list)
     events: List[RuntimeEvent] = field(default_factory=list)
     pending_tool_calls: List[ToolCall] = field(default_factory=list)
+    tool_approvals: Dict[str, bool] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
 
     @classmethod
@@ -29,6 +30,7 @@ class RuntimeCheckpoint:
             tool_results=list(state.tool_results),
             events=list(state.events),
             pending_tool_calls=list(state.pending_tool_calls),
+            tool_approvals=dict(state.tool_approvals),
         )
 
     def to_state(self) -> RuntimeState:
@@ -38,6 +40,7 @@ class RuntimeCheckpoint:
             events=list(self.events),
             iteration=self.iteration,
             pending_tool_calls=list(self.pending_tool_calls),
+            tool_approvals=dict(self.tool_approvals),
         )
 
 
