@@ -22,13 +22,10 @@ from agent.config import AgentConfigError
 from agent.schema import RuntimeEvent
 from gateway.api.agent.schemas import AgentChatRequest, RunApprovalRequest
 from gateway.core.config import settings
+from gateway.services import create_gateway_persistence
 from gateway.sessions import (
     GatewayRunService,
-    create_approval_audit_store,
-    create_checkpoint_store,
-    create_run_store,
     create_trace_recorder,
-    create_trace_store,
     run_created_event,
 )
 from gateway.shared.server.common import resp
@@ -37,10 +34,11 @@ router = APIRouter(prefix="/agent")
 
 # 全局并发限制：同时处理的 agent 请求数
 _agent_semaphore = asyncio.Semaphore(settings.agent.MAX_CONCURRENT_REQUESTS)
-trace_store = create_trace_store(settings)
-run_service = GatewayRunService(create_run_store(settings), trace_recorder=create_trace_recorder(settings, trace_store))
-checkpoint_store = create_checkpoint_store(settings)
-approval_audit_store = create_approval_audit_store(settings)
+persistence = create_gateway_persistence(settings)
+trace_store = persistence.traces
+run_service = GatewayRunService(persistence.runs, trace_recorder=create_trace_recorder(settings, trace_store))
+checkpoint_store = persistence.checkpoints
+approval_audit_store = persistence.approval_audit
 
 
 async def create_agent_session(**kwargs):

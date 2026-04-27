@@ -28,6 +28,52 @@ def resolve_database_path(root_path: Path, configured_path: str) -> Path:
 
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS tenants (
+    tenant_id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL DEFAULT '',
+    metadata_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    display_name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    roles_json TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    PRIMARY KEY(tenant_id, user_id),
+    FOREIGN KEY(tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS agent_profiles (
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    spec_json TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    PRIMARY KEY(tenant_id, user_id, agent_id)
+);
+
+CREATE TABLE IF NOT EXISTS workspace_records (
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    workspace_id TEXT NOT NULL,
+    path TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    metadata_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    PRIMARY KEY(tenant_id, user_id, agent_id, workspace_id)
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     run_id TEXT PRIMARY KEY,
     agent_id TEXT NOT NULL DEFAULT '',
@@ -94,4 +140,36 @@ CREATE TABLE IF NOT EXISTS trace_spans (
 
 CREATE INDEX IF NOT EXISTS idx_trace_spans_run_id_started_at
 ON trace_spans(run_id, started_at);
+
+CREATE TABLE IF NOT EXISTS memory_records (
+    memory_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL DEFAULT '',
+    workspace_id TEXT NOT NULL DEFAULT '',
+    scope TEXT NOT NULL,
+    content TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_records_context
+ON memory_records(tenant_id, user_id, agent_id, workspace_id, created_at);
+
+CREATE TABLE IF NOT EXISTS credential_refs (
+    credential_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL DEFAULT '',
+    agent_id TEXT NOT NULL DEFAULT '',
+    provider TEXT NOT NULL,
+    name TEXT NOT NULL,
+    secret_ref TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_credential_refs_scope
+ON credential_refs(tenant_id, user_id, agent_id, provider, name);
 """

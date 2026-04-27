@@ -1,11 +1,15 @@
 import asyncio
 
-from agent.definitions import AgentSpec
+from agent.definitions import AgentProfile, AgentSpec, SQLiteAgentProfileStore
 from agent.audit import ApprovalAuditRecord, SQLiteApprovalAuditStore
+from agent.identity import SQLiteIdentityStore, TenantRecord, UserRecord
+from agent.memory import MemoryRecord, MemoryScope, SQLiteMemoryStore
 from agent.persistence import SQLiteDatabase
 from agent.runs import RunStatus, SQLiteRunStore
 from agent.runtime import RuntimeCheckpoint, SQLiteCheckpointStore
 from agent.schema import Message, RuntimeEvent, ToolCall
+from agent.security import CredentialRef, SQLiteCredentialRefStore
+from agent.storage import SQLiteWorkspaceStore, WorkspaceRecord
 from agent.tracing import SQLiteTraceStore, TraceSpan, TraceStatus
 
 
@@ -117,3 +121,104 @@ def test_sqlite_trace_store_persists_run_spans(tmp_path):
     assert spans[0].ended_at is not None
     assert spans[0].attributes["tool_call"] == {"id": "call-1"}
     assert spans[0].attributes["tool_result"] == {"content": "ok"}
+
+
+def test_sqlite_identity_store_persists_tenants_and_users(tmp_path):
+    database = SQLiteDatabase(tmp_path / "agents.db")
+    store = SQLiteIdentityStore(database)
+
+    async def execute():
+        await store.save_tenant(TenantRecord(tenant_id="tenant-1", display_name="Tenant"))
+        await store.save_user(
+            UserRecord(
+                tenant_id="tenant-1",
+                user_id="user-1",
+                display_name="User",
+                roles=["admin"],
+                metadata={"source": "test"},
+            )
+        )
+        reopened = SQLiteIdentityStore(SQLiteDatabase(tmp_path / "agents.db"))
+        return await reopened.load_tenant("tenant-1"), await reopened.list_users("tenant-1")
+
+    tenant, users = asyncio.run(execute())
+
+    assert tenant.display_name == "Tenant"
+    assert users[0].user_id == "user-1"
+    assert users[0].roles == ["admin"]
+    assert users[0].metadata == {"source": "test"}
+
+
+def test_sqlite_agent_profile_store_persists_redacted_specs(tmp_path):
+    database = SQLiteDatabase(tmp_path / "agents.db")
+    store = SQLiteAgentProfileStore(database)
+    spec = AgentSpec.from_overrides(
+        tenant_id="tenant-1",
+        user_id="user-1",
+        agent_id="agent-1",
+        provider="openai-chat",
+        api_key="secret",
+        permission_profile="ask",
+    )
+
+    async def execute():
+        await store.save(AgentProfile.from_spec(spec, name="Researcher"))
+        reopened = SQLiteAgentProfileStore(SQLiteDatabase(tmp_path / "agents.db"))
+        return await reopened.load("tenant-1", "user-1", "agent-1")
+
+    profile = asyncio.run(execute())
+
+    assert profile.name == "Researcher"
+    assert profile.spec["model"]["provider"] == "openai-chat"
+    assert "api_key" not in profile.spec["model"]
+    assert profile.to_agent_spec().tool_permissions.mode == "ask"
+
+
+def test_sqlite_workspace_memory_and_credential_refs_persist(tmp_path):
+    database = SQLiteDatabase(tmp_path / "agents.db")
+    workspace_store = SQLiteWorkspaceStore(database)
+    memory_store = SQLiteMemoryStore(database)
+    credential_store = SQLiteCredentialRefStore(database)
+
+    async def execute():
+        await workspace_store.save(
+            WorkspaceRecord(
+                tenant_id="tenant-1",
+                user_id="user-1",
+                agent_id="agent-1",
+                workspace_id="workspace-1",
+                path=str(tmp_path / "workspaces" / "workspace-1"),
+            )
+        )
+        memory = MemoryRecord.create(
+            tenant_id="tenant-1",
+            user_id="user-1",
+            agent_id="agent-1",
+            workspace_id="workspace-1",
+            scope=MemoryScope.WORKSPACE,
+            content="User prefers concise answers.",
+        )
+        credential = CredentialRef.create(
+            tenant_id="tenant-1",
+            user_id="user-1",
+            agent_id="agent-1",
+            provider="openai",
+            name="default",
+            secret_ref="vault://tenant-1/openai/default",
+        )
+        await memory_store.save(memory)
+        await credential_store.save(credential)
+
+        reopened_database = SQLiteDatabase(tmp_path / "agents.db")
+        return (
+            await SQLiteWorkspaceStore(reopened_database).load("tenant-1", "user-1", "agent-1", "workspace-1"),
+            await SQLiteMemoryStore(reopened_database).list_for_context("tenant-1", "user-1", "agent-1", "workspace-1"),
+            await SQLiteCredentialRefStore(reopened_database).list_for_scope("tenant-1", "user-1", "agent-1"),
+        )
+
+    workspace, memories, credentials = asyncio.run(execute())
+
+    assert workspace.workspace_id == "workspace-1"
+    assert memories[0].content == "User prefers concise answers."
+    assert memories[0].scope == MemoryScope.WORKSPACE
+    assert credentials[0].secret_ref == "vault://tenant-1/openai/default"

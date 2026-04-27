@@ -13,12 +13,15 @@ def test_agent_system_exposes_future_multi_agent_boundaries():
     assert importlib.util.find_spec("agent.workflows") is not None
     assert importlib.util.find_spec("agent.context") is not None
     assert importlib.util.find_spec("agent.storage") is not None
+    assert importlib.util.find_spec("agent.storage.metadata") is not None
     assert importlib.util.find_spec("agent.security") is not None
+    assert importlib.util.find_spec("agent.security.credentials") is not None
     assert importlib.util.find_spec("agent.audit") is not None
     assert importlib.util.find_spec("agent.tracing") is not None
     assert importlib.util.find_spec("agent.models") is not None
     assert importlib.util.find_spec("agent.config") is not None
     assert importlib.util.find_spec("agent.definitions") is not None
+    assert importlib.util.find_spec("agent.definitions.profiles") is not None
     assert importlib.util.find_spec("agent.integrations") is not None
     assert importlib.util.find_spec("agent.assembly") is not None
     assert importlib.util.find_spec("agent.runs") is not None
@@ -48,6 +51,7 @@ def test_agent_models_split_protocol_adapters_and_transports():
 def test_gateway_exposes_protocol_boundary_packages():
     assert importlib.util.find_spec("gateway.auth") is not None
     assert importlib.util.find_spec("gateway.sessions") is not None
+    assert importlib.util.find_spec("gateway.services.persistence") is not None
     assert importlib.util.find_spec("gateway.streaming") is not None
 
 

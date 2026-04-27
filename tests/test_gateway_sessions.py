@@ -1,10 +1,15 @@
 import asyncio
 
-from agent.definitions import AgentSpec
+from agent.definitions import AgentProfile, AgentSpec
+from agent.identity import TenantRecord, UserRecord
+from agent.memory import MemoryRecord, MemoryScope
 from agent.runs import RunStatus
 from agent.runtime import RuntimeCheckpoint
 from agent.schema import RuntimeEvent
+from agent.security import CredentialRef
+from agent.storage import WorkspaceRecord
 from agent.tracing import InMemoryTraceStore, RuntimeTraceRecorder, TraceStatus
+from gateway.services import create_gateway_persistence
 from gateway.sessions import GatewayRunService, create_checkpoint_store, create_run_store
 
 
@@ -180,3 +185,65 @@ def test_gateway_store_factory_uses_sqlite(tmp_path):
     assert record.run_id == "run-1"
     assert checkpoint.step == "finished"
     assert (tmp_path / "agents.db").exists()
+
+
+def test_gateway_persistence_container_uses_sqlite_stores(tmp_path):
+    class AgentConfig:
+        RUN_STORE = "sqlite"
+        DB_PATH = "agents.db"
+
+    class ServerConfig:
+        ROOT_PATH = tmp_path
+
+    class Settings:
+        agent = AgentConfig()
+        server = ServerConfig()
+
+    persistence = create_gateway_persistence(Settings())
+
+    async def execute():
+        await persistence.identities.save_tenant(TenantRecord(tenant_id="tenant-1"))
+        await persistence.identities.save_user(UserRecord(tenant_id="tenant-1", user_id="user-1"))
+        spec = AgentSpec.from_overrides(tenant_id="tenant-1", user_id="user-1", agent_id="agent-1")
+        await persistence.agent_profiles.save(AgentProfile.from_spec(spec, name="Agent"))
+        await persistence.workspaces.save(
+            WorkspaceRecord(
+                tenant_id="tenant-1",
+                user_id="user-1",
+                agent_id="agent-1",
+                workspace_id="workspace-1",
+                path=str(tmp_path / "workspaces" / "workspace-1"),
+            )
+        )
+        memory = MemoryRecord.create(
+            tenant_id="tenant-1",
+            user_id="user-1",
+            agent_id="agent-1",
+            scope=MemoryScope.AGENT,
+            content="remember this",
+        )
+        credential = CredentialRef.create(
+            tenant_id="tenant-1",
+            user_id="user-1",
+            agent_id="agent-1",
+            provider="openai",
+            name="default",
+            secret_ref="vault://secret",
+        )
+        await persistence.memories.save(memory)
+        await persistence.credentials.save(credential)
+        return (
+            await persistence.identities.load_user("tenant-1", "user-1"),
+            await persistence.agent_profiles.load("tenant-1", "user-1", "agent-1"),
+            await persistence.workspaces.load("tenant-1", "user-1", "agent-1", "workspace-1"),
+            await persistence.memories.list_for_context("tenant-1", "user-1", "agent-1"),
+            await persistence.credentials.list_for_scope("tenant-1", "user-1", "agent-1"),
+        )
+
+    user, profile, workspace, memories, credentials = asyncio.run(execute())
+
+    assert user.user_id == "user-1"
+    assert profile.name == "Agent"
+    assert workspace.workspace_id == "workspace-1"
+    assert memories[0].content == "remember this"
+    assert credentials[0].secret_ref == "vault://secret"

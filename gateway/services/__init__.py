@@ -1,9 +1,3 @@
-# !/usr/bin/env python
-# -*- coding: utf-8 -*-
-# =====================================================
-# @File   ：__init__.py
-# @Date   ：2026/04/24 00:00
-# @Author ：Zegen
-#
-# 2026/04/24   Create
-# =====================================================
+from gateway.services.persistence import GatewayPersistence, create_gateway_persistence
+
+__all__ = ["GatewayPersistence", "create_gateway_persistence"]
