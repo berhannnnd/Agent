@@ -23,10 +23,18 @@ def test_agent_runtime_is_split_into_explicit_kernel_modules():
     assert importlib.util.find_spec("agent.context.compiler") is not None
     assert importlib.util.find_spec("agent.runtime.session") is not None
     assert importlib.util.find_spec("agent.context.window") is not None
-    assert importlib.util.find_spec("agent.runtime.tool_orchestrator") is not None
+    assert importlib.util.find_spec("agent.runtime.turns") is not None
+    assert importlib.util.find_spec("agent.runtime.turns.model") is not None
+    assert importlib.util.find_spec("agent.runtime.turns.tools") is not None
     assert importlib.util.find_spec("agent.security.permissions") is not None
     assert importlib.util.find_spec("agent.runtime.checkpoints") is not None
     assert importlib.util.find_spec("agent.runtime.state") is not None
+
+
+def test_agent_models_split_protocol_adapters_and_transports():
+    assert importlib.util.find_spec("agent.models.adapters") is not None
+    assert importlib.util.find_spec("agent.models.protocol") is not None
+    assert importlib.util.find_spec("agent.models.transports") is not None
 
 
 def test_gateway_exposes_protocol_boundary_packages():

@@ -1,4 +1,4 @@
-from typing import Any, AsyncIterable, Dict, Optional
+from typing import Any, AsyncIterable, Dict
 from urllib.parse import urljoin
 
 import httpx
@@ -12,6 +12,7 @@ from agent.models.errors import (
     ModelTimeoutError,
     ModelBadRequestError,
 )
+from agent.models.transports.sse import parse_sse_json_line
 
 
 class HttpxModelTransport:
@@ -52,7 +53,7 @@ class HttpxModelTransport:
                     body = await response.aread()
                     _raise_from_status(response.status_code, body.decode("utf-8", errors="replace"))
                 async for line in response.aiter_lines():
-                    parsed = _parse_sse_json_line(line)
+                    parsed = parse_sse_json_line(line)
                     if parsed is None:
                         continue
                     yield parsed
@@ -66,6 +67,9 @@ class HttpxModelTransport:
 
     def _headers(self, headers: Dict[str, str]) -> Dict[str, str]:
         return {"Content-Type": "application/json", **headers}
+
+    async def async_close(self) -> None:
+        await self._client.aclose()
 
 
 def _raise_from_status(status_code: int, body: str) -> None:
@@ -81,17 +85,3 @@ def _raise_from_status(status_code: int, body: str) -> None:
             raise ModelContextWindowError("context window exceeded: %s" % body)
         raise ModelBadRequestError("bad request: %s" % body)
     raise ModelClientError("model request failed: HTTP %s %s" % (status_code, body))
-
-
-def _parse_sse_json_line(line: str) -> Optional[Dict[str, Any]]:
-    line = line.strip()
-    if not line or line.startswith(":"):
-        return None
-    if line.startswith("data:"):
-        line = line[len("data:") :].strip()
-    elif ":" in line:
-        return None
-    if line == "[DONE]":
-        return None
-    import json
-    return json.loads(line)

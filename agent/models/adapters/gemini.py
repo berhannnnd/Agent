@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
 from agent.models.adapters.base import ProviderAdapter
+from agent.models.protocol import message_event, text_delta, tool_call_delta
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 
@@ -68,13 +69,13 @@ class GeminiGenerateContentAdapter(ProviderAdapter):
 
     def parse_stream_event(self, event: Dict[str, Any]) -> List[ModelStreamEvent]:
         response = self.parse_response(event)
-        events = [ModelStreamEvent(type="text_delta", delta=response.content_text(), raw=event)] if response.content_text() else []
+        events = [text_delta(response.content_text(), raw=event)] if response.content_text() else []
         if response.tool_calls:
             events.extend(
-                ModelStreamEvent(type="tool_call_delta", tool_call=call, raw=event)
+                tool_call_delta(call, raw=event)
                 for call in response.tool_calls
             )
-            events.append(ModelStreamEvent(type="message", response=response, raw=event))
+            events.append(message_event(response, raw=event))
         return events
 
 

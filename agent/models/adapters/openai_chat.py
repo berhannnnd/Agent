@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from agent.models.adapters.base import ProviderAdapter, ProviderParseError
 from agent.models.constants import is_azure_openai_endpoint
+from agent.models.protocol import reasoning_delta, text_delta, tool_call_delta, usage_event
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 
@@ -61,13 +62,14 @@ class OpenAIChatCompletionsAdapter(ProviderAdapter):
         delta = choices[0].get("delta") or {}
         events: List[ModelStreamEvent] = []
         if delta.get("content"):
-            events.append(ModelStreamEvent(type="text_delta", delta=delta["content"], raw=event))
+            events.append(text_delta(delta["content"], raw=event))
+        if delta.get("reasoning_content"):
+            events.append(reasoning_delta(delta["reasoning_content"], raw=event))
         for raw_call in delta.get("tool_calls", []) or []:
             function = raw_call.get("function", {})
             events.append(
-                ModelStreamEvent(
-                    type="tool_call_delta",
-                    tool_call=ToolCall(
+                tool_call_delta(
+                    ToolCall(
                         id=raw_call.get("id", ""),
                         name=function.get("name", ""),
                         arguments={"__delta__": function.get("arguments", "")},
@@ -76,6 +78,11 @@ class OpenAIChatCompletionsAdapter(ProviderAdapter):
                     raw=event,
                 )
             )
+        usage = event.get("usage")
+        if usage:
+            parsed_usage = _openai_usage(usage)
+            if parsed_usage is not None:
+                events.append(usage_event(parsed_usage, raw=event))
         return events
 
 

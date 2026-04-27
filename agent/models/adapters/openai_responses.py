@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from agent.models.adapters.base import ProviderAdapter, ProviderParseError
 from agent.models.constants import is_azure_openai_endpoint
+from agent.models.protocol import message_event, reasoning_delta, text_delta, tool_call_delta, usage_event
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 
@@ -71,14 +72,15 @@ class OpenAIResponsesAdapter(ProviderAdapter):
     def parse_stream_event(self, event: Dict[str, Any]) -> List[ModelStreamEvent]:
         event_type = event.get("type", "")
         if event_type.endswith("output_text.delta"):
-            return [ModelStreamEvent(type="text_delta", delta=event.get("delta", ""), raw=event)]
+            return [text_delta(event.get("delta", ""), raw=event)]
+        if "reasoning" in event_type and event_type.endswith(".delta"):
+            return [reasoning_delta(event.get("delta", event.get("text", "")), raw=event)]
         if event_type == "response.output_item.added":
             item = event.get("item") or {}
             if item.get("type") == "function_call":
                 return [
-                    ModelStreamEvent(
-                        type="tool_call_delta",
-                        tool_call=ToolCall(
+                    tool_call_delta(
+                        ToolCall(
                             id=item.get("call_id") or item.get("id", ""),
                             name=item.get("name", ""),
                             arguments={"__delta__": item.get("arguments", "")},
@@ -89,9 +91,8 @@ class OpenAIResponsesAdapter(ProviderAdapter):
                 ]
         if event_type == "response.function_call_arguments.delta":
             return [
-                ModelStreamEvent(
-                    type="tool_call_delta",
-                    tool_call=ToolCall(
+                tool_call_delta(
+                    ToolCall(
                         id="",
                         name="",
                         arguments={"__delta__": event.get("delta", "")},
@@ -100,8 +101,11 @@ class OpenAIResponsesAdapter(ProviderAdapter):
                     raw=event,
                 )
             ]
+        if event_type == "response.usage.updated" and event.get("usage"):
+            usage = _openai_responses_usage(event["usage"])
+            return [usage_event(usage, raw=event)] if usage is not None else []
         if event_type.endswith("completed") and "response" in event:
-            return [ModelStreamEvent(type="message", response=self.parse_response(event["response"]), raw=event)]
+            return [message_event(self.parse_response(event["response"]), raw=event)]
         return []
 
 

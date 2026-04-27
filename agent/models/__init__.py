@@ -9,5 +9,6 @@
 # =====================================================
 
 from agent.models.client import ModelClient, ModelClientConfig, create_model_client
+from agent.models.protocol import ModelStreamEventType
 
-__all__ = ["ModelClient", "ModelClientConfig", "create_model_client"]
+__all__ = ["ModelClient", "ModelClientConfig", "ModelStreamEventType", "create_model_client"]

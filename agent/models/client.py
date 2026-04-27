@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, replace
-from typing import AsyncIterable, Dict, Iterable, List, Optional
+from typing import AsyncIterable, Dict, Iterable, Optional
 
 from agent.models.adapters import GeminiGenerateContentAdapter, adapter_for_provider
 from agent.models.constants import normalize_base_url
+from agent.models.protocol import ModelStreamEventType, ModelStreamState, message_event
 from agent.models.retry import RetryPolicy, _run_with_retry
-from agent.models.stream import _StreamToolCallAccumulator, _final_stream_response
-from agent.models.transport import HttpxModelTransport
+from agent.models.transports import HttpxModelTransport
 from agent.schema import ModelRequest, ModelResponse, ModelStreamEvent
 
 
@@ -59,25 +59,16 @@ class ModelClient:
         request_data = self._with_config(request_data)
         path = self._path(stream=True)
         payload = self.adapter.request_payload(request_data, stream=True)
-        text_parts: List[str] = []
-        final_response: Optional[ModelResponse] = None
-        tool_call_accumulator = _StreamToolCallAccumulator()
+        state = ModelStreamState()
 
         async for chunk in self.transport.async_stream_json(
             path, payload, self._headers(), self.config.timeout
         ):
             for event in self.adapter.parse_stream_event(chunk):
-                if event.type == "text_delta":
-                    text_parts.append(event.delta)
-                if event.type == "tool_call_delta" and event.tool_call is not None:
-                    tool_call_accumulator.add(event.tool_call)
-                if event.type == "message" and event.response is not None:
-                    final_response = event.response
-                yield event
-        final_response = _final_stream_response(
-            final_response, "".join(text_parts), tool_call_accumulator.tool_calls()
-        )
-        yield ModelStreamEvent(type="message", response=final_response)
+                state.apply(event)
+                if event.type != ModelStreamEventType.MESSAGE.value:
+                    yield event
+        yield message_event(state.finalize())
 
     def complete(self, request_data: ModelRequest) -> ModelResponse:
         """同步兼容方法（内部使用 asyncio.run）。"""
@@ -88,6 +79,14 @@ class ModelClient:
         async def _collect():
             return [event async for event in self.async_stream(request_data)]
         return iter(asyncio.run(_collect()))
+
+    async def async_close(self) -> None:
+        close = getattr(self.transport, "async_close", None)
+        if close is not None:
+            await close()
+
+    def close(self) -> None:
+        asyncio.run(self.async_close())
 
     def _with_config(self, request_data: ModelRequest) -> ModelRequest:
         metadata = dict(request_data.metadata)

@@ -14,9 +14,10 @@ from agent.models.adapters import (
     OpenAIChatCompletionsAdapter,
     OpenAIResponsesAdapter,
 )
-from agent.models.client import HttpxModelTransport, ModelClient, ModelClientConfig
-from agent.models.stream import parse_sse_json_line
-from agent.schema import Message, ModelRequest, ToolCall, ToolSpec
+from agent.models.client import ModelClient, ModelClientConfig
+from agent.models.protocol import ModelStreamEventType, ModelStreamState, reasoning_delta, text_delta, usage_event
+from agent.models.transports import HttpxModelTransport, parse_sse_json_line
+from agent.schema import Message, ModelRequest, ModelUsage, ToolCall, ToolSpec
 
 
 class FakeTransport:
@@ -24,6 +25,7 @@ class FakeTransport:
         self.response = response
         self.stream = list(stream or [])
         self.requests = []
+        self.closed = False
 
     def post_json(self, path, payload, headers, timeout):
         self.requests.append(("post", path, payload, headers, timeout))
@@ -39,6 +41,9 @@ class FakeTransport:
     async def async_stream_json(self, path, payload, headers, timeout):
         for item in self.stream_json(path, payload, headers, timeout):
             yield item
+
+    async def async_close(self):
+        self.closed = True
 
 
 class FakeStreamResponse:
@@ -96,6 +101,19 @@ def test_transport_skips_sse_event_metadata():
     ]
 
 
+def test_model_stream_state_preserves_reasoning_and_usage():
+    state = ModelStreamState()
+
+    state.apply(text_delta("answer"))
+    state.apply(reasoning_delta("internal reasoning"))
+    state.apply(usage_event(ModelUsage(input_tokens=1, output_tokens=2, total_tokens=3)))
+    final = state.finalize()
+
+    assert final.content_text() == "answer"
+    assert final.usage.total_tokens == 3
+    assert final.message.raw["reasoning"] == "internal reasoning"
+
+
 def test_httpx_transport_uses_configured_proxy(monkeypatch):
     import asyncio
 
@@ -121,7 +139,7 @@ def test_httpx_transport_uses_configured_proxy(monkeypatch):
             captured["url"] = url
             return FakeResponse()
 
-    monkeypatch.setattr("agent.models.transport.httpx.AsyncClient", FakeClient)
+    monkeypatch.setattr("agent.models.transports.http.httpx.AsyncClient", FakeClient)
 
     response = asyncio.run(
         HttpxModelTransport("https://api.example/v1", proxy_url="http://127.0.0.1:7890").async_post_json(
@@ -426,6 +444,18 @@ def test_model_client_posts_to_provider_path_and_parses_response():
     assert response.content_text() == "done"
 
 
+def test_model_client_closes_transport():
+    transport = FakeTransport()
+    client = ModelClient(
+        ModelClientConfig(provider="openai-chat", model="test-model", api_key="test-key"),
+        transport=transport,
+    )
+
+    client.close()
+
+    assert transport.closed is True
+
+
 def test_model_client_uses_api_key_header_for_azure_openai_v1():
     transport = FakeTransport(
         {
@@ -494,6 +524,24 @@ def test_model_client_streams_openai_chat_tool_calls():
     assert final.tool_calls[0].arguments == {"text": "hi"}
 
 
+def test_openai_chat_adapter_streams_reasoning_and_usage_events():
+    adapter = OpenAIChatCompletionsAdapter()
+
+    events = adapter.parse_stream_event(
+        {
+            "choices": [{"delta": {"reasoning_content": "think"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+        }
+    )
+
+    assert [event.type for event in events] == [
+        ModelStreamEventType.REASONING_DELTA.value,
+        ModelStreamEventType.USAGE.value,
+    ]
+    assert events[0].delta == "think"
+    assert events[1].usage.total_tokens == 3
+
+
 def test_model_client_streams_openai_responses_completed_event():
     transport = FakeTransport(
         stream=[
@@ -516,6 +564,10 @@ def test_model_client_streams_openai_responses_completed_event():
 
     events = list(client.stream(sample_request("openai-responses")))
 
+    assert [event.type for event in events] == [
+        ModelStreamEventType.TEXT_DELTA.value,
+        ModelStreamEventType.MESSAGE.value,
+    ]
     assert events[-1].response.content_text() == "done"
 
 

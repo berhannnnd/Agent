@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from agent.models.adapters.base import ProviderAdapter
+from agent.models.protocol import reasoning_delta, text_delta, tool_call_delta
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 
@@ -67,9 +68,8 @@ class ClaudeMessagesAdapter(ProviderAdapter):
             block = event.get("content_block") or {}
             if block.get("type") == "tool_use":
                 return [
-                    ModelStreamEvent(
-                        type="tool_call_delta",
-                        tool_call=ToolCall(
+                    tool_call_delta(
+                        ToolCall(
                             id=block.get("id", ""),
                             name=block.get("name", ""),
                             arguments=dict(block.get("input") or {}),
@@ -81,12 +81,13 @@ class ClaudeMessagesAdapter(ProviderAdapter):
         if event_type == "content_block_delta":
             delta = event.get("delta") or {}
             if delta.get("type") == "text_delta":
-                return [ModelStreamEvent(type="text_delta", delta=delta.get("text", ""), raw=event)]
+                return [text_delta(delta.get("text", ""), raw=event)]
+            if delta.get("type") == "thinking_delta":
+                return [reasoning_delta(delta.get("thinking", ""), raw=event)]
             if delta.get("type") == "input_json_delta":
                 return [
-                    ModelStreamEvent(
-                        type="tool_call_delta",
-                        tool_call=ToolCall(
+                    tool_call_delta(
+                        ToolCall(
                             id="",
                             name="",
                             arguments={"__delta__": delta.get("partial_json", "")},

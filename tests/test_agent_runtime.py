@@ -201,6 +201,41 @@ def test_agent_runtime_streams_text_and_tool_events():
     assert "".join(event.payload.get("delta", "") for event in events) == "hello"
 
 
+def test_agent_runtime_streams_reasoning_events():
+    llm = ScriptedModelClient(
+        [
+            [
+                ModelStreamEvent(type="reasoning_delta", delta="think"),
+                ModelStreamEvent(type="message", response=ModelResponse(message=Message.from_text("assistant", "done"))),
+            ]
+        ]
+    )
+    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), provider="scripted", model="scripted")
+
+    async def collect():
+        return [event async for event in runtime.stream([Message.from_text("user", "hi")])]
+
+    events = asyncio.run(collect())
+
+    assert [event.type for event in events] == ["reasoning_delta", "done"]
+    assert events[0].payload["delta"] == "think"
+
+
+def test_agent_runtime_stream_done_uses_error_content_on_failure():
+    llm = ScriptedModelClient([])
+    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), provider="scripted", model="scripted")
+
+    async def collect():
+        return [event async for event in runtime.stream([Message.from_text("user", "hi")])]
+
+    events = asyncio.run(collect())
+
+    assert events[-2].type == "error"
+    assert events[-1].type == "done"
+    assert events[-1].payload["content"].startswith("unexpected error")
+    assert events[-1].payload["error"].startswith("unexpected error")
+
+
 def test_agent_session_stream_commits_completed_history():
     llm = ScriptedModelClient(
         [
