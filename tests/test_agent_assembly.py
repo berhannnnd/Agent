@@ -1,7 +1,7 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =====================================================
-# @File   ：test_agent_factory.py
+# @File   ：test_agent_assembly.py
 # @Date   ：2026/04/24 00:00
 # @Author ：Zegen
 #
@@ -11,9 +11,9 @@
 import asyncio
 import json
 
-import pytest
-
-from agent.factory import AgentConfigError, AgentSpec, create_agent_session, resolve_model_client_config
+from agent.assembly import create_agent_session, create_agent_session_async
+from agent.config import resolve_model_client_config
+from agent.definitions import AgentSpec
 
 
 class FakeModelConfig:
@@ -158,7 +158,7 @@ def test_create_session_composes_skill_prompt_and_declared_tools(tmp_path, monke
     settings.models.openai.API_KEY = "key"
     settings.models.openai.MODEL = "model"
 
-    session = create_agent_session(settings)
+    session = create_agent_session(settings, AgentSpec())
 
     assert "## system: system.user_configured\nBase prompt." in session.system_prompt
     assert "## skills: skill.focus.0\nFocus on agents." in session.system_prompt
@@ -184,12 +184,12 @@ def test_create_session_respects_explicit_enabled_tools(tmp_path, monkeypatch):
     settings.models.openai.API_KEY = "key"
     settings.models.openai.MODEL = "model"
 
-    session = create_agent_session(settings, enabled_tools=["explicit_tool"])
+    session = create_agent_session(settings, AgentSpec.from_overrides(enabled_tools=["explicit_tool"]))
 
     assert session.runtime.enabled_tools == ["explicit_tool"]
 
 
-def test_create_session_accepts_agent_spec(tmp_path, monkeypatch):
+def test_create_session_uses_agent_spec(tmp_path, monkeypatch):
     (tmp_path / "skills").mkdir()
     (tmp_path / "skills" / "focus.json").write_text(
         json.dumps({"name": "focus", "tools": ["skill_tool"]}),
@@ -208,7 +208,7 @@ def test_create_session_accepts_agent_spec(tmp_path, monkeypatch):
         skills=["focus"],
     )
 
-    session = create_agent_session(settings, spec=spec)
+    session = create_agent_session(settings, spec)
 
     assert session.runtime.model == "spec-model"
     assert session.runtime.enabled_tools == ["skill_tool"]
@@ -226,7 +226,7 @@ def test_create_session_loads_workspace_agents_md(tmp_path, monkeypatch):
     workspace.mkdir(parents=True)
     (workspace / "AGENTS.md").write_text("Workspace instruction.", encoding="utf-8")
 
-    session = create_agent_session(settings, user_id="user 1", agent_id="agent 1")
+    session = create_agent_session(settings, AgentSpec.from_overrides(user_id="user 1", agent_id="agent 1"))
 
     assert session.workspace.tenant_id == "default"
     assert session.workspace.user_id == "user-1"
@@ -236,8 +236,6 @@ def test_create_session_loads_workspace_agents_md(tmp_path, monkeypatch):
 
 
 def test_async_create_session_can_run_inside_event_loop(tmp_path, monkeypatch):
-    from agent.factory import create_agent_session_async
-
     monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
     settings = FakeSettings()
     settings.server.ROOT_PATH = tmp_path
@@ -245,7 +243,7 @@ def test_async_create_session_can_run_inside_event_loop(tmp_path, monkeypatch):
     settings.models.openai.MODEL = "model"
 
     async def create():
-        return await create_agent_session_async(settings)
+        return await create_agent_session_async(settings, AgentSpec())
 
     session = asyncio.run(create())
 

@@ -67,9 +67,9 @@ graph TB
 
 ## 调用链
 
-1. `web` 通过 HTTP/SSE 调用 `gateway.api`；`cli` 直接调用 `agent.factory`。
+1. `web` 通过 HTTP/SSE 调用 `gateway.api`；`cli` 直接调用 `agent.assembly`。
 2. `gateway.api` 和 CLI 将外部参数转换成 `AgentSpec`。
-3. `gateway.api` 将 `AgentSpec` 传给 `agent.factory.create_agent_session_async()`；CLI 使用同步 `create_agent_session()`。
+3. `gateway.api` 将 `AgentSpec` 传给 `agent.assembly.create_agent_session_async()`；CLI 使用同步 `create_agent_session()`。
 4. `agent.config` 解析模型配置；`agent.assembly` 创建 `ModelClient`、`ToolRegistry` 和 hooks。
 5. `agent.integrations` 装配 skills/MCP；`agent.storage` 根据 `AgentSpec.workspace` 解析 workspace。
 6. `agent.context` 把 system prompt、runtime policy、workspace instructions、skills、tool hints 放入 `ContextPack`，由 `ContextBuilder` 编译为上下文。

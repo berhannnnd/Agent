@@ -44,7 +44,6 @@
 │   ├── storage/             # workspace/run/memory/artifact store 边界
 │   ├── tools/               # ToolRegistry 与 MCP stdio 工具接入
 │   ├── workflows/           # workflow / DAG 执行边界
-│   ├── factory.py           # 兼容入口，转发到 assembly/config/integrations
 │   └── schema.py            # Message、ToolCall、ModelRequest、RuntimeEvent 等核心类型
 ├── gateway/                 # 后端网关
 │   ├── api/                 # FastAPI routes、schemas、Agent HTTP API
@@ -183,7 +182,7 @@ Provider 标准名：
 ## Agent 调用链
 
 1. gateway API 和 CLI 先把外部参数归一成 `AgentSpec`。
-2. gateway API 调用 `agent.factory.create_agent_session_async`；CLI 调用同步 `agent.factory.create_agent_session`。
+2. gateway API 调用 `agent.assembly.create_agent_session_async`；CLI 调用同步 `agent.assembly.create_agent_session`。
 3. `agent.config` 解析 provider/model/base_url/api_key，创建 `ModelClientConfig`。
 4. `agent.assembly` 创建 `ToolRegistry`，通过 `agent.integrations` 读取 skill manifests 和 MCP tools。
 5. `agent.storage` 根据 `AgentSpec.workspace` 解析 workspace，读取 workspace `AGENTS.md` 作为 project instructions。

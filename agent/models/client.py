@@ -71,11 +71,11 @@ class ModelClient:
         yield message_event(state.finalize())
 
     def complete(self, request_data: ModelRequest) -> ModelResponse:
-        """同步兼容方法（内部使用 asyncio.run）。"""
+        """同步便捷方法（内部使用 asyncio.run）。"""
         return asyncio.run(self.async_complete(request_data))
 
     def stream(self, request_data: ModelRequest) -> Iterable[ModelStreamEvent]:
-        """同步兼容方法（内部使用 asyncio.run）。"""
+        """同步便捷方法（内部使用 asyncio.run）。"""
         async def _collect():
             return [event async for event in self.async_stream(request_data)]
         return iter(asyncio.run(_collect()))

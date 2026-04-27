@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import shlex
 from typing import Any
 
@@ -21,14 +20,3 @@ async def load_configured_mcp(settings: Any, registry: ToolRegistry) -> None:
     )
     provider = MCPToolProvider(client=MCPStdioClient(server), server=server)
     await provider.load_tools(registry)
-
-
-def load_configured_mcp_sync(settings: Any, registry: ToolRegistry) -> None:
-    if not str(settings.mcp.SERVER_COMMAND or "").strip():
-        return
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        asyncio.run(load_configured_mcp(settings, registry))
-        return
-    raise RuntimeError("load_configured_mcp_sync cannot run inside an active event loop")

@@ -17,7 +17,8 @@ import json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from agent.factory import AgentConfigError, create_agent_session_async as _create_agent_session_async
+from agent.assembly import create_agent_session_async as _create_agent_session_async
+from agent.config import AgentConfigError
 from gateway.api.agent.schemas import AgentChatRequest
 from gateway.core.config import settings
 from gateway.shared.server.common import resp

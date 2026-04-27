@@ -104,7 +104,7 @@ def _tool_hint_fragments(enabled_tools: Iterable[str]) -> List[ContextFragment]:
             id="tools.enabled",
             layer=ContextLayer.TOOL_HINTS,
             text="Enabled tools for this session: %s." % ", ".join(names),
-            source="agent.factory",
+            source="agent.integrations",
             priority=40,
             scope=ContextScope.TOOL,
         )

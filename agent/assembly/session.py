@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from agent.config import resolve_model_client_config
 from agent.context.builder import ContextBuilder
@@ -17,34 +17,10 @@ from agent.tools.registry import ToolRegistry
 
 async def create_agent_session_async(
     settings: Any,
-    spec: Optional[AgentSpec] = None,
-    provider: Optional[str] = None,
-    model: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_key: Optional[str] = None,
-    system_prompt: Optional[str] = None,
-    enabled_tools: Optional[List[str]] = None,
+    spec: AgentSpec,
     hooks: Optional[AgentHooks] = None,
-    tenant_id: str = "",
-    user_id: str = "",
-    agent_id: str = "",
-    workspace_id: str = "",
-    skills: Optional[List[str]] = None,
 ) -> AgentSession:
-    resolved_spec = _resolve_spec(
-        spec,
-        provider=provider,
-        model=model,
-        base_url=base_url,
-        api_key=api_key,
-        system_prompt=system_prompt,
-        enabled_tools=enabled_tools,
-        tenant_id=tenant_id,
-        user_id=user_id,
-        agent_id=agent_id,
-        workspace_id=workspace_id,
-        skills=skills,
-    )
+    resolved_spec = spec.with_workspace_defaults()
     config = resolve_model_client_config(
         settings,
         provider=resolved_spec.model.provider,
@@ -90,41 +66,9 @@ async def create_agent_session_async(
     )
 
 
-def create_agent_session(*args: Any, **kwargs: Any) -> AgentSession:
+def create_agent_session(settings: Any, spec: AgentSpec, hooks: Optional[AgentHooks] = None) -> AgentSession:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(create_agent_session_async(*args, **kwargs))
+        return asyncio.run(create_agent_session_async(settings, spec, hooks=hooks))
     raise RuntimeError("create_agent_session cannot run inside an active event loop; use create_agent_session_async")
-
-
-def _resolve_spec(
-    spec: Optional[AgentSpec],
-    *,
-    provider: Optional[str] = None,
-    model: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_key: Optional[str] = None,
-    system_prompt: Optional[str] = None,
-    enabled_tools: Optional[List[str]] = None,
-    tenant_id: str = "",
-    user_id: str = "",
-    agent_id: str = "",
-    workspace_id: str = "",
-    skills: Optional[List[str]] = None,
-) -> AgentSpec:
-    if spec is not None:
-        return spec.with_workspace_defaults()
-    return AgentSpec.from_overrides(
-        provider=provider,
-        model=model,
-        base_url=base_url,
-        api_key=api_key,
-        system_prompt=system_prompt,
-        enabled_tools=enabled_tools,
-        tenant_id=tenant_id,
-        user_id=user_id,
-        agent_id=agent_id,
-        workspace_id=workspace_id,
-        skills=skills,
-    ).with_workspace_defaults()

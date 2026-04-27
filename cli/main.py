@@ -16,7 +16,8 @@ from typing import Annotated, Optional
 import click
 import typer
 
-from agent.factory import AgentConfigError, create_agent_session as _create_agent_session
+from agent.assembly import create_agent_session as _create_agent_session
+from agent.config import AgentConfigError
 from agent.definitions import AgentSpec
 from gateway.core.config import settings
 
