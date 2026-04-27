@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from app.agent.schema import Message, ModelResponse, ToolResult
 
-# 避免循环导入：AgentResult 定义在 runtime 中，on_error 签名里仅作类型提示
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.agent.runtime import AgentResult
 
