@@ -43,17 +43,17 @@ class AgentSession:
     def _truncate_messages(self, messages: List[Message]) -> List[Message]:
         return self.context_window.fit(messages)
 
-    async def send(self, text: str) -> AgentResult:
+    async def send(self, text: str, run_id: str | None = None) -> AgentResult:
         candidate = self.messages + [Message.from_text("user", text)]
         candidate = self.context_window.fit(candidate)
-        result = await self.runtime.run(candidate)
+        result = await self.runtime.run(candidate, run_id=run_id)
         self.messages = list(result.messages)
         return result
 
-    async def stream(self, text: str) -> AsyncIterable[RuntimeEvent]:
+    async def stream(self, text: str, run_id: str | None = None) -> AsyncIterable[RuntimeEvent]:
         candidate = self.messages + [Message.from_text("user", text)]
         candidate = self.context_window.fit(candidate)
-        async for event in self.runtime.stream(candidate):
+        async for event in self.runtime.stream(candidate, run_id=run_id):
             yield event
             if event.type == "done" and event.payload.get("messages"):
                 self.messages = [Message.from_dict(message) for message in event.payload["messages"]]

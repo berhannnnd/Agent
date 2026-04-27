@@ -25,7 +25,7 @@ class FakeSession:
         self.messages = []
         self.cleared = False
 
-    async def stream(self, text):
+    async def stream(self, text, run_id=None):
         self.messages.append(text)
         yield RuntimeEvent(type="text_delta", name="assistant", payload={"delta": "ok: "})
         yield RuntimeEvent(type="text_delta", name="assistant", payload={"delta": text})
@@ -60,7 +60,7 @@ def test_cli_chat_clear_command_resets_session(monkeypatch):
 
 def test_cli_chat_reports_turn_errors_without_traceback(monkeypatch):
     class FailingSession(FakeSession):
-        async def stream(self, text):
+        async def stream(self, text, run_id=None):
             raise RuntimeError("unexpected failure")
             yield
 

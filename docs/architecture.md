@@ -60,7 +60,7 @@ graph TB
 - `gateway.core`: settings、logger、middleware、exceptions。
 - `gateway.shared.server`: FastAPI 注册器、统一响应、请求 ID、server launcher。
 - `gateway.auth`: 鉴权授权边界。
-- `gateway.sessions`: HTTP run/session 状态边界。
+- `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 finished/error，并以 `agent.runs.RunStore` 作为持久化协议。
 - `gateway.streaming`: SSE 和 future WebSocket 协议边界。
 - `gateway.engines`: 可注册引擎的生命周期管理边界。
 - `gateway.static_ui`: 挂载 `web/dist` 到 `/ui/`。
@@ -69,15 +69,16 @@ graph TB
 
 1. `web` 通过 HTTP/SSE 调用 `gateway.api`；`cli` 直接调用 `agent.assembly`。
 2. `gateway.api` 和 CLI 将外部参数转换成 `AgentSpec`。
-3. `gateway.api` 将 `AgentSpec` 传给 `agent.assembly.create_agent_session_async()`；CLI 使用同步 `create_agent_session()`。
-4. `agent.config` 解析模型配置；`agent.assembly` 创建 `ModelClient`、`ToolRegistry` 和 hooks。
-5. `agent.integrations` 装配 skills/MCP；`agent.storage` 根据 `AgentSpec.workspace` 解析 workspace。
-6. `agent.context` 把 system prompt、runtime policy、workspace instructions、skills、tool hints 放入 `ContextPack`，由 `ContextBuilder` 编译为上下文。
-7. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
-8. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
-9. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行，`CheckpointStore` 保存可恢复节点。
-10. `agent.runs.RunStore` 是 run/session 持久化协议，gateway 后续可接 DB-backed adapter。
-11. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件。
+3. `gateway.sessions.GatewayRunService` 创建 run，生成 `run_id`，并将该 ID 传入 AgentSession。
+4. `gateway.api` 将 `AgentSpec` 传给 `agent.assembly.create_agent_session_async()`；CLI 使用同步 `create_agent_session()`。
+5. `agent.config` 解析模型配置；`agent.assembly` 创建 `ModelClient`、`ToolRegistry` 和 hooks。
+6. `agent.integrations` 装配 skills/MCP；`agent.storage` 根据 `AgentSpec.workspace` 解析 workspace。
+7. `agent.context` 把 system prompt、runtime policy、workspace instructions、skills、tool hints 放入 `ContextPack`，由 `ContextBuilder` 编译为上下文。
+8. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
+9. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
+10. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行，`CheckpointStore` 保存可恢复节点。
+11. `agent.runs.RunStore` 记录 run events 和最终状态，gateway 后续可接 DB-backed adapter。
+12. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
 
 ## 新模块接入流程
 

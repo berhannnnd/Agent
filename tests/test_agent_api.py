@@ -18,7 +18,7 @@ from agent.schema import Message, RuntimeEvent
 
 
 class FakeSession:
-    async def send(self, text):
+    async def send(self, text, run_id=None):
         return AgentResult(
             content=f"ok: {text}",
             messages=[Message.from_text("user", text), Message.from_text("assistant", f"ok: {text}")],
@@ -26,19 +26,24 @@ class FakeSession:
             events=[RuntimeEvent(type="model_message", name="assistant", payload={"content": f"ok: {text}"})],
         )
 
-    async def stream(self, text):
+    async def stream(self, text, run_id=None):
         yield RuntimeEvent(type="text_delta", name="assistant", payload={"delta": "ok"})
         yield RuntimeEvent(type="done", name="assistant", payload={"content": f"ok: {text}"})
 
 
 def test_agent_chat_api_returns_final_answer(monkeypatch):
-    monkeypatch.setattr(api_agent, "create_agent_session", lambda **kwargs: FakeSession())
+    async def create_session(**kwargs):
+        return FakeSession()
+
+    monkeypatch.setattr(api_agent, "create_agent_session", create_session)
     client = TestClient(create_app())
 
     response = client.post("/api/v1/agent/chat", json={"message": "hello"})
 
     assert response.status_code == 200
-    assert response.json()["data"]["content"] == "ok: hello"
+    data = response.json()["data"]
+    assert data["run_id"].startswith("run_")
+    assert data["content"] == "ok: hello"
 
 
 def test_agent_chat_request_builds_agent_spec():
@@ -59,11 +64,15 @@ def test_agent_chat_request_builds_agent_spec():
 
 
 def test_agent_stream_api_returns_sse_events(monkeypatch):
-    monkeypatch.setattr(api_agent, "create_agent_session", lambda **kwargs: FakeSession())
+    async def create_session(**kwargs):
+        return FakeSession()
+
+    monkeypatch.setattr(api_agent, "create_agent_session", create_session)
     client = TestClient(create_app())
 
     response = client.post("/api/v1/agent/chat/stream", json={"message": "hello"})
 
     assert response.status_code == 200
+    assert "event: run_created" in response.text
     assert "event: text_delta" in response.text
     assert "event: done" in response.text

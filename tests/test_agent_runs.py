@@ -17,7 +17,7 @@ def test_in_memory_run_store_tracks_agent_scope_and_events():
     async def execute():
         record = await store.create_run(spec, run_id="run-1")
         record = await store.append_event("run-1", RuntimeEvent(type="text_delta", payload={"delta": "ok"}))
-        record = await store.finish_run("run-1", RunStatus.FINISHED)
+        record = await store.set_status("run-1", RunStatus.FINISHED)
         loaded = await store.load_run("run-1")
         return record, loaded
 

@@ -60,7 +60,7 @@ class RunStore(Protocol):
     async def append_event(self, run_id: str, event: RuntimeEvent) -> Optional[RunRecord]:
         raise NotImplementedError()
 
-    async def finish_run(self, run_id: str, status: RunStatus) -> Optional[RunRecord]:
+    async def set_status(self, run_id: str, status: RunStatus) -> Optional[RunRecord]:
         raise NotImplementedError()
 
 
@@ -84,7 +84,7 @@ class InMemoryRunStore:
         self._runs[run_id] = updated
         return updated
 
-    async def finish_run(self, run_id: str, status: RunStatus) -> Optional[RunRecord]:
+    async def set_status(self, run_id: str, status: RunStatus) -> Optional[RunRecord]:
         record = self._runs.get(run_id)
         if record is None:
             return None

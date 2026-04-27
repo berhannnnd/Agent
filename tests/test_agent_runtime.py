@@ -104,6 +104,28 @@ def test_agent_runtime_saves_finished_checkpoint():
     assert [message.role for message in checkpoint.messages] == ["user", "assistant"]
 
 
+def test_agent_session_forwards_run_id_to_runtime_checkpoints():
+    llm = ScriptedModelClient([ModelResponse(message=Message.from_text("assistant", "done"))])
+    store = InMemoryCheckpointStore()
+    runtime = AgentRuntime(
+        model_client=llm,
+        tools=ToolRegistry(),
+        provider="scripted",
+        model="scripted",
+        checkpoint_store=store,
+    )
+    session = AgentSession(runtime=runtime)
+
+    async def execute():
+        await session.send("hi", run_id="run-1")
+        return await store.load("run-1")
+
+    checkpoint = asyncio.run(execute())
+
+    assert checkpoint is not None
+    assert checkpoint.step == "finished"
+
+
 def test_agent_runtime_resumes_pending_tool_checkpoint():
     call = ToolCall(id="call-1", name="echo", arguments={"text": "hi"})
     checkpoint = RuntimeCheckpoint(

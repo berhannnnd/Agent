@@ -1,124 +1,129 @@
 # Agents
 
-一个手搓的智能体系统框架。项目按“核心智能体系统 + 后端网关 + 两个界面”组织：
+Agents is a Python-first agent system organized as a reusable agent core plus service and UI adapters.
 
-- `agent/`：智能体核心系统，不依赖 FastAPI，也不属于某个界面。
-- `gateway/`：后端网关，负责 HTTP API、鉴权、中间件、SSE、服务生命周期和 Web 静态产物挂载。
-- `cli/`：终端界面，复用 `agent/` 核心能力。
-- `web/`：浏览器界面，使用 SolidJS + Vite，通过 gateway HTTP API 交互。
-
-## 能力概览
-
-- **Agent Runtime**：非流式与流式对话、工具调用循环、运行状态、检查点恢复。
-- **Context 系统**：按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层拼装上下文，并保留 trace。
-- **多模型协议**：OpenAI Chat Completions、OpenAI Responses、Claude Messages、Gemini。
-- **Model 基础设施**：provider alias、base URL 归一化、HTTPX transport、SSE 解析、错误分类、429/5xx/timeout 重试。
-- **工具系统**：`ToolRegistry` 管理工具 schema、执行、超时和结果格式。
-- **MCP 工具接入**：通过 stdio 启动 MCP Server，并注册为 `mcp_<server>_<tool>`。
-- **Hook 扩展点**：`before_request`、`after_response`、`format_tool_result`、`on_error`，支持组合、意图引导、thinking 提取和审批拦截。
-- **多智能体预留边界**：`agent/orchestration`、`agent/memory`、`agent/workflows` 已作为后续 planner/router/supervisor、记忆和 DAG 工作流边界。
-- **Gateway 网关边界**：`gateway/auth`、`gateway/sessions`、`gateway/streaming` 预留鉴权、run/session 状态和协议流式输出层。
-- **SDK 装配入口**：`agent.assembly` 组装 AgentSession；`agent.config` 解析模型配置；`agent.integrations` 接入 skills/MCP。
-- **Agent 定义层**：`AgentSpec` 统一描述模型、工具、skills、workspace、权限和记忆 profile。
-- **Run 边界**：`agent.runs` 定义 run record/store 协议，当前提供内存实现，后续可替换为数据库。
-
-## 目录结构
+The project boundary is intentionally strict:
 
 ```text
-.
-├── agent/                   # 智能体核心系统
-│   ├── hooks/               # Runtime hook 基类、组合、意图引导、thinking、审批
-│   ├── assembly/            # AgentSession 组装入口，提供 sync/async 两种创建方式
-│   ├── config/              # 模型配置解析、provider fallback、代理设置
-│   ├── context/             # ContextPack、ContextBuilder、AGENTS.md、window、model request compiler
-│   ├── definitions/         # AgentSpec、AgentModelSpec、WorkspaceRef
-│   ├── identity/            # Principal、Tenant/User/Agent 引用
-│   ├── integrations/        # skills / MCP 等外部能力接入装配
-│   ├── memory/              # session memory / long-term memory 边界
-│   ├── models/              # ModelClient、adapters、protocol、transports、retry、errors
-│   ├── orchestration/       # 多智能体 planner/router/supervisor 边界
-│   ├── runtime/             # Agent loop、state、session、events、turns、checkpoints
-│   ├── runs/                # RunRecord、RunStore、InMemoryRunStore
-│   ├── security/            # permissions、approval、sandbox、secrets、encryption 边界
-│   ├── skills/              # skill manifest、prompt fragment、工具名声明加载
-│   ├── storage/             # workspace/run/memory/artifact store 边界
-│   ├── tools/               # ToolRegistry 与 MCP stdio 工具接入
-│   ├── workflows/           # workflow / DAG 执行边界
-│   └── schema.py            # Message、ToolCall、ModelRequest、RuntimeEvent 等核心类型
-├── gateway/                 # 后端网关
-│   ├── api/                 # FastAPI routes、schemas、Agent HTTP API
-│   ├── auth/                # 鉴权/授权边界
-│   ├── core/                # 配置、日志、中间件、异常
-│   ├── engines/             # 可注册引擎生命周期管理
-│   ├── sessions/            # run/session 状态边界
-│   ├── shared/              # FastAPI 注册器、统一响应、请求 ID、Provider 基类
-│   ├── streaming/           # SSE / future WebSocket 协议边界
-│   ├── utils/               # 终端样式、通用函数、ID、Registry
-│   ├── app.py               # FastAPI 应用工厂和 lifespan
-│   └── static_ui.py         # /ui 静态构建产物挂载
-├── cli/                     # 终端界面
-│   └── main.py              # Typer CLI，包含 chat 命令
-├── web/                     # 浏览器界面（SolidJS + Vite）
-│   ├── src/
-│   └── dist/                # `npm run build` 输出，gateway 挂载到 /ui/
-├── deploy/                  # Docker / Compose
-├── docs/                    # 架构文档
-├── tests/                   # 测试用例
-├── main.py                  # gateway 启动入口
-├── makefile                 # 常用命令
-└── pyproject.toml           # 包与命令配置
+web  -> gateway HTTP/SSE -> agent
+cli  -> agent
+
+gateway -> agent
+agent   -> no gateway, FastAPI, or UI dependency
 ```
 
-## 快速开始
+`agent/` is the core SDK/kernel. It defines agents, model protocols, context assembly, tools, permissions, runtime loops, checkpoints, run records, workspaces, skills, and MCP integration.
+
+`gateway/` is the service adapter. It exposes the agent core over HTTP/SSE, owns request/response schemas, service concurrency, run lifecycle tracking, and future auth/session persistence.
+
+`cli/` and `web/` are interfaces. They should not implement agent logic.
+
+## Current Capabilities
+
+- Multi-provider model layer: OpenAI Chat Completions, OpenAI Responses, Claude Messages, Gemini.
+- Provider-neutral streaming protocol for text deltas, reasoning deltas, tool call deltas, usage, and final messages.
+- Agent runtime with tool-call loop, streaming, hook points, checkpoint/resume support, and max-iteration guard.
+- Context system with layered fragments: system, runtime policy, workspace instructions, skills, memory, tool hints, task context.
+- Tool registry with concurrent execution, timeout handling, error-to-tool-result conversion, and MCP stdio loading.
+- `AgentSpec` definition layer for model overrides, enabled tools, skills, workspace scope, permission profile, memory profile, and metadata.
+- Workspace isolation under `tenant_id / user_id / agent_id / workspace_id`.
+- Run tracking through `RunStore`, currently backed by `InMemoryRunStore`.
+- Gateway chat APIs return `run_id`; streaming emits a `run_created` event before model/tool events.
+
+## Repository Layout
+
+```text
+agent/
+  assembly/       Build AgentSession from settings + AgentSpec
+  config/         Model/provider config resolution
+  context/        ContextPack, ContextBuilder, windowing, request compilation
+  definitions/    AgentSpec, AgentModelSpec, WorkspaceRef
+  hooks/          Runtime hooks and hook composition
+  identity/       Tenant/user/agent identity references
+  integrations/   Skills and MCP loading
+  memory/         Memory boundary
+  models/         ModelClient, adapters, protocol, transports, retry, errors
+  orchestration/  Future multi-agent planner/router/supervisor boundary
+  runs/           RunRecord, RunStore, InMemoryRunStore
+  runtime/        Agent loop, session, state, events, turns, checkpoints
+  security/       Tool permission policy and future safety boundaries
+  skills/         Skill manifest and prompt fragment loading
+  storage/        Workspace allocation
+  tools/          ToolRegistry and MCP tool provider
+  workflows/      Future workflow/DAG boundary
+  schema.py       Core message/tool/model/runtime data types
+
+gateway/
+  api/            FastAPI routes and HTTP schemas
+  auth/           Future auth boundary
+  core/           Settings, logging, middleware, exceptions
+  sessions/       Gateway run lifecycle service
+  streaming/      Future SSE/WebSocket protocol helpers
+  static_ui.py    Mounts web/dist at /ui
+
+cli/              Typer terminal interface
+web/              SolidJS + Vite browser interface
+tests/            Unit and boundary tests
+docs/             Architecture notes
+```
+
+## Quick Start
 
 ```bash
 make setup
-
 cp .env.example .env
-# 编辑 .env，填入至少一个 provider 的 API_KEY 和 MODEL
-
-make run
 ```
 
-健康检查：
+Edit `.env` and configure at least one provider API key and model.
+
+Start the gateway:
 
 ```bash
+make run
 curl http://127.0.0.1:8010/health
 ```
 
-## 常用命令
-
-| 命令 | 说明 |
-|---|---|
-| `make setup` | 安装 Python + 前端依赖 |
-| `make run` | 启动 gateway 后端服务 |
-| `make cli` | 启动终端对话界面 |
-| `make dev-web` | 同时启动后端和前端 dev server |
-| `make test` | 运行测试 |
-| `make build` | Docker 构建镜像 |
-| `make up` / `make down` | Docker Compose 启停 |
-| `make log` | 查看 Compose 服务日志 |
-
-包入口：
+Start the terminal chat:
 
 ```bash
+make cli
+# or
 agents chat --provider openai-chat --model gpt-4o
-python -m cli.main chat
-python main.py
 ```
 
-## 调用入口
+Run tests:
 
-- `python main.py`：启动 gateway FastAPI 服务。
-- `python -m cli.main chat`：启动终端界面，直接复用 `agent/` 核心能力。
-- `POST /api/v1/agent/chat`：非流式 Agent 对话。
-- `POST /api/v1/agent/chat/stream`：SSE 流式 Agent 对话。
-- `GET /health`：健康检查。
-- `POST /callback`：通用回调测试入口。
+```bash
+make test
+```
+
+## Configuration
+
+Configuration is loaded through `gateway.core.config.settings`.
+
+| Domain | Env prefix | Common fields |
+|---|---|---|
+| `settings.agent` | `AGENT_` | `AGENT_PROVIDER`, `AGENT_MAX_TOKENS`, `AGENT_MAX_RETRIES`, `AGENT_ENABLED_TOOLS`, `AGENT_SKILLS`, `AGENT_WORKSPACE_ROOT` |
+| `settings.models.openai` | `OPENAI_` | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` |
+| `settings.models.openai_responses` | `OPENAI_RESPONSES_` | `OPENAI_RESPONSES_API_KEY`, `OPENAI_RESPONSES_BASE_URL`, `OPENAI_RESPONSES_MODEL` |
+| `settings.models.anthropic` | `ANTHROPIC_` | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL` |
+| `settings.models.gemini` | `GEMINI_` | `GEMINI_API_KEY`, `GEMINI_BASE_URL`, `GEMINI_MODEL` |
+| `settings.mcp` | `MCP_` | `MCP_SERVER_NAME`, `MCP_SERVER_COMMAND`, `MCP_CLIENT_TIMEOUT` |
+
+Provider names:
+
+| Provider | Protocol |
+|---|---|
+| `openai-chat` | OpenAI Chat Completions |
+| `openai-responses` | OpenAI Responses API |
+| `claude-messages` | Anthropic Claude Messages |
+| `gemini` | Gemini Generate Content |
+
+Claude-compatible config prefers project-owned `AGENT_CLAUDE_*` values before falling back to ambient `ANTHROPIC_*` values.
 
 ## HTTP API
 
-非流式：
+Non-streaming:
 
 ```bash
 curl -X POST http://127.0.0.1:8010/api/v1/agent/chat \
@@ -130,7 +135,19 @@ curl -X POST http://127.0.0.1:8010/api/v1/agent/chat \
   }'
 ```
 
-流式：
+Response data includes:
+
+```json
+{
+  "run_id": "run_...",
+  "content": "...",
+  "messages": [],
+  "tool_results": [],
+  "events": []
+}
+```
+
+Streaming:
 
 ```bash
 curl -N -X POST http://127.0.0.1:8010/api/v1/agent/chat/stream \
@@ -138,74 +155,66 @@ curl -N -X POST http://127.0.0.1:8010/api/v1/agent/chat/stream \
   -d '{"message":"hello"}'
 ```
 
-请求体支持覆盖 `provider`、`model`、`base_url`、`api_key`、`system_prompt` 和 `enabled_tools`。
+The first SSE event is always `run_created`:
+
+```text
+event: run_created
+data: {"type":"run_created","name":"run","payload":{"run_id":"run_..."}}
+```
+
+Then the stream emits runtime events such as `text_delta`, `reasoning_delta`, `tool_start`, `tool_result`, `error`, and `done`.
+
+## Agent And Run Model
+
+External callers construct an `AgentSpec`. The spec carries:
+
+- model override: provider, model, base URL, API key
+- workspace scope: tenant, user, agent, workspace
+- enabled tools and skills
+- permission and memory profile names
+- metadata
+
+Gateway and CLI convert request/options into `AgentSpec`, then call:
+
+```python
+from agent.assembly import create_agent_session, create_agent_session_async
+```
+
+Each chat request creates a new run. `run_id` is generated by the gateway run service and passed into `AgentSession.send()` or `AgentSession.stream()`. Runtime checkpoints and gateway run records share that same ID.
+
+Defaults for local development:
+
+```text
+tenant_id    default
+user_id      anonymous
+agent_id     default
+workspace_id default
+run_id       generated per request
+```
 
 ## Web UI
+
+Build and serve through the gateway:
 
 ```bash
 cd web && npm run build
 make run
 ```
 
-构建产物存在于 `web/dist/` 时，gateway 会把 `/` 重定向到 `/ui/`，并挂载静态界面。
+When `web/dist/` exists, the gateway mounts it at `/ui/` and redirects `/` to `/ui/`.
 
-开发模式：
+For frontend development:
 
 ```bash
 make dev-web
 ```
 
-## 配置说明
+## Development Rules
 
-配置入口是 `gateway.core.config.settings`。内部按 domain 聚合：
-
-| Domain | 环境变量前缀 | 示例 |
-|---|---|---|
-| `settings.server` | 无 | `DEBUG`, `PROJECT_NAME`, `API_PREFIX`, `HOST`, `PORT`, `WORKERS`, `ACCESS_TOKEN` |
-| `settings.agent` | `AGENT_` | `AGENT_PROVIDER`, `AGENT_MAX_TOKENS`, `AGENT_MAX_RETRIES`, `AGENT_ENABLED_TOOLS`, `AGENT_GUIDED_TOOLS`, `AGENT_WORKSPACE_ROOT` |
-| `settings.models.openai` | `OPENAI_` | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` |
-| `settings.models.openai_responses` | `OPENAI_RESPONSES_` | `OPENAI_RESPONSES_API_KEY`, `OPENAI_RESPONSES_MODEL` |
-| `settings.models.anthropic` | `ANTHROPIC_` | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
-| `settings.models.gemini` | `GEMINI_` | `GEMINI_API_KEY`, `GEMINI_MODEL` |
-| `settings.mcp` | `MCP_` | `MCP_SERVER_NAME`, `MCP_SERVER_COMMAND`, `MCP_CLIENT_TIMEOUT` |
-| `settings.log` | 无 | `LOG_LEVEL`, `LOG_PATH` |
-
-Provider 标准名：
-
-| Provider | 说明 | 主要配置 |
-|---|---|---|
-| `openai-chat` | OpenAI Chat Completions | `OPENAI_*` |
-| `openai-responses` | OpenAI Responses API | `OPENAI_RESPONSES_*`，缺省回退到 `OPENAI_*` |
-| `claude-messages` | Anthropic Claude Messages | 优先 `AGENT_CLAUDE_*`，再回退到 `ANTHROPIC_*` |
-| `gemini` | Gemini Generate Content | `GEMINI_*` |
-
-## Agent 调用链
-
-1. gateway API 和 CLI 先把外部参数归一成 `AgentSpec`。
-2. gateway API 调用 `agent.assembly.create_agent_session_async`；CLI 调用同步 `agent.assembly.create_agent_session`。
-3. `agent.config` 解析 provider/model/base_url/api_key，创建 `ModelClientConfig`。
-4. `agent.assembly` 创建 `ToolRegistry`，通过 `agent.integrations` 读取 skill manifests 和 MCP tools。
-5. `agent.storage` 根据 `AgentSpec.workspace` 解析 workspace，读取 workspace `AGENTS.md` 作为 project instructions。
-6. `ContextPack` 汇总 system、runtime policy、workspace instructions、skills 和 tool hints，`ContextBuilder` 编译最终上下文并保留 trace。
-7. `agent.integrations` 把 MCP tools 注册进工具表；`agent.assembly` 根据 `AGENT_GUIDED_TOOLS` 创建 `AgentHooks`，再组装 `AgentRuntime` 和 `AgentSession`。
-8. `AgentSession` 维护消息历史，并通过 `ContextWindowManager` 保持上下文窗口。
-9. `AgentRuntime` 使用 `RuntimeState` 跟踪消息、事件、工具结果和 pending tool calls。
-10. `ModelRequestCompiler` 生成模型请求；`ToolOrchestrator` 执行工具调用，并通过 `ToolPermissionPolicy` 判断工具是否可执行。
-11. 可选 `CheckpointStore` 在模型响应、工具结果、完成和错误节点保存检查点，用于从 pending tool calls 恢复。
-12. `agent.runs.RunStore` 是 run/session 持久化边界，当前提供 `InMemoryRunStore`，后续可替换为 DB-backed 实现。
-13. `ModelClient` 选择 provider adapter，经 `HttpxModelTransport` 发起请求，并按 retry policy 处理 429、5xx 和 timeout。
-
-## 扩展方向
-
-1. 新增模型 Provider：在 `agent/models/adapters/` 添加 adapter，并注册到 `adapter_for_provider()`；通用 stream 语义放在 `agent/models/protocol/`。
-2. 新增工具：通过 `ToolRegistry.register()` 注册；skill manifest 只声明 prompt fragment 和工具名。
-3. 新增 MCP 工具：配置 `MCP_SERVER_COMMAND`，由 `MCPToolProvider` 自动加载远端工具。
-4. 新增上下文来源：放入 `agent/context/sources.py`，输出 `ContextFragment`。
-5. 新增 workspace 指令：写入对应 workspace 的 `AGENTS.md`。
-6. 新增工具权限策略：实现 `ToolPermissionPolicy`，注入 `AgentRuntime`。
-7. 新增断点恢复存储：实现 `CheckpointStore`，注入 `AgentRuntime`。
-8. 新增 run/session 持久化：实现 `RunStore`，放入 `agent/runs/` 或 gateway 的 DB adapter。
-9. 新增多智能体能力：放入 `agent/orchestration/`，保持对 gateway transport 无依赖。
-10. 新增记忆能力：放入 `agent/memory/`，由 context/runtime/orchestration 调用。
-11. 新增工作流能力：放入 `agent/workflows/`，用于 DAG、计划执行和多步骤任务。
-12. 新增后端协议能力：放入 `gateway/auth/`、`gateway/sessions/` 或 `gateway/streaming/`。
+- Put agent logic in `agent/`, not in `gateway/`, `cli/`, or `web/`.
+- Put HTTP/session/auth protocol code in `gateway/`.
+- Add model providers under `agent/models/adapters/`; keep shared stream semantics in `agent/models/protocol/`.
+- Add tools under `agent/tools/` or load them through MCP.
+- Add new context sources through `agent/context/sources.py`.
+- Add run persistence by implementing `agent.runs.RunStore`; gateway should only hold the adapter/service layer.
+- Add identity/auth from gateway login state later; do not trust user-supplied `tenant_id` or `user_id` in cloud mode.
