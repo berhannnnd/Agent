@@ -29,7 +29,7 @@ run: venv
 	$(PYTHON) main.py
 
 cli: venv
-	$(PYTHON) -m app.cli chat
+	$(PYTHON) -m cli.main chat
 
 dev-web: venv
 	@echo "Starting backend..."

@@ -8,15 +8,15 @@
 # 2026/04/24   Create
 # =====================================================
 
-from app.agent.providers.adapters import (
+from agent.providers.adapters import (
     ClaudeMessagesAdapter,
     GeminiGenerateContentAdapter,
     OpenAIChatCompletionsAdapter,
     OpenAIResponsesAdapter,
 )
-from app.agent.providers.client import HttpxModelTransport, ModelClient, ModelClientConfig
-from app.agent.providers.stream import parse_sse_json_line
-from app.agent.schema import Message, ModelRequest, ToolCall, ToolSpec
+from agent.providers.client import HttpxModelTransport, ModelClient, ModelClientConfig
+from agent.providers.stream import parse_sse_json_line
+from agent.schema import Message, ModelRequest, ToolCall, ToolSpec
 
 
 class FakeTransport:
@@ -121,7 +121,7 @@ def test_httpx_transport_uses_configured_proxy(monkeypatch):
             captured["url"] = url
             return FakeResponse()
 
-    monkeypatch.setattr("app.agent.providers.transport.httpx.AsyncClient", FakeClient)
+    monkeypatch.setattr("agent.providers.transport.httpx.AsyncClient", FakeClient)
 
     response = asyncio.run(
         HttpxModelTransport("https://api.example/v1", proxy_url="http://127.0.0.1:7890").async_post_json(

@@ -13,9 +13,9 @@
 ### Task 1: Canonical Schema and Provider Adapters
 
 **Files:**
-- Create: `app/agent/schema.py`
-- Create: `app/agent/providers/adapters.py`
-- Create: `app/agent/providers/client.py`
+- Create: `agent/schema.py`
+- Create: `agent/providers/adapters.py`
+- Create: `agent/providers/client.py`
 - Create: `tests/test_agent_providers.py`
 
 - [ ] Write tests for request payload and response parsing for OpenAI Chat, OpenAI Responses, Claude Messages, and Gemini.
@@ -26,9 +26,9 @@
 ### Task 2: Tool Registry, MCP, and Skills
 
 **Files:**
-- Create: `app/agent/tools/registry.py`
-- Create: `app/agent/tools/mcp.py`
-- Create: `app/agent/skills.py`
+- Create: `agent/tools/registry.py`
+- Create: `agent/tools/mcp.py`
+- Create: `agent/skills.py`
 - Create: `tests/test_agent_tools.py`
 
 - [ ] Write tests for function tool registration, duplicate rejection, parallel execution ordering, MCP tool loading with fake client, and skill manifest loading.
@@ -40,7 +40,7 @@
 ### Task 3: Agent Runtime
 
 **Files:**
-- Create: `app/agent/runtime.py`
+- Create: `agent/runtime/`
 - Create: `tests/test_agent_runtime.py`
 
 - [ ] Write tests for model-tool-model loop, parallel tool execution, failed tool result handling, max iteration guard, and streaming events.
@@ -50,11 +50,11 @@
 ### Task 4: CLI and API Wiring
 
 **Files:**
-- Modify: `app/cli.py`
-- Modify: `app/api/router.py`
-- Create: `app/api/agent/schemas.py`
-- Create: `app/api/agent/api_agent.py`
-- Modify: `app/core/config.py`
+- Modify: `cli/main.py`
+- Modify: `gateway/api/router.py`
+- Create: `gateway/api/agent/schemas.py`
+- Create: `gateway/api/agent/api_agent.py`
+- Modify: `gateway/core/config.py`
 - Modify: `.env.example`
 - Modify: `requirements/requirements.txt`
 - Create/modify tests for CLI and API.
@@ -67,9 +67,9 @@
 ### Task 5: Remove Old LLM Path
 
 **Files:**
-- Delete or detach: `app/shared/llm/*`
+- Delete or detach: `gateway/shared/llm/*`
 - Update: tests that imported old LLM path.
 
-- [ ] Move tests to new `app.agent` imports.
+- [ ] Move tests to new `agent` imports.
 - [ ] Remove unused old LLM code.
 - [ ] Run `make test`, `python -m compileall -q app tests main.py`, and `git diff --check`.

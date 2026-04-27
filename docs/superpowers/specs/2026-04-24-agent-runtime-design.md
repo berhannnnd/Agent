@@ -2,11 +2,11 @@
 
 ## Goal
 
-Build a fresh agent runtime under `app/agent` that supports multiple model protocols, streaming, function tools, MCP tools, skill manifests, parallel tool execution, CLI chat, and FastAPI chat/SSE endpoints.
+Build a fresh agent runtime under `agent` that supports multiple model protocols, streaming, function tools, MCP tools, skill manifests, parallel tool execution, CLI chat, and FastAPI chat/SSE endpoints.
 
 ## Scope
 
-The new runtime is the source of truth. The old `app/shared/llm` client is not preserved as a compatibility layer and should not be used by CLI or API paths.
+The new runtime is the source of truth. The old `gateway/shared/llm` client is not preserved as a compatibility layer and should not be used by CLI or API paths.
 
 ## Architecture
 
@@ -15,6 +15,15 @@ The runtime uses a canonical schema for messages, content blocks, model response
 Tools are loaded into a single registry from plain Python functions, MCP servers, and skill manifests. Tool calls from one model response execute concurrently, then results are appended to the conversation in canonical order before the next model call.
 
 The CLI and FastAPI routes both call the same `AgentSession` and `AgentRuntime` implementation. Non-streaming routes return the final answer and trace. Streaming routes emit normalized SSE events.
+
+Runtime internals are split by responsibility:
+
+- `PromptCompiler` converts state into provider-neutral model requests.
+- `ContextWindowManager` owns session context fitting.
+- `RuntimeState` tracks messages, pending tool calls, tool results, events, and loop iteration.
+- `ToolOrchestrator` executes tool calls and formats tool result messages.
+- `ToolPermissionPolicy` gates tool calls before execution.
+- `CheckpointStore` persists resumable nodes such as model responses with pending tool calls and completed tool-result batches.
 
 ## Interfaces
 
@@ -37,4 +46,4 @@ Plain tools are registered as JSON-schema function tools. MCP tools are discover
 
 ## Safety
 
-Tool execution errors are returned to the model as error tool results instead of crashing the runtime. The loop has a configurable max iteration count to prevent infinite tool-call cycles.
+Tool execution errors and denied tool calls are returned to the model as error tool results instead of crashing the runtime. The loop has a configurable max iteration count to prevent infinite tool-call cycles. Checkpoints allow a run to resume from pending tool calls after an interruption.

@@ -10,7 +10,7 @@
 
 from pathlib import Path
 
-from app.core.config import settings
+from gateway.core.config import settings
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +19,6 @@ BRAND_FILES = [
     "pyproject.toml",
     ".env.example",
     "deploy/docker-compose.yml",
-    "_inventory/migration-map.tsv",
 ]
 
 

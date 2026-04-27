@@ -10,10 +10,10 @@
 
 from fastapi.testclient import TestClient
 
-from app.api.agent import api_agent
-from app.app import create_app
-from app.agent.runtime import AgentResult
-from app.agent.schema import Message, RuntimeEvent
+from gateway.api.agent import api_agent
+from gateway.app import create_app
+from agent.runtime import AgentResult
+from agent.schema import Message, RuntimeEvent
 
 
 class FakeSession:

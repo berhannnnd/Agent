@@ -8,9 +8,11 @@
 # 2026/04/24   Create
 # =====================================================
 
+import json
+
 import pytest
 
-from app.agent.factory import AgentConfigError, resolve_model_client_config
+from agent.factory import AgentConfigError, create_agent_session, resolve_model_client_config
 
 
 class FakeModelConfig:
@@ -28,10 +30,20 @@ class FakeModelsConfig:
 
 
 class FakeAgentConfig:
+    PROVIDER = "openai-chat"
     TIMEOUT = 60.0
     MAX_TOKENS = 4096
+    MAX_TOOL_ITERATIONS = 8
+    SYSTEM_PROMPT = ""
+    ENABLED_TOOLS = ""
+    SKILLS = ""
     MAX_RETRIES = 3
     RETRY_BASE_DELAY = 1.0
+    MAX_CONTEXT_TOKENS = 256000
+    MAX_CONCURRENT_TOOLS = 10
+    MAX_CONCURRENT_REQUESTS = 20
+    TOOL_TIMEOUT = 60.0
+    GUIDED_TOOLS = ""
     HTTP_PROXY = ""
     HTTPS_PROXY = ""
     ALL_PROXY = ""
@@ -44,6 +56,26 @@ class FakeSettings:
     def __init__(self):
         self.agent = FakeAgentConfig()
         self.models = FakeModelsConfig()
+        self.server = FakeServerConfig()
+        self.mcp = FakeMcpConfig()
+
+
+class FakeServerConfig:
+    ROOT_PATH = "."
+
+
+class FakeMcpConfig:
+    SERVER_COMMAND = ""
+    SERVER_NAME = ""
+    CLIENT_TIMEOUT = 5.0
+
+
+class FakeRuntimeClient:
+    async def async_complete(self, request_data):
+        raise RuntimeError("not used")
+
+    async def async_stream(self, request_data):
+        raise RuntimeError("not used")
 
 
 def test_claude_config_prefers_agent_specific_values():
@@ -99,3 +131,50 @@ def test_model_config_uses_project_proxy_settings():
     config = resolve_model_client_config(settings, provider="openai-chat")
 
     assert config.proxy_url == "http://127.0.0.1:7890"
+
+
+def test_create_session_composes_skill_prompt_and_declared_tools(tmp_path, monkeypatch):
+    (tmp_path / "skills").mkdir()
+    (tmp_path / "prompts").mkdir()
+    (tmp_path / "prompts" / "focus.md").write_text("Focus on agents.", encoding="utf-8")
+    (tmp_path / "skills" / "focus.json").write_text(
+        json.dumps(
+            {
+                "name": "focus",
+                "prompt_fragments": ["prompts/focus.md"],
+                "tools": ["skill_tool"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("agent.factory.ModelClient", lambda config: FakeRuntimeClient())
+    settings = FakeSettings()
+    settings.server.ROOT_PATH = tmp_path
+    settings.agent.SYSTEM_PROMPT = "Base prompt."
+    settings.agent.SKILLS = "focus"
+    settings.agent.ENABLED_TOOLS = "base_tool"
+    settings.models.openai.API_KEY = "key"
+    settings.models.openai.MODEL = "model"
+
+    session = create_agent_session(settings)
+
+    assert session.system_prompt == "Base prompt.\n\nFocus on agents."
+    assert session.runtime.enabled_tools == ["base_tool", "skill_tool"]
+
+
+def test_create_session_respects_explicit_enabled_tools(tmp_path, monkeypatch):
+    (tmp_path / "skills").mkdir()
+    (tmp_path / "skills" / "focus.json").write_text(
+        json.dumps({"name": "focus", "tools": ["skill_tool"]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("agent.factory.ModelClient", lambda config: FakeRuntimeClient())
+    settings = FakeSettings()
+    settings.server.ROOT_PATH = tmp_path
+    settings.agent.SKILLS = "focus"
+    settings.models.openai.API_KEY = "key"
+    settings.models.openai.MODEL = "model"
+
+    session = create_agent_session(settings, enabled_tools=["explicit_tool"])
+
+    assert session.runtime.enabled_tools == ["explicit_tool"]

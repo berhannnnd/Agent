@@ -23,7 +23,7 @@ dependencies = [
 test = ["pytest", "httpx[socks]"]
 
 [project.scripts]
-agents = "app.cli:main"
+agents = "cli.main:main"
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["agent*", "gateway*", "cli*"]

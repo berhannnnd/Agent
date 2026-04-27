@@ -1,0 +1,195 @@
+:root {
+  font-family: "Aptos", "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: #f4efe4;
+  background: #070806;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.studio-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(18, 24, 18, 0.98), rgba(7, 8, 6, 0.98) 46%, rgba(21, 16, 10, 0.98)),
+    repeating-linear-gradient(90deg, rgba(222, 255, 127, 0.06) 0 1px, transparent 1px 84px),
+    repeating-linear-gradient(0deg, rgba(244, 239, 228, 0.035) 0 1px, transparent 1px 84px),
+    #070806;
+}
+
+.studio-shell::before,
+.studio-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.studio-shell::before {
+  background:
+    linear-gradient(110deg, transparent 0 17%, rgba(222, 255, 127, 0.12) 17.3%, transparent 18.2% 58%, rgba(255, 167, 74, 0.10) 58.4%, transparent 59.4%),
+    repeating-linear-gradient(135deg, transparent 0 22px, rgba(244, 239, 228, 0.035) 22px 23px);
+  opacity: 0.7;
+  mix-blend-mode: screen;
+}
+
+.studio-shell::after {
+  background:
+    linear-gradient(180deg, transparent, rgba(7, 8, 6, 0.34)),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.028) 0 1px, transparent 1px 5px);
+  opacity: 0.36;
+}
+
+.studio-topbar {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 28px;
+  border-bottom: 1px solid rgba(222, 255, 127, 0.18);
+  background: rgba(8, 10, 8, 0.72);
+  backdrop-filter: blur(20px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand-block {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  min-width: 0;
+}
+
+.mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, #dfff6f, #39d98a 54%, #10140f 55%);
+  color: #071008;
+  box-shadow: 0 0 0 1px rgba(222, 255, 127, 0.44), 0 18px 48px rgba(57, 217, 138, 0.26);
+}
+
+.brand-block h1,
+.thread-header h2,
+.drawer-header h2,
+.empty-state h3 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.brand-block h1 {
+  font-size: 20px;
+  line-height: 1;
+  color: #fff8e8;
+}
+
+.brand-block p,
+.eyebrow,
+label > span,
+.card-title,
+.telemetry,
+.bubble span,
+.event-empty {
+  margin: 0;
+  color: #9ea294;
+  font-size: 12px;
+}
+
+.brand-block p {
+  color: #dfff6f;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-pill,
+.mode-toggle,
+.plain-button,
+.icon-button,
+.send-button {
+  border: 0;
+  cursor: pointer;
+}
+
+.status-pill,
+.mode-toggle,
+.plain-button,
+.icon-button {
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(244, 239, 228, 0.06);
+  color: #f4efe4;
+  border: 1px solid rgba(244, 239, 228, 0.13);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.mode-toggle.active,
+.plain-button.active {
+  background: linear-gradient(135deg, #dfff6f, #37d989);
+  color: #071008;
+  border-color: rgba(222, 255, 127, 0.72);
+  box-shadow: 0 10px 34px rgba(57, 217, 138, 0.22);
+}
+
+.plain-button:hover,
+.status-pill:hover,
+.icon-button:hover {
+  border-color: rgba(222, 255, 127, 0.52);
+  background: rgba(244, 239, 228, 0.10);
+}
+
+.icon-button {
+  width: 40px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+.health-online { color: #39d98a; fill: currentColor; }
+.health-offline { color: #ff6f7d; fill: currentColor; }
+.health-degraded { color: #ffb24f; fill: currentColor; }
+.health-unknown { color: #9ea294; fill: currentColor; }
+
+.conversation-stage {
+  min-height: 0;
+  width: min(1240px, calc(100vw - 36px));
+  margin: 0 auto;
+  padding: 28px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  position: relative;
+  z-index: 1;
+}

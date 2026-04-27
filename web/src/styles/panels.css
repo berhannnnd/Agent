@@ -1,0 +1,185 @@
+.event-panel {
+  border: 1px solid rgba(222, 255, 127, 0.24);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(18, 28, 22, 0.96), rgba(6, 9, 7, 0.98)),
+    repeating-linear-gradient(90deg, rgba(222, 255, 127, 0.05) 0 1px, transparent 1px 46px);
+  color: #eef5ef;
+  padding: 16px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.32);
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-panel .card-title {
+  color: #dfff6f;
+}
+
+.event-panel pre {
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(222, 255, 127, 0.20);
+  background: rgba(3, 5, 4, 0.72);
+  color: #d8f7df;
+  font: 12px/1.55 "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.event-empty {
+  margin-top: 14px;
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 3, 2, 0.58);
+  backdrop-filter: blur(5px);
+  z-index: 30;
+}
+
+.settings-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 31;
+  height: 100vh;
+  width: min(438px, 100vw);
+  overflow-y: auto;
+  background:
+    linear-gradient(180deg, rgba(18, 20, 16, 0.98), rgba(8, 10, 8, 0.99)),
+    repeating-linear-gradient(0deg, rgba(244, 239, 228, 0.035) 0 1px, transparent 1px 70px);
+  border-left: 1px solid rgba(222, 255, 127, 0.22);
+  box-shadow: -30px 0 100px rgba(0, 0, 0, 0.44);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+
+.drawer-header h2 {
+  font-size: 24px;
+  color: #fff8e8;
+}
+
+.config-section {
+  border: 1px solid rgba(244, 239, 228, 0.12);
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  background: rgba(244, 239, 228, 0.045);
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.select-wrap,
+.input-icon {
+  position: relative;
+  display: block;
+}
+
+.select-wrap svg,
+.input-icon svg {
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #bfc3b4;
+  pointer-events: none;
+}
+
+.input-icon input {
+  padding-right: 34px;
+}
+
+@media (min-width: 1200px) {
+  .conversation-stage:has(.event-panel) {
+    grid-template-columns: minmax(0, 1fr) 350px;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 820px) {
+  .studio-topbar {
+    min-height: 72px;
+    padding: 14px;
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+  }
+
+  .top-actions {
+    width: 100%;
+  }
+
+  .conversation-stage {
+    width: calc(100vw - 20px);
+    padding: 10px 0 18px;
+  }
+
+  .thread-card {
+    min-height: calc(100vh - 158px);
+  }
+
+  .thread-card::after {
+    display: none;
+  }
+
+  .thread-header,
+  .thread-body,
+  .composer {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .thread-header h2 {
+    font-size: 27px;
+  }
+
+  .message,
+  .message-user {
+    grid-template-columns: 1fr;
+  }
+
+  .message .avatar {
+    display: none;
+  }
+
+  .message-user .bubble {
+    grid-column: 1;
+  }
+
+  .event-panel {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    z-index: 22;
+    max-height: 42vh;
+    overflow-y: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thread-card::before,
+  .typing span {
+    animation: none;
+  }
+}

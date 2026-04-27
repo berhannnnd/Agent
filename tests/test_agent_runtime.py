@@ -12,9 +12,16 @@ import asyncio
 
 import pytest
 
-from app.agent.runtime import AgentRuntime, AgentRuntimeError, AgentSession, ScriptedModelClient
-from app.agent.schema import Message, ModelResponse, ModelStreamEvent, ToolCall
-from app.agent.tools.registry import ToolRegistry
+from agent.runtime import (
+    AgentRuntime,
+    AgentSession,
+    InMemoryCheckpointStore,
+    RuntimeCheckpoint,
+    ScriptedModelClient,
+    StaticToolPermissionPolicy,
+)
+from agent.schema import Message, ModelResponse, ModelStreamEvent, ToolCall
+from agent.tools.registry import ToolRegistry
 
 
 def test_agent_runtime_runs_model_tool_model_loop():
@@ -38,6 +45,97 @@ def test_agent_runtime_runs_model_tool_model_loop():
     result = asyncio.run(runtime.run([Message.from_text("user", "say hi")]))
 
     assert result.content == "final answer"
+    assert result.tool_results[0].content == "hi"
+    assert [message.role for message in result.messages] == ["user", "assistant", "tool", "assistant"]
+
+
+def test_agent_runtime_denies_tools_through_permission_policy():
+    llm = ScriptedModelClient(
+        [
+            ModelResponse(
+                message=Message.from_text(
+                    "assistant",
+                    "",
+                    tool_calls=[ToolCall(id="call-1", name="dangerous", arguments={})],
+                )
+            ),
+            ModelResponse(message=Message.from_text("assistant", "handled denial")),
+        ]
+    )
+    tools = ToolRegistry()
+    tools.register("dangerous", "Dangerous", {}, lambda: "should not run")
+    runtime = AgentRuntime(
+        model_client=llm,
+        tools=tools,
+        provider="scripted",
+        model="scripted",
+        permission_policy=StaticToolPermissionPolicy(denied_tools={"dangerous"}),
+    )
+
+    result = asyncio.run(runtime.run([Message.from_text("user", "run it")]))
+
+    assert result.content == "handled denial"
+    assert result.tool_results[0].is_error is True
+    assert "denied" in result.tool_results[0].content
+    assert result.messages[2].role == "tool"
+
+
+def test_agent_runtime_saves_finished_checkpoint():
+    llm = ScriptedModelClient([ModelResponse(message=Message.from_text("assistant", "done"))])
+    store = InMemoryCheckpointStore()
+    runtime = AgentRuntime(
+        model_client=llm,
+        tools=ToolRegistry(),
+        provider="scripted",
+        model="scripted",
+        checkpoint_store=store,
+    )
+
+    async def execute():
+        result = await runtime.run([Message.from_text("user", "hi")], run_id="run-1")
+        checkpoint = await store.load("run-1")
+        return result, checkpoint
+
+    result, checkpoint = asyncio.run(execute())
+
+    assert result.content == "done"
+    assert checkpoint is not None
+    assert checkpoint.step == "finished"
+    assert [message.role for message in checkpoint.messages] == ["user", "assistant"]
+
+
+def test_agent_runtime_resumes_pending_tool_checkpoint():
+    call = ToolCall(id="call-1", name="echo", arguments={"text": "hi"})
+    checkpoint = RuntimeCheckpoint(
+        run_id="run-1",
+        step="model_response",
+        iteration=0,
+        messages=[
+            Message.from_text("user", "say hi"),
+            Message.from_text("assistant", "", tool_calls=[call]),
+        ],
+        pending_tool_calls=[call],
+    )
+    store = InMemoryCheckpointStore()
+
+    async def seed_checkpoint():
+        await store.save(checkpoint)
+
+    asyncio.run(seed_checkpoint())
+    llm = ScriptedModelClient([ModelResponse(message=Message.from_text("assistant", "resumed"))])
+    tools = ToolRegistry()
+    tools.register("echo", "Echo", {}, lambda text: text)
+    runtime = AgentRuntime(
+        model_client=llm,
+        tools=tools,
+        provider="scripted",
+        model="scripted",
+        checkpoint_store=store,
+    )
+
+    result = asyncio.run(runtime.resume("run-1"))
+
+    assert result.content == "resumed"
     assert result.tool_results[0].content == "hi"
     assert [message.role for message in result.messages] == ["user", "assistant", "tool", "assistant"]
 

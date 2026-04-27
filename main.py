@@ -16,13 +16,13 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import uvicorn
 
-from app.core.config import settings
-from app.utils import utils
-from app.core.logging import logger
+from gateway.core.config import settings
+from gateway.utils import utils
+from gateway.core.logging import logger
 
 
 def create_app():
-    from app.app import app
+    from gateway.app import app
 
     return app
 

@@ -14,10 +14,10 @@ from pathlib import Path
 
 import pytest
 
-from app.agent.schema import ToolCall
-from app.agent.skills import SkillLoader, SkillRegistry
-from app.agent.tools.mcp import MCPServerConfig, MCPToolDefinition, MCPToolProvider
-from app.agent.tools.registry import ToolRegistry
+from agent.schema import ToolCall
+from agent.skills import SkillLoader, SkillRegistry
+from agent.tools.mcp import MCPServerConfig, MCPToolDefinition, MCPToolProvider
+from agent.tools.registry import ToolRegistry
 
 
 def test_tool_registry_registers_specs_and_rejects_duplicates():

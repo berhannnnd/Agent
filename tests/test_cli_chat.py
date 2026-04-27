@@ -10,8 +10,8 @@
 
 from typer.testing import CliRunner
 
-from app import cli as cli_module
-from app.agent.schema import RuntimeEvent
+from cli import main as cli_module
+from agent.schema import RuntimeEvent
 
 
 class FakeRuntime:
