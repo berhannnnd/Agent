@@ -11,12 +11,13 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from agent.factory import AgentConfigError, create_agent_session as _create_agent_session
+from agent.factory import AgentConfigError, create_agent_session_async as _create_agent_session_async
 from gateway.api.agent.schemas import AgentChatRequest
 from gateway.core.config import settings
 from gateway.shared.server.common import resp
@@ -27,15 +28,15 @@ router = APIRouter(prefix="/agent")
 _agent_semaphore = asyncio.Semaphore(settings.agent.MAX_CONCURRENT_REQUESTS)
 
 
-def create_agent_session(**kwargs):
-    return _create_agent_session(settings, **kwargs)
+async def create_agent_session(**kwargs):
+    return await _create_agent_session_async(settings, **kwargs)
 
 
 @router.post("/chat")
 async def chat(request_data: AgentChatRequest):
     async with _agent_semaphore:
         try:
-            session = create_agent_session(
+            session = await _resolve_agent_session(
                 provider=request_data.provider,
                 model=request_data.model,
                 base_url=request_data.base_url,
@@ -66,7 +67,7 @@ async def chat(request_data: AgentChatRequest):
 async def chat_stream(request_data: AgentChatRequest):
     async def event_source():
         try:
-            session = create_agent_session(
+            session = await _resolve_agent_session(
                 provider=request_data.provider,
                 model=request_data.model,
                 base_url=request_data.base_url,
@@ -98,3 +99,10 @@ async def chat_stream(request_data: AgentChatRequest):
 
 def _sse(event: str, data: dict) -> str:
     return "event: %s\ndata: %s\n\n" % (event, json.dumps(data, ensure_ascii=False))
+
+
+async def _resolve_agent_session(**kwargs):
+    session = create_agent_session(**kwargs)
+    if inspect.isawaitable(session):
+        return await session
+    return session

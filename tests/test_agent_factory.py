@@ -8,6 +8,7 @@
 # 2026/04/24   Create
 # =====================================================
 
+import asyncio
 import json
 
 import pytest
@@ -148,7 +149,7 @@ def test_create_session_composes_skill_prompt_and_declared_tools(tmp_path, monke
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr("agent.factory.ModelClient", lambda config: FakeRuntimeClient())
+    monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
     settings = FakeSettings()
     settings.server.ROOT_PATH = tmp_path
     settings.agent.SYSTEM_PROMPT = "Base prompt."
@@ -176,7 +177,7 @@ def test_create_session_respects_explicit_enabled_tools(tmp_path, monkeypatch):
         json.dumps({"name": "focus", "tools": ["skill_tool"]}),
         encoding="utf-8",
     )
-    monkeypatch.setattr("agent.factory.ModelClient", lambda config: FakeRuntimeClient())
+    monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
     settings = FakeSettings()
     settings.server.ROOT_PATH = tmp_path
     settings.agent.SKILLS = "focus"
@@ -189,7 +190,7 @@ def test_create_session_respects_explicit_enabled_tools(tmp_path, monkeypatch):
 
 
 def test_create_session_loads_workspace_agents_md(tmp_path, monkeypatch):
-    monkeypatch.setattr("agent.factory.ModelClient", lambda config: FakeRuntimeClient())
+    monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
     settings = FakeSettings()
     settings.server.ROOT_PATH = tmp_path
     settings.models.openai.API_KEY = "key"
@@ -205,3 +206,21 @@ def test_create_session_loads_workspace_agents_md(tmp_path, monkeypatch):
     assert session.workspace.agent_id == "agent-1"
     assert session.workspace.workspace_id == "default"
     assert "## project_instructions: workspace.agents\nWorkspace instruction." in session.system_prompt
+
+
+def test_async_create_session_can_run_inside_event_loop(tmp_path, monkeypatch):
+    from agent.factory import create_agent_session_async
+
+    monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
+    settings = FakeSettings()
+    settings.server.ROOT_PATH = tmp_path
+    settings.models.openai.API_KEY = "key"
+    settings.models.openai.MODEL = "model"
+
+    async def create():
+        return await create_agent_session_async(settings)
+
+    session = asyncio.run(create())
+
+    assert session.runtime.provider == "openai-chat"
+    assert session.workspace.path.exists()

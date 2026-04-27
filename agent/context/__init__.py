@@ -1,5 +1,4 @@
 from agent.context.builder import ContextBuilder
-from agent.context.compiler import ModelRequestCompiler
 from agent.context.pack import (
     CompiledContext,
     ContextFragment,
@@ -23,3 +22,11 @@ __all__ = [
     "WorkspaceContext",
     "build_context_pack",
 ]
+
+
+def __getattr__(name):
+    if name == "ModelRequestCompiler":
+        from agent.context.compiler import ModelRequestCompiler
+
+        return ModelRequestCompiler
+    raise AttributeError(name)

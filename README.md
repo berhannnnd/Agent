@@ -18,6 +18,7 @@
 - **Hook 扩展点**：`before_request`、`after_response`、`format_tool_result`、`on_error`，支持组合、意图引导、thinking 提取和审批拦截。
 - **多智能体预留边界**：`agent/orchestration`、`agent/memory`、`agent/workflows` 已作为后续 planner/router/supervisor、记忆和 DAG 工作流边界。
 - **Gateway 网关边界**：`gateway/auth`、`gateway/sessions`、`gateway/streaming` 预留鉴权、run/session 状态和协议流式输出层。
+- **SDK 装配入口**：`agent.assembly` 组装 AgentSession；`agent.config` 解析模型配置；`agent.integrations` 接入 skills/MCP。
 
 ## 目录结构
 
@@ -25,18 +26,21 @@
 .
 ├── agent/                   # 智能体核心系统
 │   ├── hooks/               # Runtime hook 基类、组合、意图引导、thinking、审批
+│   ├── assembly/            # AgentSession 组装入口，提供 sync/async 两种创建方式
+│   ├── config/              # 模型配置解析、provider fallback、代理设置
 │   ├── context/             # ContextPack、ContextBuilder、AGENTS.md、window、model request compiler
 │   ├── identity/            # Principal、Tenant/User/Agent 引用
+│   ├── integrations/        # skills / MCP 等外部能力接入装配
 │   ├── memory/              # session memory / long-term memory 边界
-│   ├── models/              # ModelClient、adapters、transport、retry、stream、errors
+│   ├── models/              # ModelClient、adapters、protocol、transports、retry、errors
 │   ├── orchestration/       # 多智能体 planner/router/supervisor 边界
-│   ├── runtime/             # Agent loop、state、session、events、tool orchestration、checkpoints
+│   ├── runtime/             # Agent loop、state、session、events、turns、checkpoints
 │   ├── security/            # permissions、approval、sandbox、secrets、encryption 边界
 │   ├── skills/              # skill manifest、prompt fragment、工具名声明加载
 │   ├── storage/             # workspace/run/memory/artifact store 边界
 │   ├── tools/               # ToolRegistry 与 MCP stdio 工具接入
 │   ├── workflows/           # workflow / DAG 执行边界
-│   ├── factory.py           # 从 settings 组装 AgentSession
+│   ├── factory.py           # 兼容入口，转发到 assembly/config/integrations
 │   └── schema.py            # Message、ToolCall、ModelRequest、RuntimeEvent 等核心类型
 ├── gateway/                 # 后端网关
 │   ├── api/                 # FastAPI routes、schemas、Agent HTTP API
@@ -174,12 +178,12 @@ Provider 标准名：
 
 ## Agent 调用链
 
-1. gateway API 或 CLI 调用 `agent.factory.create_agent_session`。
-2. Factory 解析 provider/model/base_url/api_key，创建 `ModelClientConfig`。
-3. Factory 创建 `ToolRegistry`，读取 skill manifests，把 skill 声明的工具名并入 runtime enabled tools。
-4. Factory 根据 `tenant_id / user_id / agent_id / workspace_id` 通过 `LocalWorkspaceStore` 解析 workspace，读取 workspace `AGENTS.md` 作为 project instructions。
+1. gateway API 调用 `agent.factory.create_agent_session_async`；CLI 调用同步 `agent.factory.create_agent_session`。
+2. `agent.config` 解析 provider/model/base_url/api_key，创建 `ModelClientConfig`。
+3. `agent.assembly` 创建 `ToolRegistry`，通过 `agent.integrations` 读取 skill manifests 和 MCP tools。
+4. `agent.storage` 根据 `tenant_id / user_id / agent_id / workspace_id` 解析 workspace，读取 workspace `AGENTS.md` 作为 project instructions。
 5. `ContextPack` 汇总 system、runtime policy、workspace instructions、skills 和 tool hints，`ContextBuilder` 编译最终上下文并保留 trace。
-6. Factory 把 MCP tools 注册进工具表，根据 `AGENT_GUIDED_TOOLS` 创建 `AgentHooks`，再组装 `AgentRuntime` 和 `AgentSession`。
+6. `agent.integrations` 把 MCP tools 注册进工具表；`agent.assembly` 根据 `AGENT_GUIDED_TOOLS` 创建 `AgentHooks`，再组装 `AgentRuntime` 和 `AgentSession`。
 7. `AgentSession` 维护消息历史，并通过 `ContextWindowManager` 保持上下文窗口。
 8. `AgentRuntime` 使用 `RuntimeState` 跟踪消息、事件、工具结果和 pending tool calls。
 9. `ModelRequestCompiler` 生成模型请求；`ToolOrchestrator` 执行工具调用，并通过 `ToolPermissionPolicy` 判断工具是否可执行。
@@ -188,7 +192,7 @@ Provider 标准名：
 
 ## 扩展方向
 
-1. 新增模型 Provider：在 `agent/models/adapters/` 添加 adapter，并注册到 `adapter_for_provider()`。
+1. 新增模型 Provider：在 `agent/models/adapters/` 添加 adapter，并注册到 `adapter_for_provider()`；通用 stream 语义放在 `agent/models/protocol/`。
 2. 新增工具：通过 `ToolRegistry.register()` 注册；skill manifest 只声明 prompt fragment 和工具名。
 3. 新增 MCP 工具：配置 `MCP_SERVER_COMMAND`，由 `MCPToolProvider` 自动加载远端工具。
 4. 新增上下文来源：放入 `agent/context/sources.py`，输出 `ContextFragment`。

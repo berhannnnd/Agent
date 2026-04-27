@@ -8,6 +8,26 @@
 # 2026/04/24   Create
 # =====================================================
 
-from agent.runtime import AgentRuntime, AgentSession
+__all__ = [
+    "AgentConfigError",
+    "AgentRuntime",
+    "AgentSession",
+    "create_agent_session",
+    "create_agent_session_async",
+]
 
-__all__ = ["AgentRuntime", "AgentSession"]
+
+def __getattr__(name):
+    if name in {"create_agent_session", "create_agent_session_async"}:
+        from agent import assembly
+
+        return getattr(assembly, name)
+    if name == "AgentConfigError":
+        from agent.config import AgentConfigError
+
+        return AgentConfigError
+    if name in {"AgentRuntime", "AgentSession"}:
+        from agent import runtime
+
+        return getattr(runtime, name)
+    raise AttributeError(name)
