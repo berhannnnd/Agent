@@ -17,9 +17,9 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from agent.assembly import create_agent_session_async as _create_agent_session_async
+from agent.audit import ApprovalAuditRecord
 from agent.config import AgentConfigError
 from agent.schema import RuntimeEvent
-from agent.security import ApprovalAuditRecord
 from gateway.api.agent.schemas import AgentChatRequest, RunApprovalRequest
 from gateway.core.config import settings
 from gateway.sessions import (
@@ -27,6 +27,8 @@ from gateway.sessions import (
     create_approval_audit_store,
     create_checkpoint_store,
     create_run_store,
+    create_trace_recorder,
+    create_trace_store,
     run_created_event,
 )
 from gateway.shared.server.common import resp
@@ -35,7 +37,8 @@ router = APIRouter(prefix="/agent")
 
 # 全局并发限制：同时处理的 agent 请求数
 _agent_semaphore = asyncio.Semaphore(settings.agent.MAX_CONCURRENT_REQUESTS)
-run_service = GatewayRunService(create_run_store(settings))
+trace_store = create_trace_store(settings)
+run_service = GatewayRunService(create_run_store(settings), trace_recorder=create_trace_recorder(settings, trace_store))
 checkpoint_store = create_checkpoint_store(settings)
 approval_audit_store = create_approval_audit_store(settings)
 
@@ -121,6 +124,24 @@ async def get_run(run_id: str):
     if record is None:
         return resp.fail(resp.Resp(code="404", detail="run not found: %s" % run_id, http_status=404))
     return resp.ok(response=resp.Resp(data=record.to_dict()))
+
+
+@router.get("/runs/{run_id}/trace")
+async def get_run_trace(run_id: str):
+    record = await run_service.store.load_run(run_id)
+    if record is None:
+        return resp.fail(resp.Resp(code="404", detail="run not found: %s" % run_id, http_status=404))
+    spans = await trace_store.list_for_run(run_id)
+    approvals = await approval_audit_store.list_for_run(run_id)
+    return resp.ok(
+        response=resp.Resp(
+            data={
+                "run_id": run_id,
+                "spans": [span.to_dict() for span in spans],
+                "approvals": [approval.to_dict() for approval in approvals],
+            }
+        )
+    )
 
 
 @router.post("/runs/{run_id}/approval")

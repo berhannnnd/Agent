@@ -3,14 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from agent.persistence import SQLiteDatabase, resolve_database_path
-from agent.runs import InMemoryRunStore, LocalFileRunStore, RunStore, SQLiteRunStore
-from agent.runtime import CheckpointStore, InMemoryCheckpointStore, SQLiteCheckpointStore
-from agent.security import (
+from agent.audit import (
     ApprovalAuditStore,
     InMemoryApprovalAuditStore,
     SQLiteApprovalAuditStore,
 )
+from agent.persistence import SQLiteDatabase, resolve_database_path
+from agent.runs import InMemoryRunStore, LocalFileRunStore, RunStore, SQLiteRunStore
+from agent.runtime import CheckpointStore, InMemoryCheckpointStore, SQLiteCheckpointStore
+from agent.tracing import InMemoryTraceStore, RuntimeTraceRecorder, SQLiteTraceStore, TraceStore
 
 
 def create_run_store(settings: Any) -> RunStore:
@@ -38,6 +39,17 @@ def create_approval_audit_store(settings: Any) -> ApprovalAuditStore:
     if store_kind == "sqlite":
         return SQLiteApprovalAuditStore(_sqlite_database(settings))
     return InMemoryApprovalAuditStore()
+
+
+def create_trace_store(settings: Any) -> TraceStore:
+    store_kind = str(getattr(settings.agent, "RUN_STORE", "memory") or "memory").strip().lower()
+    if store_kind == "sqlite":
+        return SQLiteTraceStore(_sqlite_database(settings))
+    return InMemoryTraceStore()
+
+
+def create_trace_recorder(settings: Any, store: TraceStore | None = None) -> RuntimeTraceRecorder:
+    return RuntimeTraceRecorder(store or create_trace_store(settings))
 
 
 def _sqlite_database(settings: Any) -> SQLiteDatabase:

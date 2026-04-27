@@ -126,6 +126,25 @@ def test_agent_run_api_returns_record(monkeypatch):
     assert [event["type"] for event in data["events"]] == ["run_created", "model_message"]
 
 
+def test_agent_run_trace_api_returns_spans(monkeypatch):
+    async def create_session(**kwargs):
+        return FakeSession()
+
+    monkeypatch.setattr(api_agent, "create_agent_session", create_session)
+    client = TestClient(create_app())
+
+    chat_response = client.post("/api/v1/agent/chat", json={"message": "hello"})
+    run_id = chat_response.json()["data"]["run_id"]
+    trace_response = client.get(f"/api/v1/agent/runs/{run_id}/trace")
+
+    assert trace_response.status_code == 200
+    data = trace_response.json()["data"]
+    assert data["run_id"] == run_id
+    assert [span["kind"] for span in data["spans"]] == ["run", "model"]
+    assert data["spans"][0]["status"] == "done"
+    assert data["approvals"] == []
+
+
 def test_agent_run_api_returns_404_for_unknown_run():
     client = TestClient(create_app())
 

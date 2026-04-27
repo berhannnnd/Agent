@@ -14,6 +14,8 @@ def test_agent_system_exposes_future_multi_agent_boundaries():
     assert importlib.util.find_spec("agent.context") is not None
     assert importlib.util.find_spec("agent.storage") is not None
     assert importlib.util.find_spec("agent.security") is not None
+    assert importlib.util.find_spec("agent.audit") is not None
+    assert importlib.util.find_spec("agent.tracing") is not None
     assert importlib.util.find_spec("agent.models") is not None
     assert importlib.util.find_spec("agent.config") is not None
     assert importlib.util.find_spec("agent.definitions") is not None

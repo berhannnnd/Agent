@@ -77,4 +77,21 @@ CREATE TABLE IF NOT EXISTS approval_audit (
     created_at REAL NOT NULL,
     FOREIGN KEY(run_id) REFERENCES runs(run_id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS trace_spans (
+    span_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    parent_span_id TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at REAL NOT NULL,
+    ended_at REAL,
+    attributes_json TEXT NOT NULL,
+    error TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY(run_id) REFERENCES runs(run_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_trace_spans_run_id_started_at
+ON trace_spans(run_id, started_at);
 """
