@@ -24,6 +24,7 @@ graph TB
     Agent --> Capabilities["agent.capabilities 能力接入"]
     Agent --> Context["agent.context 上下文"]
     Agent --> Tools["agent.capabilities.tools / MCP"]
+    Capabilities --> WebSearch["agent.capabilities.web Tavily 搜索"]
     Capabilities --> SandboxExec["agent.capabilities.sandbox 执行租约"]
     Agent --> Hooks["agent.hooks"]
     Agent --> State["agent.state 状态域"]
@@ -54,7 +55,8 @@ graph TB
 - `agent.specs`: Agent 规格层。`AgentSpec` 统一描述模型、工具、skills、workspace、权限 profile、记忆 profile 和 metadata。
 - `agent.assembly`: SDK 装配入口。负责把 settings、模型配置、工具、skills、MCP、workspace、context 和 hooks 组装成 `AgentSession`，并提供 sync/async 两种入口。
 - `agent.config`: 配置解析边界。负责模型 provider fallback、API key/base URL/model/proxy 解析。
-- `agent.capabilities`: 能力域聚合包。收束 tools、skills、MCP 装配和 memory store，避免能力相关代码散落在 `agent` 顶层。
+- `agent.capabilities`: 能力域聚合包。收束 tools、skills、MCP 装配、web search 和 memory store，避免能力相关代码散落在 `agent` 顶层。
+- `agent.capabilities.web`: control-plane web search 能力。当前内置 Tavily REST provider，统一输出 sources、usage 和 request_id；API key 不进入 sandbox。
 - `agent.capabilities.sandbox`: 执行资源边界。定义 `SandboxClient`、local/Docker provider、profile、artifact 目录、lease/event/snapshot store。workspace 是持久化数据，sandbox 是工具执行租约。
 - `agent.runtime`: 智能体内核包。`loop` 负责单 Agent 执行循环，`turns.model` 负责单轮模型请求，`turns.tools` 负责工具执行边界，`state` 承载运行状态，`session` 负责会话历史，`checkpoints` 负责断点恢复存储协议。
 - `agent.models`: 模型协议包。`adapters` 负责 provider wire protocol，`protocol` 负责 provider-neutral stream 语义，`transports` 负责 HTTP/SSE，根层保留模型客户端、retry 和错误类型。
@@ -72,7 +74,7 @@ graph TB
 - `agent.governance.security`: secret redaction 与 payload protection provider 协议；本地 base64 provider 只用于测试和开发，不是生产加密。
 - `agent.governance.audit`: 可追溯审计边界。记录需要长期留存和追责的用户/系统决策，当前包含带 impact payload 的 tool approval audit。
 - `agent.governance.tracing`: 运行链路追踪边界。记录 run/model/tool/approval span，用于调试、可观测性和用户可见时间线，不替代审计记录。
-- `agent.capabilities.tools`: 工具注册表、builtin 工具和 MCP stdio 工具接入；`builtin` 只暴露语义工具，实际文件/patch/搜索/命令/测试/browser fetch 执行通过 `agent.capabilities.sandbox.SandboxClient` 进入 workspace。
+- `agent.capabilities.tools`: 工具注册表、builtin 工具和 MCP stdio 工具接入；`builtin` 只暴露语义工具。文件/patch/本地搜索/命令/测试/browser fetch 通过 `agent.capabilities.sandbox.SandboxClient` 进入 workspace，`web.search/extract/map` 通过 `agent.capabilities.web` 留在 control plane。
 - `agent.hooks`: Runtime 扩展点，支持意图引导、thinking 提取、审批拦截和组合 hook。
 - `agent.capabilities.skills`: skill manifest、prompt fragment、工具名声明加载。
 - `agent.orchestration`: 多智能体 planner/router/supervisor 的归属边界。当前定义 agent roles、handoff decision 和 router 协议。

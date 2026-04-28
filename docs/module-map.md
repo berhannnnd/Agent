@@ -145,6 +145,27 @@ agent/capabilities/sandbox/
 - skill 版本锁定。
 - 执行型 skill 统一走 sandbox。
 
+## agent.capabilities.web
+
+职责：
+
+- 提供 provider-neutral 的 web search/extract/map 能力。
+- 当前内置 Tavily REST provider。
+- 统一输出 `sources`、`usage`、`request_id`，给 citation、trace 和 audit 使用。
+- 在 control plane 持有 API key、domain policy 和 credit budget。
+
+为什么这样做：
+
+- web search 是外部 API 和计费能力，不应该进入 sandbox。
+- MCP 可以作为扩展，但内置搜索必须可治理、可审计、可测试。
+- 与 `browser.open/download` 分层：web search 返回信息来源，browser 工具负责 sandbox 内取页面/落文件。
+
+后续方向：
+
+- SQLite/web cache。
+- per-tenant search quota。
+- crawl 工具需要 approval 和 quota 完整后再暴露。
+
 ## agent.capabilities.memory
 
 职责：

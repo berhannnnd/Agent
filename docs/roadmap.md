@@ -44,8 +44,10 @@ TODO:
 - [ ] `package.install`，显式高风险审批。
 - [x] `browser.open`、`browser.download`，通过 sandbox process/network 权限抓取并落到 workspace。
 - [ ] `browser.click`、`browser.type`、`browser.screenshot`，通过真实 sandbox browser runtime。
-- [ ] `web.fetch`，只做受控页面抓取。
-- [ ] `web.search`，API key 留在 control plane。
+- [x] `web.search`，Tavily control-plane provider，API key 留在 control plane。
+- [x] `web.extract`，Search 后按 URL 抽正文。
+- [x] `web.map`，站点 URL 发现，不默认启用。
+- [ ] `web.fetch`，如需要非 Tavily 的受控页面抓取再单独实现。
 
 ## Phase 3: Permission, Approval, Audit
 

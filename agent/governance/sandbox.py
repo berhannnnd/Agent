@@ -121,6 +121,8 @@ def classify_tool_risk(name: str) -> ToolRisk:
         return ToolRisk.MEDIUM
     if name.startswith("patch."):
         return ToolRisk.MEDIUM
+    if name in {"web.search", "web.extract"}:
+        return ToolRisk.MEDIUM
     if name.startswith("browser.") or name.startswith("web."):
         return ToolRisk.HIGH
     if name.startswith("shell.") or name.startswith("git.") or name.startswith("test."):

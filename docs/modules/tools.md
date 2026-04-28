@@ -19,6 +19,9 @@
 | `filesystem.write` | 写 workspace 文本文件 |
 | `patch.apply` | 基于精确文本匹配做结构化 edit/create，并返回 unified diff |
 | `search.grep` | 正则搜索 workspace 文本 |
+| `web.search` | 通过 control-plane Tavily provider 搜索网页并返回 sources |
+| `web.extract` | 对指定 URL 做正文抽取，适合 search 后二次取证 |
+| `web.map` | 发现站点 URL 结构，高风险且不默认启用 |
 | `git.status` | 查看 Git 状态 |
 | `git.diff` | 查看 Git diff |
 | `test.run` | 运行测试命令 |
@@ -35,7 +38,21 @@ approval 事件和 audit 记录会附带 `impact`：
 - `commands`：将执行的命令。
 - `domains`：将访问的网络域名。
 - `writes_files` / `requires_network`：UI 和策略层可直接使用的布尔标记。
+- `external_disclosure`：是否把 query/URL 发给外部 provider。
+- `cost_estimate`：例如 Tavily credit 估算。
 - `diff_preview`：`patch.apply`、`filesystem.write` 等写入类工具的预览。
+
+## Web Search
+
+内置 web 搜索不走 MCP。`web.search`、`web.extract`、`web.map` 使用 `agent.capabilities.web` 下的 provider 抽象，当前实现为 Tavily REST provider。
+
+边界：
+
+- Tavily API key 留在 control plane。
+- 工具结果统一成 `sources`、`usage`、`request_id`，便于 citation、trace 和 audit。
+- 默认不返回 raw content；需要时走 `web.extract`。
+- `web.map` 用于站点 URL 发现，不替代 crawl。
+- `browser.open/download` 是 sandbox 网络工具，负责落文件；`web.search/extract/map` 是 control-plane 信息检索工具。
 
 ## 为什么要有 native tools
 
@@ -51,6 +68,5 @@ approval 事件和 audit 记录会附带 `impact`：
 
 - `filesystem.delete`、`filesystem.move`。
 - 真实浏览器 runtime：`browser.click`、`browser.type`、`browser.screenshot`。
-- web search/fetch。
 - package/install 类工具。
 - schema validation。

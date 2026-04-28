@@ -22,6 +22,9 @@ class ToolImpact:
     domains: list[str] = field(default_factory=list)
     writes_files: bool = False
     requires_network: bool = False
+    external_disclosure: bool = False
+    query: str = ""
+    cost_estimate: dict[str, Any] = field(default_factory=dict)
     diff_preview: str = ""
     summary: str = ""
 
@@ -35,6 +38,9 @@ class ToolImpact:
             "domains": list(self.domains),
             "writes_files": self.writes_files,
             "requires_network": self.requires_network,
+            "external_disclosure": self.external_disclosure,
+            "query": self.query,
+            "cost_estimate": dict(self.cost_estimate),
         }
         if self.diff_preview:
             payload["diff_preview"] = self.diff_preview
@@ -80,6 +86,8 @@ def describe_tool_impact(call: ToolCall) -> ToolImpact:
             command = "%s -- %s" % (command, shlex.quote(path))
         return _impact(name, risk, operations=["process"], commands=[command], paths=[path])
     if name.startswith("browser.") or name.startswith("web."):
+        if name.startswith("web."):
+            return _web_impact(name, risk, arguments)
         url = _string(arguments.get("url"))
         domain = _domain(url)
         return _impact(
@@ -95,6 +103,28 @@ def describe_tool_impact(call: ToolCall) -> ToolImpact:
     if name.startswith("mcp_"):
         return _impact(name, risk, operations=["mcp_call"], summary="external MCP tool call")
     return _impact(name, risk, operations=["tool_call"])
+
+
+def _web_impact(name: str, risk: str, arguments: dict[str, Any]) -> ToolImpact:
+    query = _string(arguments.get("query"))
+    urls = [_string(url) for url in arguments.get("urls") or [] if _string(url)]
+    url = _string(arguments.get("url"))
+    if url:
+        urls.append(url)
+    domains = [_domain(item) for item in urls]
+    domains.extend(_string(item) for item in arguments.get("include_domains") or [] if _string(item))
+    domains.extend(_string(item) for item in arguments.get("exclude_domains") or [] if _string(item))
+    return _impact(
+        name,
+        risk,
+        operations=["network", "external_search"] if name == "web.search" else ["network", "external_fetch"],
+        domains=domains,
+        requires_network=True,
+        external_disclosure=True,
+        query=query,
+        cost_estimate=_web_cost_estimate(name, arguments),
+        summary=_web_summary(name, query, domains),
+    )
 
 
 def _patch_impact(name: str, risk: str, arguments: dict[str, Any]) -> ToolImpact:
@@ -139,6 +169,9 @@ def _impact(
     domains: list[str] | None = None,
     writes_files: bool = False,
     requires_network: bool = False,
+    external_disclosure: bool = False,
+    query: str = "",
+    cost_estimate: dict[str, Any] | None = None,
     diff_preview: str = "",
     summary: str = "",
 ) -> ToolImpact:
@@ -151,9 +184,39 @@ def _impact(
         domains=_unique(item for item in (domains or []) if item),
         writes_files=writes_files,
         requires_network=requires_network,
+        external_disclosure=external_disclosure,
+        query=query,
+        cost_estimate=dict(cost_estimate or {}),
         diff_preview=diff_preview,
         summary=summary,
     )
+
+
+def _web_cost_estimate(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    if name == "web.search":
+        depth = _string(arguments.get("search_depth") or "basic")
+        raw_cost = 1 if arguments.get("include_raw_content") else 0
+        return {
+            "provider": "tavily",
+            "estimated_credits": (2 if depth == "advanced" else 1) + raw_cost,
+            "basis": depth,
+        }
+    if name == "web.extract":
+        urls = arguments.get("urls") or []
+        depth = _string(arguments.get("extract_depth") or "basic")
+        per_url = 2 if depth == "advanced" else 1
+        return {"provider": "tavily", "estimated_credits": per_url * max(1, len(urls)), "basis": depth}
+    if name == "web.map":
+        return {"provider": "tavily", "estimated_credits": 1, "basis": "map"}
+    return {}
+
+
+def _web_summary(name: str, query: str, domains: list[str]) -> str:
+    if name == "web.search":
+        return "search web for %s" % query if query else "search web"
+    if domains:
+        return "%s %s" % (name, ", ".join(_unique(domains)[:3]))
+    return name
 
 
 def _browser_paths(name: str, arguments: dict[str, Any]) -> list[str]:

@@ -6,6 +6,7 @@ from typing import Any, Optional
 from agent.capabilities.memory import MemoryStore
 from agent.capabilities.sandbox.store import SandboxStore
 from agent.capabilities.sandbox.recording import SandboxToolExecutionRecorder
+from agent.capabilities.web import create_web_search_provider
 from agent.config import resolve_model_client_config
 from agent.context.builder import ContextBuilder
 from agent.context.memory import MemoryContextRetriever, MemoryRetrievalScope
@@ -54,7 +55,8 @@ async def create_agent_session_async(
         task_id=task_id,
     )
     registry.set_execution_observer(SandboxToolExecutionRecorder(tool_context, sandbox_store))
-    builtin_tools = register_builtin_tools(registry, tool_context)
+    web_provider = create_web_search_provider(settings)
+    builtin_tools = register_builtin_tools(registry, tool_context, web_provider=web_provider)
     await load_configured_mcp(settings, registry)
 
     active_tools = _resolve_active_tools(settings, skill_registry, resolved_spec.enabled_tools, builtin_tools)

@@ -209,6 +209,20 @@ def test_create_session_uses_configured_builtin_tools_by_default(tmp_path, monke
     assert session.runtime.enabled_tools == ["filesystem.read", "filesystem.list"]
 
 
+def test_create_session_can_enable_web_search_tool(tmp_path, monkeypatch):
+    monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
+    settings = FakeSettings()
+    settings.server.ROOT_PATH = tmp_path
+    settings.agent.BUILTIN_TOOLS = "web.search"
+    settings.models.openai.API_KEY = "key"
+    settings.models.openai.MODEL = "model"
+
+    session = create_agent_session(settings, AgentSpec())
+
+    assert session.runtime.enabled_tools == ["web.search"]
+    assert session.runtime.tools.specs(["web.search"])[0].raw["metadata"]["provider"] == "none"
+
+
 def test_create_session_injects_memory_context(tmp_path, monkeypatch):
     monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
     settings = FakeSettings()

@@ -26,6 +26,8 @@ class ToolRuntimeContext:
     sandbox_store: SandboxStore | None = None
     task_id: str = ""
     artifacts: WorkspaceArtifacts | None = None
+    current_run_id: str = ""
+    current_task_id: str = ""
 
     def __post_init__(self) -> None:
         if self.artifacts is None:
@@ -64,6 +66,8 @@ class ToolRuntimeContext:
     async def bind_execution_scope(self, run_id: str = "", task_id: str = "") -> SandboxClient:
         scoped_run_id = str(run_id or "")
         scoped_task_id = str(task_id or self.task_id or "")
+        self.current_run_id = scoped_run_id
+        self.current_task_id = scoped_task_id
         if not scoped_run_id:
             return self.sandbox_client
         lease_id = _scoped_lease_id(scoped_run_id, scoped_task_id)

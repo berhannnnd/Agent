@@ -38,7 +38,7 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Tool approval flow with `auto`, `ask`, and `deny` modes, checkpoint-backed pause/resume, run status `awaiting_approval`, and web Approve/Deny controls.
 - Long-running task foundation with task, step, attempt records and memory/SQLite stores.
 - Task queue/worker primitives for background execution over the same task runner.
-- Workspace-scoped builtin tools for file read/list/write, structured patching, text search, git status/diff, test commands, browser fetch/download, and shell fallback, guarded by sandbox policy.
+- Workspace-scoped builtin tools for file read/list/write, structured patching, text search, web search/extract/map, git status/diff, test commands, browser fetch/download, and shell fallback, guarded by sandbox and provider policy.
 - Memory retrieval and deterministic context compaction integrated into session assembly/windowing for long-context runs.
 - Multi-agent role/router and workflow DAG primitives for future planner/worker/reviewer orchestration.
 - Governance security primitives for secret redaction and pluggable payload protection providers.
@@ -127,6 +127,7 @@ Configuration is loaded through `gateway.core.config.settings`.
 | `settings.models.anthropic` | `ANTHROPIC_` | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL` |
 | `settings.models.gemini` | `GEMINI_` | `GEMINI_API_KEY`, `GEMINI_BASE_URL`, `GEMINI_MODEL` |
 | `settings.mcp` | `MCP_` | `MCP_SERVER_NAME`, `MCP_SERVER_COMMAND`, `MCP_CLIENT_TIMEOUT`, `MCP_EXECUTION_MODE` |
+| `settings.web_search` | `WEB_SEARCH_` | `WEB_SEARCH_PROVIDER`, `WEB_SEARCH_TAVILY_API_KEY`, `WEB_SEARCH_MAX_RESULTS`, `WEB_SEARCH_MAX_CREDITS_PER_RUN` |
 
 Provider names:
 
@@ -195,14 +196,16 @@ Builtin tools are semantic APIs, not direct container controls:
 | `search.grep` | low | Read-only regex search over workspace text files. |
 | `filesystem.write` | medium | Requires `AGENT_SANDBOX_ALLOW_FILE_WRITE=true` and tool enablement. |
 | `patch.apply` | medium | Applies exact text edits and file creates; returns a unified diff. |
+| `web.search`, `web.extract` | medium | Control-plane Tavily-backed search/extraction; API key does not enter sandbox. |
+| `web.map` | high | Control-plane site URL discovery; not enabled by default. |
 | `git.status`, `git.diff` | high | Requires process permission for `git`. |
 | `test.run` | high | Runs an allowlisted test command. |
 | `browser.open`, `browser.download` | high | Requires file write, process, and network permission; stores outputs under workspace paths. |
 | `shell.run` | high | Fallback escape hatch; prefer native tools. |
 
-Network-capable tools follow the same boundary. `browser.open` and `browser.download` execute through sandbox process/network permission and write outputs into the workspace. Full interactive browser tools such as click/type/screenshot still need a dedicated browser runtime provider. API-backed web search can stay in the control plane when the API key must not enter the sandbox.
+Network-capable tools have two execution modes. `web.search`, `web.extract`, and `web.map` are control-plane tools for API-backed information retrieval; provider credentials and credit policy stay outside the sandbox. `browser.open` and `browser.download` execute through sandbox process/network permission and write outputs into the workspace. Full interactive browser tools such as click/type/screenshot still need a dedicated browser runtime provider.
 
-Approval events include a tool impact payload with risk, paths, commands, network domains, write flags, and patch previews. Approval audit records persist the same impact payload for later review.
+Approval events include a tool impact payload with risk, paths, commands, network domains, write flags, external disclosure flags, cost estimates, and patch previews. Approval audit records persist the same impact payload for later review.
 
 MCP stdio tools currently run as trusted control-plane extensions by default and are tagged with `MCP_EXECUTION_MODE` metadata. Untrusted local MCP servers should not be enabled until a sandboxed MCP provider is configured.
 

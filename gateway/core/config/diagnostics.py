@@ -14,6 +14,7 @@ from gateway.core.config.log import log_config
 from gateway.core.config.mcp import mcp_config
 from gateway.core.config.models import models_config
 from gateway.core.config.server import server_config
+from gateway.core.config.web_search import web_search_config
 
 
 class Settings:
@@ -24,6 +25,7 @@ class Settings:
         self.agent = agent_config
         self.models = models_config
         self.mcp = mcp_config
+        self.web_search = web_search_config
         self.log = log_config
 
     @property
@@ -45,6 +47,7 @@ class Settings:
             ("models.anthropic", self.models.anthropic),
             ("models.gemini", self.models.gemini),
             ("mcp", self.mcp),
+            ("web_search", self.web_search),
             ("log", self.log),
         ]:
             for attr in sorted(config.__class__.model_fields):

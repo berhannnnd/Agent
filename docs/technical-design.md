@@ -138,6 +138,8 @@ RemoteSandboxProvider
 | `git.diff` | high | sandbox | 查看 diff |
 | `test.run` | high | sandbox | 运行测试命令 |
 | `browser.open` / `browser.download` | high | sandbox | 网络抓取并写入 artifacts/downloads |
+| `web.search` / `web.extract` | medium | control plane | Tavily provider，返回 sources/usage |
+| `web.map` | high | control plane | 站点 URL 发现 |
 | `shell.run` | high | sandbox | 兜底命令执行 |
 
 设计原则：
@@ -154,10 +156,10 @@ RemoteSandboxProvider
 API 型搜索适合留在 control plane：
 
 ```text
-web.search -> gateway/tool broker -> search API
+web.search/extract/map -> Tavily provider -> normalized sources/usage/request_id
 ```
 
-原因是 API key 不应该进入 sandbox。模型只看到搜索结果，不看到密钥。
+原因是 API key 不应该进入 sandbox。模型只看到结构化 sources，不看到密钥。`web.search` 负责发现来源，`web.extract` 负责对指定 URL 二次抽取正文，`web.map` 负责站点 URL 发现；大规模 crawl 不默认暴露给模型。
 
 网页抓取、页面解析、浏览器点击、下载文件适合进入 execution plane。当前 `browser.open` / `browser.download` 已经走 sandbox process/network 权限，真实点击、输入、截图需要后续 browser runtime provider：
 
@@ -232,11 +234,11 @@ Trace 和 audit 的边界不同：
 - sandbox profiles：`restricted`、`coding`、`test`、`browser`。
 - workspace artifacts 目录：`artifacts/downloads`、`artifacts/screenshots`、`artifacts/logs`、`artifacts/snapshots`。
 - workspace snapshot/diff 记录。
+- web search 控制面工具：`web.search`、`web.extract`、`web.map`，当前 provider 为 Tavily。
 
 尚未完成：
 
-- 浏览器工具族。
-- web search 控制面工具。
+- 真实浏览器工具族：click/type/screenshot。
 - 本地 MCP server sandbox 化。
 - 高风险工具的更细审批策略和前端确认面板。
 - Docker sandbox 已有跳过式 smoke test，仍需要 CI profile 和镜像策略。
