@@ -1,5 +1,10 @@
 from agent.capabilities.sandbox.docker import DockerSandboxClient, DockerSandboxProvider
-from agent.capabilities.sandbox.factory import create_sandbox_client, create_sandbox_client_from_profile, sandbox_profile_from_settings
+from agent.capabilities.sandbox.factory import (
+    create_sandbox_client,
+    create_sandbox_client_from_profile,
+    sandbox_policy_from_settings,
+    sandbox_profile_from_settings,
+)
 from agent.capabilities.sandbox.local import LocalSandboxClient, LocalSandboxProvider
 from agent.capabilities.sandbox.store import (
     InMemorySandboxStore,
@@ -7,6 +12,7 @@ from agent.capabilities.sandbox.store import (
     SandboxEventRecord,
     SandboxLeaseRecord,
     SandboxStore,
+    SandboxWorkspaceSnapshotRecord,
 )
 from agent.capabilities.sandbox.types import (
     SandboxClient,
@@ -21,6 +27,7 @@ from agent.capabilities.sandbox.types import (
     SandboxProfile,
     SandboxProvider,
 )
+from agent.capabilities.sandbox.workspace import WorkspaceArtifacts, WorkspaceFileState, WorkspaceSnapshot
 
 __all__ = [
     "DockerSandboxClient",
@@ -41,9 +48,14 @@ __all__ = [
     "SandboxProfile",
     "SandboxProvider",
     "SandboxStore",
+    "SandboxWorkspaceSnapshotRecord",
     "InMemorySandboxStore",
     "SQLiteSandboxStore",
+    "WorkspaceArtifacts",
+    "WorkspaceFileState",
+    "WorkspaceSnapshot",
     "create_sandbox_client",
     "create_sandbox_client_from_profile",
+    "sandbox_policy_from_settings",
     "sandbox_profile_from_settings",
 ]

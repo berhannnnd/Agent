@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field, replace
-from typing import Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol
 
 from agent.context.workspace import WorkspaceContext
 from agent.persistence import SQLiteDatabase, json_dict, json_dumps
@@ -126,6 +126,34 @@ class SandboxEventRecord:
         }
 
 
+@dataclass(frozen=True)
+class SandboxWorkspaceSnapshotRecord:
+    snapshot_id: str
+    lease_id: str
+    run_id: str
+    task_id: str = ""
+    phase: str = ""
+    file_count: int = 0
+    total_bytes: int = 0
+    manifest: dict[str, Any] = field(default_factory=dict)
+    diff: dict[str, Any] = field(default_factory=dict)
+    created_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict:
+        return {
+            "snapshot_id": self.snapshot_id,
+            "lease_id": self.lease_id,
+            "run_id": self.run_id,
+            "task_id": self.task_id,
+            "phase": self.phase,
+            "file_count": self.file_count,
+            "total_bytes": self.total_bytes,
+            "manifest": dict(self.manifest),
+            "diff": dict(self.diff),
+            "created_at": self.created_at,
+        }
+
+
 class SandboxStore(Protocol):
     async def save_lease(self, lease: SandboxLeaseRecord) -> None:
         raise NotImplementedError()
@@ -151,11 +179,18 @@ class SandboxStore(Protocol):
     async def list_events_for_run(self, run_id: str) -> List[SandboxEventRecord]:
         raise NotImplementedError()
 
+    async def save_workspace_snapshot(self, snapshot: SandboxWorkspaceSnapshotRecord) -> None:
+        raise NotImplementedError()
+
+    async def list_workspace_snapshots_for_run(self, run_id: str) -> List[SandboxWorkspaceSnapshotRecord]:
+        raise NotImplementedError()
+
 
 class InMemorySandboxStore:
     def __init__(self):
         self._leases: Dict[str, SandboxLeaseRecord] = {}
         self._events: Dict[str, list[SandboxEventRecord]] = {}
+        self._snapshots: Dict[str, list[SandboxWorkspaceSnapshotRecord]] = {}
 
     async def save_lease(self, lease: SandboxLeaseRecord) -> None:
         self._leases[lease.lease_id] = replace(lease, updated_at=time.time())
@@ -190,6 +225,12 @@ class InMemorySandboxStore:
         for group in self._events.values():
             events.extend(event for event in group if event.run_id == run_id)
         return sorted(events, key=lambda event: event.created_at)
+
+    async def save_workspace_snapshot(self, snapshot: SandboxWorkspaceSnapshotRecord) -> None:
+        self._snapshots.setdefault(snapshot.run_id, []).append(snapshot)
+
+    async def list_workspace_snapshots_for_run(self, run_id: str) -> List[SandboxWorkspaceSnapshotRecord]:
+        return sorted(self._snapshots.get(run_id, []), key=lambda snapshot: snapshot.created_at)
 
 
 class SQLiteSandboxStore:
@@ -308,9 +349,52 @@ class SQLiteSandboxStore:
             ).fetchall()
         return [_event_from_row(row) for row in rows]
 
+    async def save_workspace_snapshot(self, snapshot: SandboxWorkspaceSnapshotRecord) -> None:
+        with self.database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO sandbox_workspace_snapshots (
+                    snapshot_id, lease_id, run_id, task_id, phase, file_count, total_bytes,
+                    manifest_json, diff_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(snapshot_id) DO UPDATE SET
+                    phase = excluded.phase,
+                    file_count = excluded.file_count,
+                    total_bytes = excluded.total_bytes,
+                    manifest_json = excluded.manifest_json,
+                    diff_json = excluded.diff_json,
+                    created_at = excluded.created_at
+                """,
+                (
+                    snapshot.snapshot_id,
+                    snapshot.lease_id,
+                    snapshot.run_id,
+                    snapshot.task_id,
+                    snapshot.phase,
+                    snapshot.file_count,
+                    snapshot.total_bytes,
+                    json_dumps(snapshot.manifest),
+                    json_dumps(snapshot.diff),
+                    snapshot.created_at,
+                ),
+            )
+
+    async def list_workspace_snapshots_for_run(self, run_id: str) -> List[SandboxWorkspaceSnapshotRecord]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM sandbox_workspace_snapshots
+                WHERE run_id = ?
+                ORDER BY created_at ASC, snapshot_id ASC
+                """,
+                (run_id,),
+            ).fetchall()
+        return [_snapshot_from_row(row) for row in rows]
+
 
 def _profile_to_dict(profile: SandboxProfile) -> dict[str, str]:
     return {
+        "name": profile.name,
         "provider": profile.provider,
         "image": profile.image,
         "network_mode": profile.network_mode,
@@ -351,5 +435,20 @@ def _event_from_row(row) -> SandboxEventRecord:
         status=str(row["status"] or ""),
         duration_ms=float(row["duration_ms"] or 0.0),
         payload={key: str(value) for key, value in json_dict(row["payload_json"]).items()},
+        created_at=float(row["created_at"]),
+    )
+
+
+def _snapshot_from_row(row) -> SandboxWorkspaceSnapshotRecord:
+    return SandboxWorkspaceSnapshotRecord(
+        snapshot_id=str(row["snapshot_id"]),
+        lease_id=str(row["lease_id"]),
+        run_id=str(row["run_id"]),
+        task_id=str(row["task_id"] or ""),
+        phase=str(row["phase"] or ""),
+        file_count=int(row["file_count"] or 0),
+        total_bytes=int(row["total_bytes"] or 0),
+        manifest=json_dict(row["manifest_json"]),
+        diff=json_dict(row["diff_json"]),
         created_at=float(row["created_at"]),
     )

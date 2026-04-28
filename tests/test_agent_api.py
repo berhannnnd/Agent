@@ -144,7 +144,10 @@ def test_agent_run_trace_api_returns_spans(monkeypatch):
     assert [span["kind"] for span in data["spans"]] == ["run", "model"]
     assert data["spans"][0]["status"] == "done"
     assert data["approvals"] == []
+    assert data["sandbox_leases"] == []
+    assert data["sandbox_artifacts"]["downloads"] == "artifacts/downloads"
     assert data["sandbox_events"] == []
+    assert data["sandbox_snapshots"] == []
 
 
 def test_agent_run_api_returns_404_for_unknown_run():

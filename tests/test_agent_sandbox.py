@@ -15,7 +15,12 @@ from agent.capabilities.sandbox import (
     SQLiteSandboxStore,
     SandboxEventRecord,
     SandboxLeaseRecord,
+    SandboxWorkspaceSnapshotRecord,
     SandboxProfile,
+    WorkspaceArtifacts,
+    WorkspaceSnapshot,
+    sandbox_policy_from_settings,
+    sandbox_profile_from_settings,
 )
 from agent.capabilities.sandbox.recording import SandboxToolExecutionRecorder
 from agent.capabilities.tools import ToolRegistry, ToolRuntimeContext, register_builtin_tools
@@ -109,17 +114,29 @@ def test_sandbox_store_records_leases_and_events(tmp_path):
     async def persist():
         await store.save_lease(lease)
         await store.record_event(SandboxEventRecord(lease_id=lease.lease_id, event_type="acquired", payload={"tool": "filesystem.read"}))
+        await store.save_workspace_snapshot(
+            SandboxWorkspaceSnapshotRecord(
+                snapshot_id="snapshot-1",
+                lease_id=lease.lease_id,
+                run_id=lease.run_id,
+                phase="before",
+                file_count=0,
+                total_bytes=0,
+            )
+        )
         loaded = await store.load_lease(lease.lease_id)
         events = await store.list_events(lease.lease_id)
+        snapshots = await store.list_workspace_snapshots_for_run(lease.run_id)
         await store.mark_released(lease.lease_id)
         released = await store.load_lease(lease.lease_id)
-        return loaded, events, released
+        return loaded, events, snapshots, released
 
-    loaded, events, released = asyncio.run(persist())
+    loaded, events, snapshots, released = asyncio.run(persist())
 
     assert loaded is not None
     assert loaded.provider == "local"
     assert events[0].event_type == "acquired"
+    assert snapshots[0].snapshot_id == "snapshot-1"
     assert released is not None
     assert released.status == "released"
 
@@ -160,9 +177,10 @@ def test_tool_execution_records_run_scoped_sandbox_events(tmp_path):
         )
         lease = await store.load_lease("sandbox_run-1_task-1")
         events = await store.list_events("sandbox_run-1_task-1")
-        return results, lease, events
+        snapshots = await store.list_workspace_snapshots_for_run("run-1")
+        return results, lease, events, snapshots
 
-    results, lease, events = asyncio.run(execute())
+    results, lease, events, snapshots = asyncio.run(execute())
 
     assert results[0].is_error is False
     assert results[0].raw["_meta"]["sandbox"]["lease_id"] == "sandbox_run-1_task-1"
@@ -173,6 +191,51 @@ def test_tool_execution_records_run_scoped_sandbox_events(tmp_path):
     assert events[-1].tool_call_id == "call-1"
     assert events[-1].tool_name == "filesystem.read"
     assert events[-1].status == "succeeded"
+    assert [snapshot.phase for snapshot in snapshots] == ["before", "after"]
+    assert snapshots[-1].diff["file_count_after"] == 1
+
+
+def test_workspace_artifacts_are_created_and_skipped_by_snapshots(tmp_path):
+    workspace = _workspace(tmp_path)
+    artifacts = WorkspaceArtifacts.ensure(workspace)
+    (workspace.path / artifacts.logs / "run.log").write_text("internal log", encoding="utf-8")
+    (workspace.path / "source.py").write_text("print('ok')", encoding="utf-8")
+
+    snapshot = WorkspaceSnapshot.capture(workspace)
+
+    assert (workspace.path / "artifacts" / "downloads").is_dir()
+    assert "source.py" in snapshot.files
+    assert "artifacts/logs/run.log" not in snapshot.files
+
+
+def test_sandbox_profile_defaults_apply_policy(tmp_path):
+    workspace = _workspace(tmp_path)
+
+    class AgentConfig:
+        SANDBOX_PROFILE = "coding"
+        SANDBOX_PROVIDER = "local"
+        SANDBOX_IMAGE = ""
+        SANDBOX_NETWORK = ""
+        SANDBOX_MEMORY = ""
+        SANDBOX_CPUS = ""
+        SANDBOX_TTL_SECONDS = 0
+        SANDBOX_WORKDIR = "/workspace"
+        SANDBOX_ALLOW_FILE_WRITE = None
+        SANDBOX_ALLOW_PROCESS = None
+        SANDBOX_ALLOW_NETWORK = None
+        SANDBOX_ALLOWED_COMMANDS = ""
+
+    class Settings:
+        agent = AgentConfig()
+
+    profile = sandbox_profile_from_settings(Settings())
+    policy = sandbox_policy_from_settings(Settings(), workspace, profile)
+
+    assert profile.name == "coding"
+    assert policy.allow_file_write is True
+    assert policy.allow_process is True
+    assert policy.allow_network is False
+    assert "pytest" in policy.allowed_commands
 
 
 def test_docker_sandbox_provider_mounts_workspace_when_available(tmp_path):

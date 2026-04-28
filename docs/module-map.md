@@ -121,9 +121,9 @@ agent/capabilities/sandbox/
 
 后续方向：
 
-- Docker 镜像 profile 和 CI integration test。
 - remote sandbox provider。
-- resource quotas、artifact collection、workspace snapshot。
+- resource quotas 和 remote execution lifecycle。
+- browser/runtime-specific sandbox providers。
 
 ## agent.capabilities.skills
 

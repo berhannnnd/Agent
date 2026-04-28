@@ -218,12 +218,15 @@ Trace 和 audit 的边界不同：
 - `LocalSandboxProvider`：本地 workspace 执行。
 - `DockerSandboxProvider`：Docker 挂载 workspace 执行。
 - `SandboxLeaseRecord` / `SandboxEventRecord`：sandbox 租约和事件记录模型。
-- SQLite 表：`sandbox_leases`、`sandbox_events`。
+- SQLite 表：`sandbox_leases`、`sandbox_events`、`sandbox_workspace_snapshots`。
 - builtin tools 已经通过 `SandboxClient` 执行。
 - run/task scoped sandbox lease id。
 - tool execution 自动写入 `sandbox_events`。
 - trace tool span 关联 sandbox metadata。
 - run 结束时 release 对应 sandbox leases。
+- sandbox profiles：`restricted`、`coding`、`test`、`browser`。
+- workspace artifacts 目录：`artifacts/downloads`、`artifacts/screenshots`、`artifacts/logs`、`artifacts/snapshots`。
+- workspace snapshot/diff 记录。
 
 尚未完成：
 

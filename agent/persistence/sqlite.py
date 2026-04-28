@@ -281,6 +281,23 @@ ON sandbox_events(lease_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_sandbox_events_run
 ON sandbox_events(run_id, task_id, created_at);
 
+CREATE TABLE IF NOT EXISTS sandbox_workspace_snapshots (
+    snapshot_id TEXT PRIMARY KEY,
+    lease_id TEXT NOT NULL,
+    run_id TEXT NOT NULL DEFAULT '',
+    task_id TEXT NOT NULL DEFAULT '',
+    phase TEXT NOT NULL DEFAULT '',
+    file_count INTEGER NOT NULL DEFAULT 0,
+    total_bytes INTEGER NOT NULL DEFAULT 0,
+    manifest_json TEXT NOT NULL,
+    diff_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    FOREIGN KEY(lease_id) REFERENCES sandbox_leases(lease_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_sandbox_workspace_snapshots_run
+ON sandbox_workspace_snapshots(run_id, task_id, created_at);
+
 CREATE TABLE IF NOT EXISTS credential_refs (
     credential_id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,

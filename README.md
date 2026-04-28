@@ -167,9 +167,19 @@ The persistent data boundary is the workspace:
 .agents/workspaces/{tenant_id}/{user_id}/{agent_id}/{workspace_id}
 ```
 
-The sandbox gets a lease against that workspace. With the local provider, tools execute directly inside the resolved workspace path. With the Docker provider, each command runs with the workspace mounted at `/workspace` by default:
+The sandbox gets a lease against that workspace. Profiles provide conservative defaults:
+
+| Profile | Default behavior |
+|---|---|
+| `restricted` | Read-only workspace access. |
+| `coding` | File write plus allowlisted coding commands such as `git`, `python3`, `pytest`, and `make`. |
+| `test` | Process execution for common test commands. |
+| `browser` | Browser-oriented process and network access. |
+
+With the local provider, tools execute directly inside the resolved workspace path. With the Docker provider, each command runs with the workspace mounted at `/workspace` by default:
 
 ```bash
+AGENT_SANDBOX_PROFILE=coding
 AGENT_SANDBOX_PROVIDER=docker
 AGENT_SANDBOX_IMAGE=python:3.12-slim
 AGENT_SANDBOX_ALLOW_FILE_WRITE=true
@@ -189,6 +199,8 @@ Builtin tools are semantic APIs, not direct container controls:
 | `shell.run` | high | Fallback escape hatch; prefer native tools. |
 
 Network-capable tools should follow the same boundary. Browser automation and untrusted local MCP servers should execute through sandbox clients. API-backed web search can stay in the control plane when the API key must not enter the sandbox.
+
+Each workspace also gets stable artifact directories under `artifacts/`, including `downloads/`, `screenshots/`, `logs/`, and `snapshots/`. Sandbox runs record workspace snapshots before and after tool execution, with diff summaries stored alongside sandbox events.
 
 ## HTTP API
 
@@ -321,7 +333,7 @@ SQLite domain tables:
 | `workspace_records` | Workspace ownership, path, status, and metadata. |
 | `memory_records` | User, agent, workspace, and run-scoped memories. |
 | `tasks`, `task_steps`, `task_attempts` | Long-running task state, step lifecycle, and retry attempts. |
-| `sandbox_leases`, `sandbox_events` | Sandbox execution leases and lifecycle/tool execution events. |
+| `sandbox_leases`, `sandbox_events`, `sandbox_workspace_snapshots` | Sandbox execution leases, tool execution events, and workspace diff snapshots. |
 | `credential_refs` | References to secrets stored elsewhere; raw secrets are not stored here. |
 
 Defaults for local development:

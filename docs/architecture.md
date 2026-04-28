@@ -55,7 +55,7 @@ graph TB
 - `agent.assembly`: SDK 装配入口。负责把 settings、模型配置、工具、skills、MCP、workspace、context 和 hooks 组装成 `AgentSession`，并提供 sync/async 两种入口。
 - `agent.config`: 配置解析边界。负责模型 provider fallback、API key/base URL/model/proxy 解析。
 - `agent.capabilities`: 能力域聚合包。收束 tools、skills、MCP 装配和 memory store，避免能力相关代码散落在 `agent` 顶层。
-- `agent.capabilities.sandbox`: 执行资源边界。定义 `SandboxClient`、local/Docker provider、lease record 和 event store。workspace 是持久化数据，sandbox 是工具执行租约。
+- `agent.capabilities.sandbox`: 执行资源边界。定义 `SandboxClient`、local/Docker provider、profile、artifact 目录、lease/event/snapshot store。workspace 是持久化数据，sandbox 是工具执行租约。
 - `agent.runtime`: 智能体内核包。`loop` 负责单 Agent 执行循环，`turns.model` 负责单轮模型请求，`turns.tools` 负责工具执行边界，`state` 承载运行状态，`session` 负责会话历史，`checkpoints` 负责断点恢复存储协议。
 - `agent.models`: 模型协议包。`adapters` 负责 provider wire protocol，`protocol` 负责 provider-neutral stream 语义，`transports` 负责 HTTP/SSE，根层保留模型客户端、retry 和错误类型。
 - `agent.context`: 上下文系统。按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层组织上下文，由 `ContextBuilder` 编译并输出 trace；`ModelRequestCompiler` 负责把 runtime state 转为模型请求。

@@ -49,6 +49,15 @@ Docker provider：
 - workspace 挂载到 `/workspace`。
 - provider 可替换，不改变模型工具接口。
 
+Profiles：
+
+| Profile | 默认策略 |
+|---|---|
+| `restricted` | 只读 workspace，不允许进程和网络。 |
+| `coding` | 允许文件写入和常见代码命令。 |
+| `test` | 允许测试相关命令。 |
+| `browser` | 允许浏览器/Node 相关命令和网络。 |
+
 未来 provider：
 
 - remote sandbox service。
@@ -71,6 +80,20 @@ sandbox_{run_id}_{task_id}
 - `tool_finished`
 
 run 完成或失败时，gateway 会把该 run 下的 sandbox leases 标记为 `released`。这让 trace、sandbox events、run record 和 task step 能串成同一条操作动线。
+
+## Artifacts And Snapshots
+
+每个 workspace 会创建固定 artifact 目录：
+
+```text
+artifacts/
+artifacts/downloads/
+artifacts/screenshots/
+artifacts/logs/
+artifacts/snapshots/
+```
+
+工具执行前会记录 `before` workspace snapshot，工具执行后会记录 `after` snapshot 和 diff summary。snapshot 默认跳过 `.git`、`.venv`、`node_modules`、`__pycache__` 和 `artifacts`，避免把依赖目录和运行产物误当成代码变更。
 
 ## 和早期代码片段执行器的关系
 

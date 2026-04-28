@@ -6,11 +6,13 @@ from typing import Any
 from agent.capabilities.sandbox.factory import (
     create_sandbox_client,
     create_sandbox_client_from_profile,
+    sandbox_policy_from_settings,
     sandbox_profile_from_settings,
 )
 from agent.capabilities.sandbox.local import LocalSandboxProvider
 from agent.capabilities.sandbox.store import SandboxLeaseRecord, SandboxStore
 from agent.capabilities.sandbox.types import SandboxClient, SandboxProfile
+from agent.capabilities.sandbox.workspace import WorkspaceArtifacts
 from agent.context.workspace import WorkspaceContext
 from agent.governance import SandboxPolicy
 
@@ -23,8 +25,11 @@ class ToolRuntimeContext:
     sandbox_profile: SandboxProfile | None = None
     sandbox_store: SandboxStore | None = None
     task_id: str = ""
+    artifacts: WorkspaceArtifacts | None = None
 
     def __post_init__(self) -> None:
+        if self.artifacts is None:
+            self.artifacts = WorkspaceArtifacts.ensure(self.workspace)
         if self.sandbox_profile is None:
             self.sandbox_profile = SandboxProfile(provider="local")
         if self.sandbox_client is None:
@@ -44,15 +49,8 @@ class ToolRuntimeContext:
         sandbox_store: SandboxStore | None = None,
         task_id: str = "",
     ) -> "ToolRuntimeContext":
-        allowed_commands = _csv_setting(getattr(settings.agent, "SANDBOX_ALLOWED_COMMANDS", ""))
-        sandbox = SandboxPolicy.for_workspace(
-            workspace.path,
-            allow_file_write=bool(getattr(settings.agent, "SANDBOX_ALLOW_FILE_WRITE", False)),
-            allow_process=bool(getattr(settings.agent, "SANDBOX_ALLOW_PROCESS", False)),
-            allow_network=bool(getattr(settings.agent, "SANDBOX_ALLOW_NETWORK", False)),
-            allowed_commands=allowed_commands,
-        )
         profile = sandbox_profile_from_settings(settings)
+        sandbox = sandbox_policy_from_settings(settings, workspace, profile)
         client = create_sandbox_client(settings, workspace, sandbox)
         return cls(
             workspace=workspace,
@@ -74,6 +72,8 @@ class ToolRuntimeContext:
         metadata = {"run_id": scoped_run_id}
         if scoped_task_id:
             metadata["task_id"] = scoped_task_id
+        if self.artifacts is not None:
+            metadata.update({"artifacts_root": self.artifacts.root})
         self.sandbox_client = create_sandbox_client_from_profile(
             self.workspace,
             self.sandbox,
@@ -86,10 +86,6 @@ class ToolRuntimeContext:
             await self.sandbox_store.save_lease(lease)
             await self.sandbox_store.record_event(lease.to_event("lease_acquired"))
         return self.sandbox_client
-
-
-def _csv_setting(raw: str) -> list[str]:
-    return [item.strip() for item in str(raw or "").split(",") if item.strip()]
 
 
 def _scoped_lease_id(run_id: str, task_id: str = "") -> str:

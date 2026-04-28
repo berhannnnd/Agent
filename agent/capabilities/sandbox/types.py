@@ -10,6 +10,7 @@ from agent.governance import SandboxPolicy
 
 @dataclass(frozen=True)
 class SandboxProfile:
+    name: str = "restricted"
     provider: str = "local"
     image: str = "python:3.12-slim"
     network_mode: str = "none"

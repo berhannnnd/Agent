@@ -147,14 +147,19 @@ async def get_run_trace(run_id: str):
         return resp.fail(resp.Resp(code="404", detail="run not found: %s" % run_id, http_status=404))
     spans = await trace_store.list_for_run(run_id)
     approvals = await approval_audit_store.list_for_run(run_id)
+    sandbox_leases = await persistence.sandboxes.list_leases_for_run(run_id)
     sandbox_events = await persistence.sandboxes.list_events_for_run(run_id)
+    sandbox_snapshots = await persistence.sandboxes.list_workspace_snapshots_for_run(run_id)
     return resp.ok(
         response=resp.Resp(
             data={
                 "run_id": run_id,
                 "spans": [span.to_dict() for span in spans],
                 "approvals": [approval.to_dict() for approval in approvals],
+                "sandbox_leases": [lease.to_dict() for lease in sandbox_leases],
+                "sandbox_artifacts": _sandbox_artifacts(sandbox_leases),
                 "sandbox_events": [event.to_dict() for event in sandbox_events],
+                "sandbox_snapshots": [snapshot.to_dict() for snapshot in sandbox_snapshots],
             }
         )
     )
@@ -279,6 +284,20 @@ def _sse(event: str, data: dict) -> str:
 def _default_task_title(message: str) -> str:
     text = " ".join(str(message or "").split())
     return text[:80] or "Untitled task"
+
+
+def _sandbox_artifacts(leases) -> dict:
+    root = "artifacts"
+    for lease in leases:
+        root = lease.metadata.get("artifacts_root") or root
+        break
+    return {
+        "root": root,
+        "downloads": "%s/downloads" % root,
+        "screenshots": "%s/screenshots" % root,
+        "logs": "%s/logs" % root,
+        "snapshots": "%s/snapshots" % root,
+    }
 
 
 def _result_error(events) -> str:
