@@ -1,4 +1,9 @@
 import importlib.util
+import ast
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_top_level_packages_define_runtime_gateway_and_cli_boundaries():
@@ -87,3 +92,35 @@ def test_gateway_exposes_protocol_boundary_packages():
 
 def test_legacy_app_package_is_not_importable():
     assert importlib.util.find_spec("app") is None
+
+
+def test_cli_does_not_import_gateway():
+    imports = _imports_under(ROOT / "cli")
+
+    assert not [name for name in imports if name == "gateway" or name.startswith("gateway.")]
+
+
+def test_agent_does_not_import_entrypoint_or_ui_packages():
+    imports = _imports_under(ROOT / "agent")
+    forbidden = ("gateway", "cli", "web", "fastapi", "typer", "rich", "prompt_toolkit")
+
+    assert not [name for name in imports if name in forbidden or name.startswith(tuple("%s." % item for item in forbidden))]
+
+
+def test_gateway_template_engine_and_provider_layers_are_not_importable():
+    assert importlib.util.find_spec("gateway.engines") is None
+    assert importlib.util.find_spec("gateway.shared.provider") is None
+
+
+def _imports_under(root: Path) -> set[str]:
+    imports: set[str] = set()
+    for path in root.rglob("*.py"):
+        if "__pycache__" in path.parts:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imports.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imports.add(node.module)
+    return imports

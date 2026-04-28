@@ -62,7 +62,7 @@ approval 事件和 audit 记录会附带 `impact`：
 - 更好的审计记录。
 - 更稳定的提示词行为。
 - 更容易做 UI 展示。
-- 更容易做 provider-neutral replay。
+- 更容易做 protocol-neutral replay。
 
 ## 后续重点
 

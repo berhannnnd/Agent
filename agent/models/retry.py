@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from agent.models.errors import (
     ModelClientError,
+    ModelConnectionError,
     ModelRateLimitError,
     ModelServerError,
     ModelTimeoutError,
@@ -17,6 +18,7 @@ class RetryPolicy:
     retry_429: bool = True
     retry_5xx: bool = True
     retry_timeout: bool = True
+    retry_connection: bool = True
 
 
 def _should_retry(err: ModelClientError, attempt: int, policy: RetryPolicy) -> bool:
@@ -27,6 +29,8 @@ def _should_retry(err: ModelClientError, attempt: int, policy: RetryPolicy) -> b
     if isinstance(err, ModelServerError) and policy.retry_5xx:
         return True
     if isinstance(err, ModelTimeoutError) and policy.retry_timeout:
+        return True
+    if isinstance(err, ModelConnectionError) and policy.retry_connection:
         return True
     return False
 

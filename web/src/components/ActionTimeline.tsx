@@ -1,10 +1,10 @@
 import { Activity, AlertTriangle, CheckCircle2, Code2, Globe2, Loader2, Search, ShieldCheck, TerminalSquare, Wrench } from "lucide-solid";
 import type { Accessor } from "solid-js";
 import { For } from "solid-js";
-import type { RuntimeEvent, RuntimeEventKind } from "../types";
+import type { ActivityEvent, ActivityEventKind } from "../types";
 
 type Props = {
-  events: Accessor<RuntimeEvent[]>;
+  events: Accessor<ActivityEvent[]>;
   open: Accessor<boolean>;
 };
 
@@ -30,7 +30,7 @@ export function ActionTimeline(props: Props) {
   );
 }
 
-function ActionRow(props: { event: RuntimeEvent }) {
+function ActionRow(props: { event: ActivityEvent }) {
   const Icon = () => iconFor(props.event.kind);
   return (
     <article class={`action-row action-${props.event.kind} action-${props.event.status}`}>
@@ -47,7 +47,7 @@ function ActionRow(props: { event: RuntimeEvent }) {
   );
 }
 
-function iconFor(kind: RuntimeEventKind) {
+function iconFor(kind: ActivityEventKind) {
   if (kind === "tool") return <Wrench size={15} />;
   if (kind === "approval") return <ShieldCheck size={15} />;
   if (kind === "code") return <Code2 size={15} />;

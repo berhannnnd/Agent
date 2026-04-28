@@ -9,12 +9,12 @@
 # =====================================================
 
 from gateway.core.config._constants import logo
-from gateway.core.config.agent import agent_config
+from agent.config.settings import agent_config
+from agent.config.settings import mcp_config
+from agent.config.settings import models_config
+from agent.config.settings import web_search_config
 from gateway.core.config.log import log_config
-from gateway.core.config.mcp import mcp_config
-from gateway.core.config.models import models_config
 from gateway.core.config.server import server_config
-from gateway.core.config.web_search import web_search_config
 
 
 class Settings:

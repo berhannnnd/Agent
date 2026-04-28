@@ -2,8 +2,8 @@ import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from gateway.core.config._constants import ENV_FILE
-from gateway.core.config.loader import config_value
+from agent.config.loader import config_value
+from agent.config.paths import ENV_FILE
 from gateway.utils.terminal import TermColors
 
 

@@ -1,10 +1,12 @@
 from pathlib import Path
 
-from gateway.core.config.loader import config_value, project_config
-from gateway.core.config.agent import AgentConfig
+from agent.config.loader import config_value, project_config
+from agent.config.settings import AgentConfig
 
 
 def test_project_config_defaults_feed_settings_classes():
+    assert config_value("agent", "PROTOCOL", "") == "openai-chat"
+    assert AgentConfig.model_fields["PROTOCOL"].default == "openai-chat"
     assert config_value("agent", "BUILTIN_TOOLS", "") == "filesystem.read,filesystem.list"
     assert AgentConfig.model_fields["BUILTIN_TOOLS"].default == "filesystem.read,filesystem.list"
 

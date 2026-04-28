@@ -1,14 +1,14 @@
 import json
 from typing import Any, Dict, List, Optional
 
-from agent.models.adapters.base import ProviderAdapter, ProviderParseError
+from agent.models.adapters.base import ProtocolAdapter, ProtocolParseError
 from agent.models.constants import is_azure_openai_endpoint
 from agent.models.protocol import reasoning_delta, text_delta, tool_call_delta, usage_event
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 
-class OpenAIChatCompletionsAdapter(ProviderAdapter):
-    provider = "openai-chat"
+class OpenAIChatCompletionsAdapter(ProtocolAdapter):
+    protocol = "openai-chat"
     path = "/chat/completions"
     stream_path = "/chat/completions"
 
@@ -90,9 +90,9 @@ def _parse_json_object(raw: str, context: str) -> Dict[str, Any]:
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise ProviderParseError("malformed JSON arguments in %s: %s" % (context, exc.msg))
+        raise ProtocolParseError("malformed JSON arguments in %s: %s" % (context, exc.msg))
     if not isinstance(parsed, dict):
-        raise ProviderParseError("arguments in %s must be a JSON object" % context)
+        raise ProtocolParseError("arguments in %s must be a JSON object" % context)
     return parsed
 
 

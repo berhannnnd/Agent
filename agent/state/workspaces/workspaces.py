@@ -1,17 +1,14 @@
 from __future__ import annotations
-
-import re
 from pathlib import Path
 
 from agent.context.workspace import WorkspaceContext
-
-
-_SAFE_ID = re.compile(r"[^A-Za-z0-9_.-]+")
+from agent.state.workspaces.layout import WorkspaceLayout
 
 
 class LocalWorkspaceStore:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, layout: str = "auto"):
         self.root = Path(root)
+        self.layout = WorkspaceLayout(self.root, mode=layout)
 
     def allocate(
         self,
@@ -21,23 +18,10 @@ class LocalWorkspaceStore:
         workspace_id: str = "",
         create: bool = False,
     ) -> WorkspaceContext:
-        safe_tenant_id = _safe_id(tenant_id, default="default")
-        safe_user_id = _safe_id(user_id, default="anonymous")
-        safe_agent_id = _safe_id(agent_id, default="default")
-        safe_workspace_id = _safe_id(workspace_id, default="default")
-        path = self.root / safe_tenant_id / safe_user_id / safe_agent_id / safe_workspace_id
-        if create:
-            path.mkdir(parents=True, exist_ok=True)
-        return WorkspaceContext(
-            tenant_id=safe_tenant_id,
-            user_id=safe_user_id,
-            agent_id=safe_agent_id,
-            workspace_id=safe_workspace_id,
-            root=self.root,
-            path=path,
+        return self.layout.allocate(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            agent_id=agent_id,
+            workspace_id=workspace_id,
+            create=create,
         )
-
-
-def _safe_id(value: str, default: str) -> str:
-    cleaned = _SAFE_ID.sub("-", str(value or "").strip()).strip(".-")
-    return cleaned or default

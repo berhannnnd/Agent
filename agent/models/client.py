@@ -4,17 +4,18 @@ import asyncio
 from dataclasses import dataclass, replace
 from typing import AsyncIterable, Dict, Iterable, Optional
 
-from agent.models.adapters import GeminiGenerateContentAdapter, adapter_for_provider
+from agent.models.adapters import GeminiGenerateContentAdapter, adapter_for_protocol
 from agent.models.constants import normalize_base_url
-from agent.models.protocol import ModelStreamEventType, ModelStreamState, message_event
-from agent.models.retry import RetryPolicy, _run_with_retry
+from agent.models.errors import ModelClientError
+from agent.models.protocol import ModelStreamEventType, ModelStreamState, message_event, retry_event
+from agent.models.retry import RetryPolicy, _backoff, _run_with_retry, _should_retry
 from agent.models.transports import HttpxModelTransport
 from agent.schema import ModelRequest, ModelResponse, ModelStreamEvent
 
 
 @dataclass(frozen=True)
 class ModelClientConfig:
-    provider: str
+    protocol: str
     model: str
     api_key: str = ""
     base_url: str = ""
@@ -32,9 +33,9 @@ class ModelClient:
         transport: Optional[HttpxModelTransport] = None,
         retry_policy: Optional[RetryPolicy] = None,
     ):
-        adapter = adapter_for_provider(config.provider)
-        normalized_base_url = normalize_base_url(config.provider, config.base_url)
-        self.config = replace(config, provider=adapter.provider, base_url=normalized_base_url)
+        adapter = adapter_for_protocol(config.protocol)
+        normalized_base_url = normalize_base_url(config.protocol, config.base_url)
+        self.config = replace(config, protocol=adapter.protocol, base_url=normalized_base_url)
         self.adapter = adapter
         self.transport = transport or HttpxModelTransport(self.config.base_url, proxy_url=self.config.proxy_url)
         self.retry_policy = retry_policy or RetryPolicy(
@@ -59,16 +60,39 @@ class ModelClient:
         request_data = self._with_config(request_data)
         path = self._path(stream=True)
         payload = self.adapter.request_payload(request_data, stream=True)
-        state = ModelStreamState()
+        last_err: ModelClientError | None = None
 
-        async for chunk in self.transport.async_stream_json(
-            path, payload, self._headers(), self.config.timeout
-        ):
-            for event in self.adapter.parse_stream_event(chunk):
-                state.apply(event)
-                if event.type != ModelStreamEventType.MESSAGE.value:
-                    yield event
-        yield message_event(state.finalize())
+        for attempt in range(1, self.retry_policy.max_attempts + 1):
+            state = ModelStreamState()
+            emitted_model_event = False
+            try:
+                async for chunk in self.transport.async_stream_json(
+                    path, payload, self._headers(), self.config.timeout
+                ):
+                    for event in self.adapter.parse_stream_event(chunk):
+                        state.apply(event)
+                        if event.type != ModelStreamEventType.MESSAGE.value:
+                            emitted_model_event = True
+                            yield event
+                yield message_event(state.finalize())
+                return
+            except ModelClientError as err:
+                last_err = err
+                if emitted_model_event or not _should_retry(err, attempt, self.retry_policy):
+                    raise
+                delay = _backoff(self.retry_policy.base_delay, attempt)
+                yield retry_event(
+                    {
+                        "failed_attempt": attempt,
+                        "next_attempt": attempt + 1,
+                        "max_attempts": self.retry_policy.max_attempts,
+                        "delay_seconds": delay,
+                        "error": str(err),
+                    }
+                )
+                await asyncio.sleep(delay)
+        if last_err is not None:
+            raise last_err
 
     def complete(self, request_data: ModelRequest) -> ModelResponse:
         """同步便捷方法（内部使用 asyncio.run）。"""
@@ -92,7 +116,7 @@ class ModelClient:
         metadata = dict(request_data.metadata)
         metadata.setdefault("max_tokens", self.config.max_tokens)
         return ModelRequest(
-            provider=self.config.provider,
+            protocol=self.config.protocol,
             model=self.config.model or request_data.model,
             messages=request_data.messages,
             tools=request_data.tools,

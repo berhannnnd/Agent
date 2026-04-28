@@ -1,7 +1,7 @@
 import { ChevronDown, Cpu, KeyRound, Settings2, ShieldCheck, Wrench, X } from "lucide-solid";
 import type { Accessor, Setter } from "solid-js";
 import { For, Show } from "solid-js";
-import { providers, type PermissionMode } from "../types";
+import { modelProtocols, type PermissionMode } from "../types";
 
 type Props = {
   open: Accessor<boolean>;
@@ -10,8 +10,8 @@ type Props = {
   setBaseUrl: Setter<string>;
   token: Accessor<string>;
   setToken: Setter<string>;
-  provider: Accessor<string>;
-  setProvider: Setter<string>;
+  protocol: Accessor<string>;
+  setProtocol: Setter<string>;
   model: Accessor<string>;
   setModel: Setter<string>;
   modelBaseUrl: Accessor<string>;
@@ -42,10 +42,10 @@ export function SettingsDrawer(props: Props) {
         </section>
         <section class="config-section">
           <div class="card-title"><Cpu size={16} /><span>Model</span></div>
-          <Control label="Provider">
+          <Control label="Protocol">
             <span class="select-wrap">
-              <select value={props.provider()} onInput={(event) => props.setProvider(event.currentTarget.value)}>
-                <For each={[...providers]}>{(item) => <option value={item}>{item}</option>}</For>
+              <select value={props.protocol()} onInput={(event) => props.setProtocol(event.currentTarget.value)}>
+                <For each={[...modelProtocols]}>{(item) => <option value={item}>{item}</option>}</For>
               </select>
               <ChevronDown size={14} />
             </span>

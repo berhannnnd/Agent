@@ -1,12 +1,12 @@
 import { createMemo, createSignal } from "solid-js";
 import type {
   ApprovalDecision,
+  ActivityEvent,
+  ActivityEventKind,
+  ActivityEventStatus,
   ChatMessage,
   PermissionMode,
   Role,
-  RuntimeEvent,
-  RuntimeEventKind,
-  RuntimeEventStatus,
   ToolApprovalRequest
 } from "../types";
 import { approvalFromEvent, compact, createId, errorText, mergeApproval, safeJson, seedActivity, splitCsv, timeLabel, welcome } from "./sessionUtils";
@@ -14,7 +14,7 @@ import { approvalFromEvent, compact, createId, errorText, mergeApproval, safeJso
 export function createAgentSession() {
   const [baseUrl, setBaseUrl] = createSignal(window.location.origin);
   const [token, setToken] = createSignal("");
-  const [provider, setProvider] = createSignal("openai-chat");
+  const [protocol, setProtocol] = createSignal("openai-chat");
   const [model, setModel] = createSignal("");
   const [modelBaseUrl, setModelBaseUrl] = createSignal("");
   const [apiKey, setApiKey] = createSignal("");
@@ -24,7 +24,7 @@ export function createAgentSession() {
   const [streaming, setStreaming] = createSignal(true);
   const [input, setInput] = createSignal("");
   const [messages, setMessages] = createSignal<ChatMessage[]>([welcome]);
-  const [activity, setActivity] = createSignal<RuntimeEvent[]>(seedActivity());
+  const [activity, setActivity] = createSignal<ActivityEvent[]>(seedActivity());
   const [pendingApprovals, setPendingApprovals] = createSignal<ToolApprovalRequest[]>([]);
   const [runId, setRunId] = createSignal("");
   const [busy, setBusy] = createSignal(false);
@@ -212,7 +212,7 @@ export function createAgentSession() {
 
   const payload = (message: string) => compact({
     message,
-    provider: provider(),
+    protocol: protocol(),
     model: model(),
     base_url: modelBaseUrl(),
     api_key: apiKey(),
@@ -233,7 +233,7 @@ export function createAgentSession() {
     setMessages((current) => [...current, { id, role, content }]);
     return id;
   };
-  const record = (kind: RuntimeEventKind, title: string, detail: string, status: RuntimeEventStatus) => {
+  const record = (kind: ActivityEventKind, title: string, detail: string, status: ActivityEventStatus) => {
     const id = createId();
     setActivity((current) => [{ id, kind, title, detail, status, time: timeLabel() }, ...current]);
     return id;
@@ -242,12 +242,12 @@ export function createAgentSession() {
     setMessages((current) => current.map((message) => message.id === id ? { ...message, content: append ? `${message.content}${content}` : content } : message));
   };
   const removeMessage = (id: number) => setMessages((current) => current.filter((message) => message.id !== id));
-  const updateActivity = (id: number, patch: Partial<RuntimeEvent>) => {
+  const updateActivity = (id: number, patch: Partial<ActivityEvent>) => {
     setActivity((current) => current.map((event) => event.id === id ? { ...event, ...patch } : event));
   };
 
   return {
-    baseUrl, setBaseUrl, token, setToken, provider, setProvider, model, setModel, modelBaseUrl, setModelBaseUrl,
+    baseUrl, setBaseUrl, token, setToken, protocol, setProtocol, model, setModel, modelBaseUrl, setModelBaseUrl,
     apiKey, setApiKey, systemPrompt, setSystemPrompt, enabledTools, setEnabledTools, permissionMode, setPermissionMode,
     streaming, setStreaming, input, setInput, messages, activity, pendingApprovals, busy, health, latency, canSend,
     toolList, send, decideApproval, clear, checkHealth

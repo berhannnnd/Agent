@@ -6,7 +6,7 @@ from typing import List
 
 @dataclass(frozen=True)
 class RuntimeConfig:
-    provider: str
+    protocol: str
     model: str
     enabled_tools: List[str] = field(default_factory=list)
     max_tool_iterations: int = 8

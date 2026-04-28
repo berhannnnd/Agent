@@ -18,7 +18,7 @@ from gateway.shared.server.schemas.base_models import AppSchema
 
 class AgentChatRequest(AppSchema):
     message: str = Field(..., description="User message")
-    provider: Optional[str] = Field(None, description="Provider override")
+    protocol: Optional[str] = Field(None, description="Model protocol override")
     model: Optional[str] = Field(None, description="Model override")
     base_url: Optional[str] = Field(None, description="Base URL override")
     api_key: Optional[str] = Field(None, description="API key override")
@@ -34,7 +34,7 @@ class AgentChatRequest(AppSchema):
 
     def to_agent_spec(self) -> AgentSpec:
         return AgentSpec.from_overrides(
-            provider=self.provider,
+            protocol=self.protocol,
             model=self.model,
             base_url=self.base_url,
             api_key=self.api_key,

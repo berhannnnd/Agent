@@ -5,13 +5,16 @@ from agent.state.workspaces.metadata import (
     WorkspaceRecord,
     WorkspaceStore,
 )
+from agent.state.workspaces.layout import WorkspaceLayout, WorkspaceScope
 from agent.state.workspaces.workspaces import LocalWorkspaceStore
 
 __all__ = [
     "InMemoryWorkspaceStore",
     "LocalWorkspaceStore",
     "SQLiteWorkspaceStore",
+    "WorkspaceLayout",
     "WorkspaceRecord",
+    "WorkspaceScope",
     "WorkspaceStore",
     "resolve_workspace",
 ]

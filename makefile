@@ -4,6 +4,7 @@ PORT ?= 8010
 VENV ?= .venv
 PYTHON_BIN ?= $(shell command -v python3.12 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3.10 2>/dev/null)
 UV ?= $(shell command -v uv 2>/dev/null)
+HOST_PIP ?= $(shell command -v pip3 2>/dev/null || command -v pip 2>/dev/null)
 PYTHON ?= $(VENV)/bin/python
 PIP ?= $(PYTHON) -m pip
 
@@ -16,20 +17,28 @@ check-python:
 venv: check-python
 	@if [ ! -x "$(PYTHON)" ]; then \
 		echo "Creating $(VENV) with $(PYTHON_BIN)"; \
-		if [ -n "$(UV)" ]; then $(UV) venv --python "$(PYTHON_BIN)" "$(VENV)"; \
+		if [ -n "$(UV)" ]; then $(UV) venv --seed --python "$(PYTHON_BIN)" "$(VENV)"; \
 		else $(PYTHON_BIN) -m venv "$(VENV)"; fi; \
 	fi
 	@$(PYTHON) -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)'
+	@if ! $(PYTHON) -m pip --version >/dev/null 2>&1; then \
+		echo "Bootstrapping pip in $(VENV)"; \
+		if $(PYTHON) -m ensurepip --upgrade >/dev/null 2>&1; then :; \
+		elif [ -n "$(UV)" ]; then $(UV) pip install --python "$(PYTHON)" pip setuptools wheel; \
+		elif [ -n "$(HOST_PIP)" ]; then "$(HOST_PIP)" --python "$(PYTHON)" install pip setuptools wheel; \
+		else echo "pip is unavailable; install pip3 or uv, then rerun make setup."; exit 1; fi; \
+	fi
+	@$(PYTHON) -m pip --version >/dev/null
 
 setup: venv
 	$(PIP) install -e .
-	cd web && npm install
+	@if [ -f web/package-lock.json ]; then cd web && npm ci; else cd web && npm install; fi
 
 run: venv
 	$(PYTHON) main.py
 
 cli: venv
-	$(PYTHON) -m cli.main chat
+	@$(PYTHON) -m cli.main chat
 
 dev-web: venv
 	@echo "Starting backend..."

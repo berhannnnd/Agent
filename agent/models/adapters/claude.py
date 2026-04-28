@@ -1,12 +1,12 @@
 from typing import Any, Dict, List, Optional
 
-from agent.models.adapters.base import ProviderAdapter
+from agent.models.adapters.base import ProtocolAdapter
 from agent.models.protocol import reasoning_delta, text_delta, tool_call_delta
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 
-class ClaudeMessagesAdapter(ProviderAdapter):
-    provider = "claude-messages"
+class ClaudeMessagesAdapter(ProtocolAdapter):
+    protocol = "claude-messages"
     path = "/messages"
     stream_path = "/messages"
 

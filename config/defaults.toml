@@ -10,12 +10,11 @@ host = "0.0.0.0"
 port = 8010
 workers = 1
 domain = "http://localhost:8010"
-enable_engines = true
 enable_swagger_doc = false
 backend_cors_origins = ["*"]
 
 [agent]
-provider = "openai-chat"
+protocol = "openai-chat"
 timeout = 60.0
 max_tokens = 16384
 max_tool_iterations = 8

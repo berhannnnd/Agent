@@ -2,7 +2,7 @@
 
 > Historical implementation plan. The canonical architecture now lives in `README.md` and `docs/architecture.md`.
 
-**Goal:** Implement a fresh multi-provider tool-calling agent runtime with CLI and FastAPI/SSE interfaces.
+**Goal:** Implement a fresh multi-protocol tool-calling agent runtime with CLI and FastAPI/SSE interfaces.
 
 **Architecture:** Canonical schema sits at the center. Provider adapters translate model protocols, tool registry executes calls concurrently, and one runtime powers CLI/API.
 
@@ -16,12 +16,12 @@
 - Create: `agent/schema.py`
 - Create: `agent/models/adapters.py`
 - Create: `agent/models/client.py`
-- Create: `tests/test_agent_providers.py`
+- Create: `tests/test_agent_model_protocols.py`
 
 - [ ] Write tests for request payload and response parsing for OpenAI Chat, OpenAI Responses, Claude Messages, and Gemini.
-- [ ] Implement canonical dataclasses and provider adapters.
+- [ ] Implement canonical dataclasses and protocol adapters.
 - [ ] Implement shared HTTP/SSE transport client.
-- [ ] Run `pytest tests/test_agent_providers.py -q`.
+- [ ] Run `pytest tests/test_agent_model_protocols.py -q`.
 
 ### Task 2: Tool Registry, MCP, and Skills
 
@@ -61,7 +61,7 @@
 
 - [ ] Write tests for CLI streaming chat, API non-stream chat, and API SSE event format.
 - [ ] Wire CLI/API to `AgentSession`.
-- [ ] Add provider and MCP config settings.
+- [ ] Add model protocol and MCP config settings.
 - [ ] Run `make test`.
 
 ### Task 5: Remove Old LLM Path

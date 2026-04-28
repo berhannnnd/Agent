@@ -3,12 +3,12 @@ from typing import Any, Dict, List
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent
 
 
-class ProviderParseError(ValueError):
-    """Raised when a provider response cannot be parsed."""
+class ProtocolParseError(ValueError):
+    """Raised when a model protocol response cannot be parsed."""
 
 
-class ProviderAdapter:
-    provider = ""
+class ProtocolAdapter:
+    protocol = ""
     path = ""
     stream_path = ""
 
@@ -22,5 +22,5 @@ class ProviderAdapter:
         return []
 
     def auth_headers(self, api_key: str, base_url: str) -> Dict[str, str]:
-        """生成该 provider 的请求鉴权头。"""
+        """生成该协议的请求鉴权头。"""
         return {"Authorization": "Bearer %s" % api_key}

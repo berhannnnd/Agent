@@ -96,6 +96,8 @@ artifacts/logs/
 artifacts/snapshots/
 ```
 
+本地默认 workspace 会落在 `.agents/workspaces/local/default`。`tenant_id / user_id / agent_id / workspace_id` 仍作为逻辑 scope 记录到 run、memory、permission 和 sandbox audit 里；真实多租户部署可以通过 scoped workspace layout 落盘到 `.agents/workspaces/{tenant_id}/{user_id}/{agent_id}/{workspace_id}`。
+
 工具执行前会记录 `before` workspace snapshot，工具执行后会记录 `after` snapshot 和 diff summary。snapshot 默认跳过 `.git`、`.venv`、`node_modules`、`__pycache__` 和 `artifacts`，避免把依赖目录和运行产物误当成代码变更。
 
 ## 和早期代码片段执行器的关系

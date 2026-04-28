@@ -6,8 +6,8 @@
 
 已完成的地基：
 
-- 模型 provider 协议：OpenAI Chat、OpenAI Responses、Claude Messages、Gemini。
-- provider-neutral streaming events。
+- 模型 protocol：OpenAI Chat、OpenAI Responses、Claude Messages、Gemini。
+- protocol-neutral streaming events。
 - runtime tool loop、streaming、checkpoint/resume、approval pause。
 - ContextPack 分层上下文。
 - workspace scope：tenant/user/agent/workspace。
@@ -140,8 +140,9 @@ TODO:
 
 TODO:
 
-- [ ] CLI 多轮 session。
-- [ ] CLI approval prompt。
+- [x] CLI 多轮 session。
+- [x] CLI approval prompt。
+- [x] CLI 启动页、状态/工具/上下文小命令。
 - [ ] CLI task monitor。
 - [ ] Web run timeline。
 - [ ] Web tool approval panel。
@@ -157,7 +158,7 @@ TODO:
 
 - [ ] 端到端 smoke：chat、tool、approval、task、sandbox。
 - [ ] Docker sandbox integration test。
-- [ ] provider live test profile。
+- [ ] protocol live test profile。
 - [ ] DB migration strategy。
 - [ ] structured logging。
 - [ ] metrics。

@@ -8,14 +8,14 @@ from agent.capabilities.tools.registry import ToolRegistry
 
 
 class ModelRequestCompiler:
-    """Builds provider-neutral model requests from runtime state."""
+    """Builds protocol-neutral model requests from runtime state."""
 
     def __init__(self, tools: ToolRegistry):
         self.tools = tools
 
     def compile(self, messages: List[Message], config: RuntimeConfig) -> ModelRequest:
         return ModelRequest(
-            provider=config.provider,
+            protocol=config.protocol,
             model=config.model,
             messages=list(messages),
             tools=self.tools.specs(config.tool_names()),

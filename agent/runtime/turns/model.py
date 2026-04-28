@@ -55,6 +55,9 @@ class ModelTurnRunner:
                 yield ModelTurnUpdate(
                     event=RuntimeEvent(type="reasoning_delta", name="assistant", payload={"delta": event.delta})
                 )
+            elif event.type == ModelStreamEventType.RETRY.value:
+                payload = dict(event.raw or {}) if isinstance(event.raw, dict) else {}
+                yield ModelTurnUpdate(event=RuntimeEvent(type="model_retry", name="model", payload=payload))
             elif event.type == ModelStreamEventType.MESSAGE.value and event.response is not None:
                 final_response = event.response
 

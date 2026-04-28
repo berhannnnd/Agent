@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from agent.models import ModelClientConfig
-from agent.models.constants import normalize_provider
+from agent.models.constants import normalize_protocol
 
 
 class AgentConfigError(ValueError):
     """Raised when agent runtime config is incomplete."""
 
 
-_PROVIDER_CONFIG_SOURCES: dict[str, dict[str, list[str]]] = {
+_PROTOCOL_CONFIG_SOURCES: dict[str, dict[str, list[str]]] = {
     "claude-messages": {
         "api_key": ["agent.CLAUDE_API_KEY", "models.anthropic.API_KEY"],
         "base_url": ["agent.CLAUDE_BASE_URL", "models.anthropic.BASE_URL"],
@@ -36,13 +36,13 @@ _PROVIDER_CONFIG_SOURCES: dict[str, dict[str, list[str]]] = {
 
 def resolve_model_client_config(
     settings: Any,
-    provider: Optional[str] = None,
+    protocol: Optional[str] = None,
     model: Optional[str] = None,
     base_url: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> ModelClientConfig:
-    active_provider = normalize_provider(provider or settings.agent.PROVIDER)
-    sources = _PROVIDER_CONFIG_SOURCES.get(active_provider, _PROVIDER_CONFIG_SOURCES["openai-chat"])
+    active_protocol = normalize_protocol(protocol or settings.agent.PROTOCOL)
+    sources = _PROTOCOL_CONFIG_SOURCES.get(active_protocol, _PROTOCOL_CONFIG_SOURCES["openai-chat"])
 
     resolved_api_key = _coalesce(api_key, _resolve_config_value(settings, sources["api_key"]))
     resolved_base_url = _coalesce(base_url, _resolve_config_value(settings, sources["base_url"]))
@@ -57,7 +57,7 @@ def resolve_model_client_config(
         raise AgentConfigError("missing agent model configuration: %s" % ", ".join(missing))
 
     return ModelClientConfig(
-        provider=active_provider,
+        protocol=active_protocol,
         model=resolved_model,
         api_key=resolved_api_key,
         base_url=resolved_base_url,

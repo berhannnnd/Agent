@@ -1,4 +1,4 @@
-import type { ChatMessage, RuntimeEvent, ToolApprovalRequest } from "../types";
+import type { ActivityEvent, ChatMessage, ToolApprovalRequest } from "../types";
 
 export const welcome: ChatMessage = {
   id: 1,
@@ -6,7 +6,7 @@ export const welcome: ChatMessage = {
   content: "目标给我。我会组织上下文、工具和步骤，把它推进到结果。"
 };
 
-export function seedActivity(): RuntimeEvent[] {
+export function seedActivity(): ActivityEvent[] {
   return [
     { id: 101, kind: "search", title: "Web search", detail: "Standby for external research", status: "queued", time: "--:--:--" },
     { id: 102, kind: "tool", title: "Tool call", detail: "Waiting for tool selection", status: "queued", time: "--:--:--" },

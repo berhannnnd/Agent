@@ -1,7 +1,7 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =====================================================
-# @File   ：test_agent_providers.py
+# @File   ：test_agent_model_protocols.py
 # @Date   ：2026/04/24 00:00
 # @Author ：Zegen
 #
@@ -15,7 +15,9 @@ from agent.models.adapters import (
     OpenAIResponsesAdapter,
 )
 from agent.models.client import ModelClient, ModelClientConfig
+from agent.models.errors import ModelConnectionError
 from agent.models.protocol import ModelStreamEventType, ModelStreamState, reasoning_delta, text_delta, usage_event
+from agent.models.retry import RetryPolicy
 from agent.models.transports import HttpxModelTransport, parse_sse_json_line
 from agent.schema import Message, ModelRequest, ModelUsage, ToolCall, ToolSpec
 
@@ -60,9 +62,9 @@ class FakeStreamResponse:
         return iter(self.lines)
 
 
-def sample_request(provider="openai-chat", model="test-model"):
+def sample_request(protocol="openai-chat", model="test-model"):
     return ModelRequest(
-        provider=provider,
+        protocol=protocol,
         model=model,
         messages=[
             Message.from_text("system", "Be concise."),
@@ -273,7 +275,7 @@ def test_openai_responses_payload_preserves_function_call_context():
         },
     )
     request = ModelRequest(
-        provider="openai-responses",
+        protocol="openai-responses",
         model="test-model",
         messages=[
             Message.from_text("user", "hello"),
@@ -323,7 +325,7 @@ def test_claude_messages_adapter_builds_payload_and_parses_tool_use():
 def test_claude_messages_groups_consecutive_tool_results():
     adapter = ClaudeMessagesAdapter()
     request = ModelRequest(
-        provider="claude-messages",
+        protocol="claude-messages",
         model="claude-test",
         messages=[
             Message.from_text("user", "hello"),
@@ -401,7 +403,7 @@ def test_gemini_payload_preserves_raw_model_content():
         },
     )
     request = ModelRequest(
-        provider="gemini",
+        protocol="gemini",
         model="gemini-test",
         messages=[
             Message.from_text("user", "hello"),
@@ -418,7 +420,7 @@ def test_gemini_payload_preserves_raw_model_content():
 def test_gemini_groups_consecutive_function_responses():
     adapter = GeminiGenerateContentAdapter()
     request = ModelRequest(
-        provider="gemini",
+        protocol="gemini",
         model="gemini-test",
         messages=[
             Message.from_text("user", "hello"),
@@ -446,7 +448,7 @@ def test_gemini_groups_consecutive_function_responses():
     }
 
 
-def test_model_client_posts_to_provider_path_and_parses_response():
+def test_model_client_posts_to_protocol_path_and_parses_response():
     transport = FakeTransport(
         {
             "choices": [
@@ -459,7 +461,7 @@ def test_model_client_posts_to_provider_path_and_parses_response():
     )
     client = ModelClient(
         ModelClientConfig(
-            provider="openai-chat",
+            protocol="openai-chat",
             model="test-model",
             api_key="test-key",
             base_url="https://api.test.local/v1/chat/completions",
@@ -480,7 +482,7 @@ def test_model_client_posts_to_provider_path_and_parses_response():
 def test_model_client_closes_transport():
     transport = FakeTransport()
     client = ModelClient(
-        ModelClientConfig(provider="openai-chat", model="test-model", api_key="test-key"),
+        ModelClientConfig(protocol="openai-chat", model="test-model", api_key="test-key"),
         transport=transport,
     )
 
@@ -500,7 +502,7 @@ def test_model_client_uses_api_key_header_for_azure_openai_v1():
     )
     client = ModelClient(
         ModelClientConfig(
-            provider="openai-responses",
+            protocol="openai-responses",
             model="gpt-5.4-5",
             api_key="azure-key",
             base_url="https://example-resource.openai.azure.com/openai/v1",
@@ -543,7 +545,7 @@ def test_model_client_streams_openai_chat_tool_calls():
         ]
     )
     client = ModelClient(
-        ModelClientConfig(provider="openai-chat", model="test-model", api_key="test-key"),
+        ModelClientConfig(protocol="openai-chat", model="test-model", api_key="test-key"),
         transport=transport,
     )
 
@@ -555,6 +557,34 @@ def test_model_client_streams_openai_chat_tool_calls():
     assert final.tool_calls[0].id == "call-1"
     assert final.tool_calls[0].name == "echo"
     assert final.tool_calls[0].arguments == {"text": "hi"}
+
+
+def test_model_client_retries_stream_connection_before_first_delta():
+    class FlakyStreamTransport(FakeTransport):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        async def async_stream_json(self, path, payload, headers, timeout):
+            self.calls += 1
+            if self.calls == 1:
+                raise ModelConnectionError("connect failed")
+            yield {"choices": [{"delta": {"content": "ok"}}]}
+
+    transport = FlakyStreamTransport()
+    client = ModelClient(
+        ModelClientConfig(protocol="openai-chat", model="test-model", api_key="test-key"),
+        transport=transport,
+        retry_policy=RetryPolicy(max_attempts=2, base_delay=0),
+    )
+
+    events = list(client.stream(sample_request()))
+
+    assert transport.calls == 2
+    assert events[0].type == ModelStreamEventType.RETRY.value
+    assert events[0].raw["next_attempt"] == 2
+    assert "".join(event.delta for event in events if event.type == "text_delta") == "ok"
+    assert events[-1].response.content_text() == "ok"
 
 
 def test_openai_chat_adapter_streams_reasoning_and_usage_events():
@@ -591,7 +621,7 @@ def test_model_client_streams_openai_responses_completed_event():
         ]
     )
     client = ModelClient(
-        ModelClientConfig(provider="openai-responses", model="test-model", api_key="test-key"),
+        ModelClientConfig(protocol="openai-responses", model="test-model", api_key="test-key"),
         transport=transport,
     )
 
@@ -623,7 +653,7 @@ def test_model_client_streams_openai_responses_tool_calls():
         ]
     )
     client = ModelClient(
-        ModelClientConfig(provider="openai-responses", model="test-model", api_key="test-key"),
+        ModelClientConfig(protocol="openai-responses", model="test-model", api_key="test-key"),
         transport=transport,
     )
 
@@ -659,7 +689,7 @@ def test_model_client_streams_claude_messages_tool_calls():
         ]
     )
     client = ModelClient(
-        ModelClientConfig(provider="claude-messages", model="claude-test", api_key="test-key"),
+        ModelClientConfig(protocol="claude-messages", model="claude-test", api_key="test-key"),
         transport=transport,
     )
 
@@ -690,7 +720,7 @@ def test_model_client_streams_gemini_tool_calls():
         ]
     )
     client = ModelClient(
-        ModelClientConfig(provider="gemini", model="gemini-test", api_key="test-key"),
+        ModelClientConfig(protocol="gemini", model="gemini-test", api_key="test-key"),
         transport=transport,
     )
 

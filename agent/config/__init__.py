@@ -1,3 +1,41 @@
 from agent.config.models import AgentConfigError, resolve_model_client_config
+from agent.config.profiles import ModelProfile, active_profile_name, build_model_profiles, resolve_model_profile
+from agent.config.settings import (
+    AgentConfig,
+    AnthropicConfig,
+    GeminiConfig,
+    MCPConfig,
+    ModelConfigs,
+    OpenAIConfig,
+    OpenAIResponsesConfig,
+    RuntimeSettings,
+    WebSearchConfig,
+    agent_config,
+    mcp_config,
+    models_config,
+    runtime_settings,
+    web_search_config,
+)
 
-__all__ = ["AgentConfigError", "resolve_model_client_config"]
+__all__ = [
+    "AgentConfig",
+    "AgentConfigError",
+    "AnthropicConfig",
+    "GeminiConfig",
+    "MCPConfig",
+    "ModelConfigs",
+    "ModelProfile",
+    "OpenAIConfig",
+    "OpenAIResponsesConfig",
+    "RuntimeSettings",
+    "WebSearchConfig",
+    "active_profile_name",
+    "agent_config",
+    "build_model_profiles",
+    "mcp_config",
+    "models_config",
+    "resolve_model_client_config",
+    "resolve_model_profile",
+    "runtime_settings",
+    "web_search_config",
+]

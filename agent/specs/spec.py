@@ -8,7 +8,7 @@ from agent.specs.permissions import ToolPermissionSpec
 
 @dataclass(frozen=True)
 class AgentModelSpec:
-    provider: Optional[str] = None
+    protocol: Optional[str] = None
     model: Optional[str] = None
     base_url: Optional[str] = None
     api_key: Optional[str] = None
@@ -18,7 +18,7 @@ class AgentModelSpec:
         if not payload:
             return cls()
         return cls(
-            provider=payload.get("provider"),
+            protocol=payload.get("protocol"),
             model=payload.get("model"),
             base_url=payload.get("base_url"),
             api_key=payload.get("api_key"),
@@ -26,7 +26,7 @@ class AgentModelSpec:
 
     def to_dict(self, include_secrets: bool = False) -> dict:
         payload = {
-            "provider": self.provider,
+            "protocol": self.protocol,
             "model": self.model,
             "base_url": self.base_url,
         }
@@ -99,7 +99,7 @@ class AgentSpec:
     def from_overrides(
         cls,
         *,
-        provider: Optional[str] = None,
+        protocol: Optional[str] = None,
         model: Optional[str] = None,
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
@@ -122,7 +122,7 @@ class AgentSpec:
         )
         return cls(
             agent_id=agent_id or "",
-            model=AgentModelSpec(provider=provider, model=model, base_url=base_url, api_key=api_key),
+            model=AgentModelSpec(protocol=protocol, model=model, base_url=base_url, api_key=api_key),
             workspace=WorkspaceRef(
                 tenant_id=tenant_id or "",
                 user_id=user_id or "",

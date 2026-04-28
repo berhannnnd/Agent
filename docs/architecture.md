@@ -54,12 +54,12 @@ graph TB
 - `agent.schema`: Message、ToolCall、ToolSpec、ModelRequest、ModelResponse、RuntimeEvent 等核心数据结构。
 - `agent.specs`: Agent 规格层。`AgentSpec` 统一描述模型、工具、skills、workspace、权限 profile、记忆 profile 和 metadata。
 - `agent.assembly`: SDK 装配入口。负责把 settings、模型配置、工具、skills、MCP、workspace、context 和 hooks 组装成 `AgentSession`，并提供 sync/async 两种入口。
-- `agent.config`: 配置解析边界。负责模型 provider fallback、API key/base URL/model/proxy 解析。
+- `agent.config`: 共享配置边界。负责项目 defaults/local/env 读取、模型 protocol fallback、API key/base URL/model/proxy 解析，以及 CLI/Web 可选择的 model profile 解析。
 - `agent.capabilities`: 能力域聚合包。收束 tools、skills、MCP 装配、web search 和 memory store，避免能力相关代码散落在 `agent` 顶层。
 - `agent.capabilities.web`: control-plane web search 能力。当前内置 Tavily REST provider，统一输出 sources、usage 和 request_id；API key 不进入 sandbox。
 - `agent.capabilities.sandbox`: 执行资源边界。定义 `SandboxClient`、local/Docker provider、profile、artifact 目录、lease/event/snapshot store。workspace 是持久化数据，sandbox 是工具执行租约。
 - `agent.runtime`: 智能体内核包。`loop` 负责单 Agent 执行循环，`turns.model` 负责单轮模型请求，`turns.tools` 负责工具执行边界，`state` 承载运行状态，`session` 负责会话历史，`checkpoints` 负责断点恢复存储协议。
-- `agent.models`: 模型协议包。`adapters` 负责 provider wire protocol，`protocol` 负责 provider-neutral stream 语义，`transports` 负责 HTTP/SSE，根层保留模型客户端、retry 和错误类型。
+- `agent.models`: 模型协议包。`adapters` 负责具体模型 wire protocol，`protocol` 负责 protocol-neutral stream 语义，`transports` 负责 HTTP/SSE，根层保留模型客户端、retry 和错误类型。
 - `agent.context`: 上下文系统。按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层组织上下文，由 `ContextBuilder` 编译并输出 trace；`ModelRequestCompiler` 负责把 runtime state 转为模型请求。
 - `agent.context.memory` / `agent.context.compaction`: memory retrieval 与上下文压缩边界。前者把 memory store 转成 context fragments，后者把长对话折叠为可注入摘要。
 - `agent.state`: 状态域聚合包。收束 runs、identity、agent profiles、workspace records，避免这些数据域散落在顶层。
@@ -85,13 +85,12 @@ graph TB
 ## Gateway 网关层
 
 - `gateway.api`: FastAPI routes、schemas、Agent chat 和 stream API。
-- `gateway.core`: settings、logger、middleware、exceptions。部署级配置由 `gateway.core.config` 读取，非 secret 默认值在 `config/defaults.toml`，本机覆盖在 gitignored `config/local.toml`，`.env` 只放 secrets 和部署覆盖。
+- `gateway.core`: server settings、logger、middleware、exceptions。agent/runtime 相关配置来自 `agent.config`；gateway 只聚合服务层配置。非 secret 默认值在 `config/defaults.toml`，本机覆盖在 gitignored `config/local.toml`，`.env` 只放 secrets 和部署覆盖。
 - `gateway.shared.server`: FastAPI 注册器、统一响应、请求 ID、server launcher。
 - `gateway.auth`: 鉴权授权边界。
 - `gateway.services`: 跨 API 的服务容器边界。当前提供 `GatewayPersistence`，统一创建 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential/task/sandbox stores。
 - `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 running/awaiting_approval/finished/error，并按配置选择 memory/file/sqlite stores。
 - `gateway.streaming`: SSE 和 future WebSocket 协议边界。
-- `gateway.engines`: 可注册引擎的生命周期管理边界。
 - `gateway.static_ui`: 挂载 `web/dist` 到 `/ui/`。
 
 ## 调用链
@@ -117,7 +116,7 @@ graph TB
 
 ## 新模块接入流程
 
-1. 新增模型能力：provider 适配放入 `agent/models/adapters/`，通用 stream 协议放入 `agent/models/protocol/`，传输层放入 `agent/models/transports/`。
+1. 新增模型能力：protocol 适配放入 `agent/models/adapters/`，通用 stream 协议放入 `agent/models/protocol/`，传输层放入 `agent/models/transports/`。
 2. 新增工具能力：放入 `agent/capabilities/tools/` 或通过 MCP 接入；会读写文件、执行命令、测试、浏览器自动化的工具必须通过 `agent.capabilities.sandbox` 的 client 执行。
 3. 新增 Agent 规格字段：优先放入 `agent/specs/`，再由 assembly 消费。
 4. 新增 run/session 持久化：实现 `agent.state.runs.RunStore`、`agent.runtime.CheckpointStore`、`agent.governance.tracing.TraceStore` 或 `agent.governance.audit.ApprovalAuditStore`，gateway 只接 adapter。

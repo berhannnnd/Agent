@@ -6,19 +6,19 @@ export type ChatMessage = {
   content: string;
 };
 
-export type RuntimeEventKind = "system" | "stream" | "tool" | "approval" | "code" | "search" | "browser" | "error";
-export type RuntimeEventStatus = "queued" | "running" | "waiting" | "done" | "error";
+export type ActivityEventKind = "system" | "stream" | "tool" | "approval" | "code" | "search" | "browser" | "error";
+export type ActivityEventStatus = "queued" | "running" | "waiting" | "done" | "error";
 
-export type RuntimeEvent = {
+export type ActivityEvent = {
   id: number;
-  kind: RuntimeEventKind;
+  kind: ActivityEventKind;
   title: string;
   detail: string;
-  status: RuntimeEventStatus;
+  status: ActivityEventStatus;
   time: string;
 };
 
-export const providers = ["openai-chat", "openai-responses", "claude-messages", "gemini"] as const;
+export const modelProtocols = ["openai-chat", "openai-responses", "claude-messages", "gemini"] as const;
 
 export type PermissionMode = "auto" | "ask" | "deny";
 export type ApprovalDecision = "allow_once" | "allow_for_run" | "deny";

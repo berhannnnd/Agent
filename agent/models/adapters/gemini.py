@@ -1,13 +1,13 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
-from agent.models.adapters.base import ProviderAdapter
+from agent.models.adapters.base import ProtocolAdapter
 from agent.models.protocol import message_event, text_delta, tool_call_delta
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 
-class GeminiGenerateContentAdapter(ProviderAdapter):
-    provider = "gemini"
+class GeminiGenerateContentAdapter(ProtocolAdapter):
+    protocol = "gemini"
     path = ""
     stream_path = ""
 

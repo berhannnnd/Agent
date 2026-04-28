@@ -34,7 +34,7 @@ async def create_agent_session_async(
     resolved_spec = spec.with_workspace_defaults()
     config = resolve_model_client_config(
         settings,
-        provider=resolved_spec.model.provider,
+        protocol=resolved_spec.model.protocol,
         model=resolved_spec.model.model,
         base_url=resolved_spec.model.base_url,
         api_key=resolved_spec.model.api_key,
@@ -75,7 +75,7 @@ async def create_agent_session_async(
     runtime = AgentRuntime(
         model_client=ModelClient(config),
         tools=registry,
-        provider=config.provider,
+        protocol=config.protocol,
         model=config.model,
         enabled_tools=active_tools,
         max_tool_iterations=settings.agent.MAX_TOOL_ITERATIONS,

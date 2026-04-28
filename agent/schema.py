@@ -221,7 +221,7 @@ class ModelUsage:
 
 @dataclass(frozen=True)
 class ModelRequest:
-    provider: str
+    protocol: str
     model: str
     messages: List[Message]
     tools: List[ToolSpec] = field(default_factory=list)

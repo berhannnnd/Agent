@@ -27,7 +27,7 @@ export function App() {
         <ChatThread
           messages={session.messages}
           busy={session.busy}
-          provider={session.provider}
+          protocol={session.protocol}
           model={session.model}
           permissionMode={session.permissionMode}
           latency={session.latency}
@@ -49,8 +49,8 @@ export function App() {
         setBaseUrl={session.setBaseUrl}
         token={session.token}
         setToken={session.setToken}
-        provider={session.provider}
-        setProvider={session.setProvider}
+        protocol={session.protocol}
+        setProtocol={session.setProtocol}
         model={session.model}
         setModel={session.setModel}
         modelBaseUrl={session.modelBaseUrl}

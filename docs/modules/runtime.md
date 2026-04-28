@@ -6,7 +6,7 @@
 
 - 编译模型请求。
 - 调用模型 client。
-- 接收 provider-neutral stream events。
+- 接收 protocol-neutral stream events。
 - 收集 tool calls。
 - 通过 `ToolRegistry` 执行工具。
 - 应用 permission policy。

@@ -12,11 +12,11 @@ _ADAPTERS = {
 }
 
 
-def adapter_for_provider(provider: str):
-    from agent.models.constants import normalize_provider
+def adapter_for_protocol(protocol: str):
+    from agent.models.constants import normalize_protocol
 
-    standard = normalize_provider(provider)
+    standard = normalize_protocol(protocol)
     cls = _ADAPTERS.get(standard)
     if cls is None:
-        raise ValueError("unsupported provider: %s" % provider)
+        raise ValueError("unsupported model protocol: %s" % protocol)
     return cls()

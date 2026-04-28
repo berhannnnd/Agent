@@ -34,24 +34,43 @@ cli  -> agent
 - 扩展不同 agent profile 的装配策略，例如 coding agent、browser agent、research agent。
 - 支持 profile 化装配，例如 coding agent、browser agent、research agent。
 
+## agent.config
+
+职责：
+
+- 读取 `config/defaults.toml`、`config/local.toml`、`.env` 和 shell env。
+- 提供 CLI 与 gateway 共用的 runtime settings。
+- 解析模型 protocol fallback、API key、base URL、model、proxy。
+- 解析命名 model profile，供 CLI `/model` 和后续 Web 设置页选择。
+
+为什么这样做：
+
+- `cli` 应该直接依赖 `agent`，不能为了读配置 import `gateway`。
+- model profile 是“配置组”，protocol 是“模型 API 协议”，二者必须分开，避免出现 `openai-chat/kimi` 这类语义混乱。
+
+后续方向：
+
+- 导出 model profile schema 给 Web 设置页。
+- 增加配置诊断，明确显示缺 key、缺 model、endpoint 不可达等状态。
+
 ## agent.models
 
 职责：
 
-- 统一模型 provider wire protocol。
-- 把 OpenAI Chat、OpenAI Responses、Claude Messages、Gemini 转为 provider-neutral events。
+- 统一模型 wire protocol。
+- 把 OpenAI Chat、OpenAI Responses、Claude Messages、Gemini 转为 protocol-neutral events。
 - 处理 HTTP/SSE transport、重试和错误类型。
 
 为什么这样做：
 
-- runtime 不应该知道每个 provider 的增量事件格式。
+- runtime 不应该知道每个 protocol 的增量事件格式。
 - 工具调用、reasoning delta、usage、final message 应统一进入 runtime。
 
 后续方向：
 
-- 增加 provider capability discovery。
+- 增加 protocol capability discovery。
 - 更完整地保存 request/response trace。
-- 对 provider-specific tool call 修复做统一归一化。
+- 对 protocol-specific tool call 修复做统一归一化。
 
 ## agent.context
 

@@ -66,7 +66,7 @@ class _StreamToolCallAccumulator:
 
 
 class ModelStreamState:
-    """Accumulates provider-neutral stream events into a final ModelResponse."""
+    """Accumulates protocol-neutral stream events into a final ModelResponse."""
 
     def __init__(self) -> None:
         self.text_parts: List[str] = []

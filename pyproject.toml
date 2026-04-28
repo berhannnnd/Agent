@@ -5,19 +5,21 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agents"
 version = "0.1.0"
-description = "Agents framework with async model providers and configurable runtime"
+description = "Agents framework with async model protocols and configurable runtime"
 authors = [{ name = "Agents Team" }]
 requires-python = ">=3.10"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "typer",
+    "rich",
     "pydantic>=2",
     "pydantic-settings",
     "python-multipart",
     "mcp",
     "httpx[socks]",
     "tomli; python_version < '3.11'",
+    "prompt-toolkit",
 ]
 
 [project.optional-dependencies]

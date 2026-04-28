@@ -28,8 +28,8 @@ agent   -> no gateway, FastAPI, or UI dependency
 
 ## Current Capabilities
 
-- Multi-provider model layer: OpenAI Chat Completions, OpenAI Responses, Claude Messages, Gemini.
-- Provider-neutral streaming protocol for text deltas, reasoning deltas, tool call deltas, usage, and final messages.
+- Multi-protocol model layer: OpenAI Chat Completions, OpenAI Responses, Claude Messages, Gemini.
+- Protocol-neutral streaming events for text deltas, reasoning deltas, tool call deltas, usage, and final messages.
 - Agent runtime with tool-call loop, streaming, hook points, checkpoint/resume support, and max-iteration guard.
 - Context system with layered fragments: system, runtime policy, workspace instructions, skills, memory, tool hints, task context.
 - Tool registry with concurrent execution, timeout handling, tool metadata, error-to-tool-result conversion, and MCP stdio loading.
@@ -38,11 +38,11 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Tool approval flow with `auto`, `ask`, and `deny` modes, checkpoint-backed pause/resume, run status `awaiting_approval`, and web Approve/Deny controls.
 - Long-running task foundation with task, step, attempt records and memory/SQLite stores.
 - Task queue/worker primitives for background execution over the same task runner.
-- Workspace-scoped builtin tools for file read/list/write, structured patching, text search, web search/extract/map, git status/diff, test commands, browser fetch/download, and shell fallback, guarded by sandbox and provider policy.
+- Workspace-scoped builtin tools for file read/list/write, structured patching, text search, web search/extract/map, git status/diff, test commands, browser fetch/download, and shell fallback, guarded by sandbox and permission policy.
 - Memory retrieval and deterministic context compaction integrated into session assembly/windowing for long-context runs.
 - Multi-agent role/router and workflow DAG primitives for future planner/worker/reviewer orchestration.
 - Governance security primitives for secret redaction and pluggable payload protection providers.
-- Workspace isolation under `tenant_id / user_id / agent_id / workspace_id`.
+- Workspace isolation through `tenant_id / user_id / agent_id / workspace_id`, with a compact local filesystem layout for dev and CLI usage.
 - Run tracking through `RunStore`, backed by memory, local JSON files, or SQLite.
 - SQLite persistence for run records, runtime events, checkpoints, approval audit, and trace spans.
 - Long-term data stores for tenants/users, agent profiles, workspace records, memories, sandbox leases, and credential references.
@@ -57,7 +57,7 @@ agent/
   assembly/       Build AgentSession from settings + AgentSpec
   capabilities/   Tools, skills, MCP loading, and memory capability APIs
     sandbox/      Local/Docker sandbox clients and sandbox lease records
-  config/         Model/provider config resolution
+  config/         Shared runtime settings, config loader, and model profile resolution
   context/        ContextPack, ContextBuilder, windowing, request compilation
   governance/     Permissions, credentials, audit, tracing
   hooks/          Runtime hooks and hook composition
@@ -74,7 +74,7 @@ agent/
 gateway/
   api/            FastAPI routes and HTTP schemas
   auth/           Future auth boundary
-  core/           Settings, logging, middleware, exceptions
+  core/           Server settings, logging, middleware, exceptions
   services/       Cross-cutting gateway service containers
   sessions/       Gateway run lifecycle service
   streaming/      Future SSE/WebSocket protocol helpers
@@ -93,7 +93,7 @@ make setup
 cp .env.example .env
 ```
 
-Edit `.env` and configure at least one provider API key and model.
+Edit `.env` and configure at least one model protocol API key and model.
 
 Start the gateway:
 
@@ -107,7 +107,7 @@ Start the terminal chat:
 ```bash
 make cli
 # or
-agents chat --provider openai-chat
+agents chat --model-profile openai-chat
 ```
 
 By default, `agents chat` starts in local `coding` profile. It binds the current directory as the workspace, enables coding tools, and asks before write/execute tools. For a different workspace:
@@ -127,6 +127,22 @@ agents chat --permission guarded            # read automatically, confirm writes
 agents chat --tools filesystem.read,patch.apply,test.run
 ```
 
+Inside the terminal chat:
+
+```text
+/help       show CLI commands
+/status     show protocol, workspace, permission, token estimate
+/model      show configured model profiles and switch with /model <profile>
+/models     alias for /model
+/doctor     check local model, workspace, and tool readiness
+/workspace  show workspace path and logical scope
+/tools      show enabled tools
+/context    show context window usage
+/trace      show context assembly trace
+/clear      reset conversation messages
+/exit       leave the chat
+```
+
 Run tests:
 
 ```bash
@@ -135,7 +151,8 @@ make test
 
 ## Configuration
 
-Configuration is loaded through `gateway.core.config.settings`.
+Agent, CLI, and gateway share runtime configuration through `agent.config`.
+`gateway.core.config.settings` is the service-facing aggregate that adds server/logging settings on top of the shared agent config.
 
 Non-secret defaults are committed in `config/defaults.toml`. Local non-secret overrides belong in `config/local.toml`, which is gitignored. `.env` should stay focused on tokens, secrets, and deployment-only overrides.
 
@@ -154,7 +171,7 @@ AGENTS_LOCAL_CONFIG=config/local.toml
 
 | Domain | Env prefix | Common fields |
 |---|---|---|
-| `settings.agent` | `AGENT_` | `AGENT_PROVIDER`, `AGENT_MAX_TOKENS`, `AGENT_MAX_RETRIES`, `AGENT_ENABLED_TOOLS`, `AGENT_SKILLS`, `AGENT_WORKSPACE_ROOT`, `AGENT_SANDBOX_PROVIDER`, `AGENT_RUN_STORE`, `AGENT_RUN_ROOT`, `AGENT_DB_PATH` |
+| `settings.agent` | `AGENT_` | `AGENT_PROTOCOL`, `AGENT_MAX_TOKENS`, `AGENT_MAX_RETRIES`, `AGENT_ENABLED_TOOLS`, `AGENT_SKILLS`, `AGENT_WORKSPACE_ROOT`, `AGENT_SANDBOX_PROVIDER`, `AGENT_RUN_STORE`, `AGENT_RUN_ROOT`, `AGENT_DB_PATH` |
 | `settings.models.openai` | `OPENAI_` | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` |
 | `settings.models.openai_responses` | `OPENAI_RESPONSES_` | `OPENAI_RESPONSES_API_KEY`, `OPENAI_RESPONSES_BASE_URL`, `OPENAI_RESPONSES_MODEL` |
 | `settings.models.anthropic` | `ANTHROPIC_` | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL` |
@@ -162,9 +179,9 @@ AGENTS_LOCAL_CONFIG=config/local.toml
 | `settings.mcp` | `MCP_` | `MCP_SERVER_NAME`, `MCP_SERVER_COMMAND`, `MCP_CLIENT_TIMEOUT`, `MCP_EXECUTION_MODE` |
 | `settings.web_search` | `WEB_SEARCH_` | `WEB_SEARCH_PROVIDER`, `WEB_SEARCH_TAVILY_API_KEY`, `WEB_SEARCH_MAX_RESULTS`, `WEB_SEARCH_MAX_CREDITS_PER_RUN` |
 
-Provider names:
+Model protocol names:
 
-| Provider | Protocol |
+| Protocol | Wire API |
 |---|---|
 | `openai-chat` | OpenAI Chat Completions |
 | `openai-responses` | OpenAI Responses API |
@@ -172,6 +189,19 @@ Provider names:
 | `gemini` | Gemini Generate Content |
 
 Claude-compatible config prefers project-owned `AGENT_CLAUDE_*` values before falling back to ambient `ANTHROPIC_*` values.
+
+The terminal CLI builds `/model` choices from configured model profile groups. The standard groups are `OPENAI_*`, `OPENAI_RESPONSES_*`, `AGENT_CLAUDE_*`, and `GEMINI_*`. For named OpenAI-compatible endpoints such as Kimi, add a profile group:
+
+```bash
+AGENT_MODEL_PROFILES=kimi
+AGENT_MODEL_PROFILE_KIMI_PROTOCOL=openai-chat
+AGENT_MODEL_PROFILE_KIMI_BASE_URL=https://api.moonshot.cn/v1
+AGENT_MODEL_PROFILE_KIMI_MODEL=kimi-k2
+AGENT_MODEL_PROFILE_KIMI_API_KEY=
+AGENT_MODEL_PROFILE_KIMI_ALIASES=moonshot
+```
+
+Then switch the whole protocol/base URL/model/key group with `/model kimi`, or start directly with `agents chat --model-profile kimi`.
 
 Run records use memory by default. To keep run records as local JSON files:
 
@@ -195,11 +225,15 @@ The agent runtime does not run inside the sandbox. Runtime, gateway, model calls
 model -> runtime -> tool registry -> builtin tool -> SandboxClient -> local/docker execution -> workspace
 ```
 
-The persistent data boundary is the workspace:
+The persistent data boundary is the workspace. Scope and disk layout are intentionally separate: the runtime records `tenant_id`, `user_id`, `agent_id`, and `workspace_id` for permissions, memory, audit, and database joins, while the local filesystem path is selected by the workspace layout.
 
 ```text
-.agents/workspaces/{tenant_id}/{user_id}/{agent_id}/{workspace_id}
+local/dev default: .agents/workspaces/local/default
+local named workspace: .agents/workspaces/local/{workspace_id}
+scoped/cloud: .agents/workspaces/{tenant_id}/{user_id}/{agent_id}/{workspace_id}
 ```
+
+`AGENT_WORKSPACE_LAYOUT=auto` is the default. It uses the compact local layout for placeholder identities and switches to the scoped layout when real tenant/user identity is provided. `local` and `scoped` can be selected explicitly when a deployment needs one behavior.
 
 The sandbox gets a lease against that workspace. Profiles provide conservative defaults:
 
@@ -253,7 +287,7 @@ curl -X POST http://127.0.0.1:8010/api/v1/agent/chat \
   -H 'Content-Type: application/json' \
   -d '{
     "message": "hello",
-    "provider": "openai-chat",
+    "protocol": "openai-chat",
     "model": "gpt-4o"
   }'
 ```
@@ -352,7 +386,7 @@ The web UI uses this endpoint for the Approve/Deny panel. The gateway owns the H
 
 External callers construct an `AgentSpec`. The spec carries:
 
-- model override: provider, model, base URL, API key
+- model override: protocol, model, base URL, API key
 - workspace scope: tenant, user, agent, workspace
 - enabled tools and skills
 - tool permission mode/rules and memory profile names
@@ -385,6 +419,7 @@ tenant_id    default
 user_id      anonymous
 agent_id     default
 workspace_id default
+path         .agents/workspaces/local/default
 run_id       generated per request
 ```
 
@@ -409,7 +444,7 @@ make dev-web
 
 - Put agent logic in `agent/`, not in `gateway/`, `cli/`, or `web/`.
 - Put HTTP/session/auth protocol code in `gateway/`.
-- Add model providers under `agent/models/adapters/`; keep shared stream semantics in `agent/models/protocol/`.
+- Add model protocol adapters under `agent/models/adapters/`; keep shared stream semantics in `agent/models/protocol/`.
 - Add tools under `agent/capabilities/tools/` or load them through MCP.
 - Route host-affecting tools through `agent/capabilities/sandbox/`; do not let tools touch host paths or subprocesses directly.
 - Add new context sources through `agent/context/sources.py`.

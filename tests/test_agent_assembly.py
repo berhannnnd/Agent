@@ -32,7 +32,7 @@ class FakeModelsConfig:
 
 
 class FakeAgentConfig:
-    PROVIDER = "openai-chat"
+    PROTOCOL = "openai-chat"
     TIMEOUT = 60.0
     MAX_TOKENS = 4096
     MAX_TOOL_ITERATIONS = 8
@@ -96,7 +96,7 @@ def test_claude_config_prefers_agent_specific_values():
     settings.models.anthropic.BASE_URL = "https://global.example/v1"
     settings.models.anthropic.MODEL = "global-claude"
 
-    config = resolve_model_client_config(settings, provider="claude-messages")
+    config = resolve_model_client_config(settings, protocol="claude-messages")
 
     assert config.api_key == "project-key"
     assert config.base_url == "https://project.example/v1"
@@ -109,7 +109,7 @@ def test_claude_config_falls_back_to_anthropic_when_agent_specific_values_are_em
     settings.models.anthropic.BASE_URL = "https://global.example/v1"
     settings.models.anthropic.MODEL = "global-claude"
 
-    config = resolve_model_client_config(settings, provider="claude-messages")
+    config = resolve_model_client_config(settings, protocol="claude-messages")
 
     assert config.api_key == "global-key"
     assert config.base_url == "https://global.example/v1"
@@ -122,7 +122,7 @@ def test_partial_agent_claude_config_falls_back_to_global_anthropic_values():
     settings.agent.CLAUDE_MODEL = "project-claude"
     settings.models.anthropic.API_KEY = "global-key"
 
-    config = resolve_model_client_config(settings, provider="claude-messages")
+    config = resolve_model_client_config(settings, protocol="claude-messages")
 
     assert config.api_key == "global-key"
     assert config.base_url == "https://project.example/v1"
@@ -137,7 +137,7 @@ def test_model_config_uses_project_proxy_settings():
     settings.agent.HTTPS_PROXY = "http://127.0.0.1:7890"
     settings.agent.ALL_PROXY = "socks5://127.0.0.1:7890"
 
-    config = resolve_model_client_config(settings, provider="openai-chat")
+    config = resolve_model_client_config(settings, protocol="openai-chat")
 
     assert config.proxy_url == "http://127.0.0.1:7890"
 
@@ -175,6 +175,7 @@ def test_create_session_composes_skill_prompt_and_declared_tools(tmp_path, monke
     assert session.workspace.user_id == "anonymous"
     assert session.workspace.agent_id == "default"
     assert session.workspace.workspace_id == "default"
+    assert session.workspace.path == tmp_path / ".agents" / "workspaces" / "local" / "default"
     assert any(item.id == "skill.focus.0" and item.included for item in session.context_trace)
 
 
@@ -266,7 +267,7 @@ def test_create_session_uses_agent_spec(tmp_path, monkeypatch):
     settings.models.openai.API_KEY = "key"
     settings.models.openai.MODEL = "settings-model"
     spec = AgentSpec.from_overrides(
-        provider="openai-chat",
+        protocol="openai-chat",
         model="spec-model",
         agent_id="agent 1",
         user_id="user 1",
@@ -336,5 +337,5 @@ def test_async_create_session_can_run_inside_event_loop(tmp_path, monkeypatch):
 
     session = asyncio.run(create())
 
-    assert session.runtime.provider == "openai-chat"
+    assert session.runtime.protocol == "openai-chat"
     assert session.workspace.path.exists()

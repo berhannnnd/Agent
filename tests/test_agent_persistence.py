@@ -165,7 +165,7 @@ def test_sqlite_agent_profile_store_persists_redacted_specs(tmp_path):
         tenant_id="tenant-1",
         user_id="user-1",
         agent_id="agent-1",
-        provider="openai-chat",
+        protocol="openai-chat",
         api_key="secret",
         permission_profile="ask",
     )
@@ -178,7 +178,7 @@ def test_sqlite_agent_profile_store_persists_redacted_specs(tmp_path):
     profile = asyncio.run(execute())
 
     assert profile.name == "Researcher"
-    assert profile.spec["model"]["provider"] == "openai-chat"
+    assert profile.spec["model"]["protocol"] == "openai-chat"
     assert "api_key" not in profile.spec["model"]
     assert profile.to_agent_spec().tool_permissions.mode == "ask"
 

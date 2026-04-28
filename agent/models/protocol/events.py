@@ -11,6 +11,7 @@ class ModelStreamEventType(str, Enum):
     REASONING_DELTA = "reasoning_delta"
     TOOL_CALL_DELTA = "tool_call_delta"
     USAGE = "usage"
+    RETRY = "retry"
     MESSAGE = "message"
 
 
@@ -28,6 +29,10 @@ def tool_call_delta(tool_call: ToolCall, raw: Any = None) -> ModelStreamEvent:
 
 def usage_event(usage: ModelUsage, raw: Any = None) -> ModelStreamEvent:
     return ModelStreamEvent(type=ModelStreamEventType.USAGE.value, usage=usage, raw=raw)
+
+
+def retry_event(raw: Any = None) -> ModelStreamEvent:
+    return ModelStreamEvent(type=ModelStreamEventType.RETRY.value, raw=raw)
 
 
 def message_event(response: ModelResponse, raw: Any = None) -> ModelStreamEvent:

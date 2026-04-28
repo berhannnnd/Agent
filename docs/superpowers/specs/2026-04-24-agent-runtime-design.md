@@ -10,7 +10,7 @@ The new runtime is the source of truth. The old `gateway/shared/llm` client is n
 
 ## Architecture
 
-The runtime uses a canonical schema for messages, content blocks, model responses, stream events, tool calls, and tool results. Provider adapters convert between canonical schema and provider wire protocols for OpenAI Chat Completions, OpenAI Responses, Claude Messages, and Gemini GenerateContent.
+The runtime uses a canonical schema for messages, content blocks, model responses, stream events, tool calls, and tool results. Protocol adapters convert between canonical schema and model wire protocols for OpenAI Chat Completions, OpenAI Responses, Claude Messages, and Gemini GenerateContent.
 
 Tools are loaded into a single registry from plain Python functions, MCP servers, and skill manifests. Tool calls from one model response execute concurrently, then results are appended to the conversation in canonical order before the next model call.
 
@@ -19,7 +19,7 @@ The CLI and FastAPI routes both call the same `AgentSession` and `AgentRuntime` 
 Runtime internals are split by responsibility:
 
 - `ContextPack` groups system, runtime policy, workspace instructions, skills, memory, and tool hints as typed fragments before they become a model-facing prompt.
-- `ModelRequestCompiler` converts state into provider-neutral model requests.
+- `ModelRequestCompiler` converts state into protocol-neutral model requests.
 - `ContextWindowManager` owns session context fitting.
 - `RuntimeState` tracks messages, pending tool calls, tool results, events, and loop iteration.
 - `ToolOrchestrator` executes tool calls and formats tool result messages.
@@ -41,7 +41,7 @@ Agent sessions resolve a workspace from `tenant_id / user_id / agent_id / worksp
 - `claude-messages`: Anthropic Claude Messages.
 - `gemini`: Google Gemini GenerateContent.
 
-Each provider exposes `complete()` and `stream()`. Streaming event support is normalized even when providers use different wire event names.
+Each protocol adapter exposes `complete()` and `stream()`. Streaming event support is normalized even when protocols use different wire event names.
 
 ## Tooling
 

@@ -7,7 +7,7 @@ from typing import Optional
 
 import typer
 
-from gateway.core.config import settings
+from agent.config import runtime_settings as settings
 
 CODING_TOOLS = [
     "filesystem.read",
@@ -76,9 +76,13 @@ def system_prompt(base_prompt: Optional[str], profile: str, active_workspace: Op
     if profile not in {"coding", "browser"}:
         return base_prompt
     guidance = (
-        "You are running inside a local coding CLI. Inspect the workspace before changing files. "
-        "Use filesystem.write or patch.apply to create and edit files, and run focused checks with test.run or shell.run. "
-        "Keep all file paths inside the current workspace."
+        "You are running inside a local coding CLI. Treat the bound workspace as the project root. "
+        "Before answering project-structure questions, inspect the workspace using a short reconnaissance pass: "
+        "list the root, read project marker files such as README.md, pyproject.toml, package.json, makefile, and scan key directories with search.grep when useful. "
+        "Do not infer architecture from a directory listing alone when readable project files are available. "
+        "When asked to implement code, use filesystem.write or patch.apply for edits and run focused checks with test.run or shell.run. "
+        "Keep all file paths inside the current workspace. "
+        "Answer concisely with concrete file-backed observations and avoid offering unrelated follow-up menus."
     )
     if active_workspace is not None:
         guidance += " Current workspace: %s." % active_workspace

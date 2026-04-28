@@ -2,14 +2,14 @@ import json
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
-from agent.models.adapters.base import ProviderAdapter, ProviderParseError
+from agent.models.adapters.base import ProtocolAdapter, ProtocolParseError
 from agent.models.constants import is_azure_openai_endpoint
 from agent.models.protocol import message_event, reasoning_delta, text_delta, tool_call_delta, usage_event
 from agent.schema import Message, ModelRequest, ModelResponse, ModelStreamEvent, ModelUsage, ToolCall
 
 
-class OpenAIResponsesAdapter(ProviderAdapter):
-    provider = "openai-responses"
+class OpenAIResponsesAdapter(ProtocolAdapter):
+    protocol = "openai-responses"
     path = "/responses"
     stream_path = "/responses"
 
@@ -113,9 +113,9 @@ def _parse_json_object(raw: str, context: str) -> Dict[str, Any]:
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise ProviderParseError("malformed JSON arguments in %s: %s" % (context, exc.msg))
+        raise ProtocolParseError("malformed JSON arguments in %s: %s" % (context, exc.msg))
     if not isinstance(parsed, dict):
-        raise ProviderParseError("arguments in %s must be a JSON object" % context)
+        raise ProtocolParseError("arguments in %s must be a JSON object" % context)
     return parsed
 
 

@@ -41,7 +41,7 @@ def test_agent_runtime_runs_model_tool_model_loop():
     )
     tools = ToolRegistry()
     tools.register("echo", "Echo", {}, lambda text: text)
-    runtime = AgentRuntime(model_client=llm, tools=tools, provider="scripted", model="scripted")
+    runtime = AgentRuntime(model_client=llm, tools=tools, protocol="scripted", model="scripted")
 
     result = asyncio.run(runtime.run([Message.from_text("user", "say hi")]))
 
@@ -68,7 +68,7 @@ def test_agent_runtime_denies_tools_through_permission_policy():
     runtime = AgentRuntime(
         model_client=llm,
         tools=tools,
-        provider="scripted",
+        protocol="scripted",
         model="scripted",
         permission_policy=StaticToolPermissionPolicy(denied_tools={"dangerous"}),
     )
@@ -91,7 +91,7 @@ def test_agent_runtime_pauses_when_tool_requires_approval():
     runtime = AgentRuntime(
         model_client=llm,
         tools=tools,
-        provider="scripted",
+        protocol="scripted",
         model="scripted",
         permission_policy=StaticToolPermissionPolicy(approval_required_tools={"dangerous"}),
         checkpoint_store=store,
@@ -129,7 +129,7 @@ def test_agent_runtime_resumes_after_tool_approval():
     runtime = AgentRuntime(
         model_client=llm,
         tools=tools,
-        provider="scripted",
+        protocol="scripted",
         model="scripted",
         permission_policy=StaticToolPermissionPolicy(approval_required_tools={"echo"}),
         checkpoint_store=store,
@@ -172,7 +172,7 @@ def test_agent_runtime_reuses_run_scoped_tool_approval():
     runtime = AgentRuntime(
         model_client=llm,
         tools=tools,
-        provider="scripted",
+        protocol="scripted",
         model="scripted",
         permission_policy=StaticToolPermissionPolicy(approval_required_tools={"echo"}),
         checkpoint_store=store,
@@ -226,7 +226,7 @@ def test_agent_runtime_approval_grant_does_not_override_hard_denial():
     runtime = AgentRuntime(
         model_client=llm,
         tools=tools,
-        provider="scripted",
+        protocol="scripted",
         model="scripted",
         permission_policy=StaticToolPermissionPolicy(denied_tools={"echo"}),
         checkpoint_store=store,
@@ -252,7 +252,7 @@ def test_agent_runtime_saves_finished_checkpoint():
     runtime = AgentRuntime(
         model_client=llm,
         tools=ToolRegistry(),
-        provider="scripted",
+        protocol="scripted",
         model="scripted",
         checkpoint_store=store,
     )
@@ -276,7 +276,7 @@ def test_agent_session_forwards_run_id_to_runtime_checkpoints():
     runtime = AgentRuntime(
         model_client=llm,
         tools=ToolRegistry(),
-        provider="scripted",
+        protocol="scripted",
         model="scripted",
         checkpoint_store=store,
     )
@@ -316,7 +316,7 @@ def test_agent_runtime_resumes_pending_tool_checkpoint():
     runtime = AgentRuntime(
         model_client=llm,
         tools=tools,
-        provider="scripted",
+        protocol="scripted",
         model="scripted",
         checkpoint_store=store,
     )
@@ -331,7 +331,7 @@ def test_agent_runtime_resumes_pending_tool_checkpoint():
 def test_agent_session_commits_history_on_error():
     llm = ScriptedModelClient([])
     tools = ToolRegistry()
-    runtime = AgentRuntime(model_client=llm, tools=tools, provider="scripted", model="scripted")
+    runtime = AgentRuntime(model_client=llm, tools=tools, protocol="scripted", model="scripted")
     session = AgentSession(runtime=runtime, system_prompt="Be concise.")
 
     result = asyncio.run(session.send("hello"))
@@ -357,7 +357,7 @@ def test_agent_runtime_guard_stops_infinite_tool_loop():
     runtime = AgentRuntime(
         model_client=llm,
         tools=tools,
-        provider="scripted",
+        protocol="scripted",
         model="scripted",
         max_tool_iterations=1,
     )
@@ -378,7 +378,7 @@ def test_agent_runtime_streams_text_and_tool_events():
             ]
         ]
     )
-    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), provider="scripted", model="scripted")
+    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), protocol="scripted", model="scripted")
 
     async def collect():
         return [event async for event in runtime.stream([Message.from_text("user", "hi")])]
@@ -398,7 +398,7 @@ def test_agent_runtime_streams_reasoning_events():
             ]
         ]
     )
-    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), provider="scripted", model="scripted")
+    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), protocol="scripted", model="scripted")
 
     async def collect():
         return [event async for event in runtime.stream([Message.from_text("user", "hi")])]
@@ -411,7 +411,7 @@ def test_agent_runtime_streams_reasoning_events():
 
 def test_agent_runtime_stream_done_uses_error_content_on_failure():
     llm = ScriptedModelClient([])
-    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), provider="scripted", model="scripted")
+    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), protocol="scripted", model="scripted")
 
     async def collect():
         return [event async for event in runtime.stream([Message.from_text("user", "hi")])]
@@ -433,7 +433,7 @@ def test_agent_session_stream_commits_completed_history():
             ]
         ]
     )
-    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), provider="scripted", model="scripted")
+    runtime = AgentRuntime(model_client=llm, tools=ToolRegistry(), protocol="scripted", model="scripted")
     session = AgentSession(runtime=runtime, system_prompt="Be concise.")
 
     async def drain():

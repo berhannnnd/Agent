@@ -48,7 +48,7 @@ def test_run_record_serializes_stable_payload():
 
 def test_run_record_persists_redacted_agent_spec():
     spec = AgentSpec.from_overrides(
-        provider="openai-chat",
+        protocol="openai-chat",
         model="gpt-test",
         api_key="secret",
         user_id="user-1",
@@ -59,7 +59,7 @@ def test_run_record_persists_redacted_agent_spec():
     record = RunRecord.from_spec(spec)
     restored = RunRecord.from_dict(record.to_dict()).to_agent_spec()
 
-    assert record.spec["model"]["provider"] == "openai-chat"
+    assert record.spec["model"]["protocol"] == "openai-chat"
     assert "api_key" not in record.spec["model"]
     assert restored.workspace.user_id == "user-1"
     assert restored.tool_permissions.mode == "ask"

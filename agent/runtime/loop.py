@@ -37,7 +37,7 @@ class AgentRuntime:
         self,
         model_client: ModelClientProtocol,
         tools: ToolRegistry,
-        provider: str,
+        protocol: str,
         model: str,
         enabled_tools: List[str] = None,
         max_tool_iterations: int = 8,
@@ -48,7 +48,7 @@ class AgentRuntime:
         self.model_client = model_client
         self.tools = tools
         self.config = RuntimeConfig(
-            provider=provider,
+            protocol=protocol,
             model=model,
             enabled_tools=list(enabled_tools or []),
             max_tool_iterations=max_tool_iterations,
@@ -60,8 +60,8 @@ class AgentRuntime:
         self.checkpoints = checkpoint_store or NullCheckpointStore()
 
     @property
-    def provider(self) -> str:
-        return self.config.provider
+    def protocol(self) -> str:
+        return self.config.protocol
 
     @property
     def model(self) -> str:

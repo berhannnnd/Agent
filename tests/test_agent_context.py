@@ -90,6 +90,29 @@ def test_local_workspace_store_builds_stable_safe_paths(tmp_path):
     ]
 
 
+def test_local_workspace_store_compacts_placeholder_scope(tmp_path):
+    workspace = LocalWorkspaceStore(tmp_path).allocate(create=True)
+
+    assert workspace.tenant_id == "default"
+    assert workspace.user_id == "anonymous"
+    assert workspace.agent_id == "default"
+    assert workspace.workspace_id == "default"
+    assert workspace.path == tmp_path / "local" / "default"
+    assert workspace.path.exists()
+    assert workspace.instruction_files() == [
+        tmp_path / "local" / "AGENTS.md",
+        tmp_path / "local" / "agents" / "default" / "AGENTS.md",
+        tmp_path / "local" / "default" / "AGENTS.md",
+    ]
+
+
+def test_local_workspace_store_can_force_scoped_layout(tmp_path):
+    workspace = LocalWorkspaceStore(tmp_path, layout="scoped").allocate(create=True)
+
+    assert workspace.path == tmp_path / "default" / "anonymous" / "default" / "default"
+    assert workspace.path.exists()
+
+
 def test_context_window_compacts_before_trimming_turns():
     manager = ContextWindowManager("System prompt.", max_context_tokens=60, compaction_target_tokens=20)
     messages = manager.initial_messages() + [

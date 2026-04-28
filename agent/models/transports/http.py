@@ -5,6 +5,7 @@ import httpx
 
 from agent.models.errors import (
     ModelClientError,
+    ModelConnectionError,
     ModelRateLimitError,
     ModelServerError,
     ModelAuthError,
@@ -39,6 +40,8 @@ class HttpxModelTransport:
             return response.json()
         except httpx.TimeoutException as exc:
             raise ModelTimeoutError("model request timed out: %s" % exc) from exc
+        except httpx.NetworkError as exc:
+            raise ModelConnectionError(_http_error_message("model request connection failed", exc)) from exc
         except httpx.HTTPError as exc:
             raise ModelClientError(_http_error_message("model request failed", exc)) from exc
 
@@ -59,6 +62,8 @@ class HttpxModelTransport:
                     yield parsed
         except httpx.TimeoutException as exc:
             raise ModelTimeoutError("model stream timed out: %s" % exc) from exc
+        except httpx.NetworkError as exc:
+            raise ModelConnectionError(_http_error_message("model stream connection failed", exc)) from exc
         except httpx.HTTPError as exc:
             raise ModelClientError(_http_error_message("model stream failed", exc)) from exc
 

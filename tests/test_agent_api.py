@@ -70,14 +70,14 @@ def test_agent_chat_api_returns_final_answer(monkeypatch):
 def test_agent_chat_request_builds_agent_spec():
     spec = AgentChatRequest(
         message="hello",
-        provider="openai-chat",
+        protocol="openai-chat",
         model="gpt-test",
         user_id="user 1",
         agent_id="agent 1",
         enabled_tools=["echo"],
     ).to_agent_spec()
 
-    assert spec.model.provider == "openai-chat"
+    assert spec.model.protocol == "openai-chat"
     assert spec.model.model == "gpt-test"
     assert spec.workspace.user_id == "user 1"
     assert spec.workspace.agent_id == "agent 1"

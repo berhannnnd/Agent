@@ -4,8 +4,8 @@ from typing import Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from gateway.core.config._constants import ENV_FILE, ROOT_PATH
-from gateway.core.config.loader import config_value
+from agent.config.loader import config_value
+from agent.config.paths import ENV_FILE, ROOT_PATH
 
 
 class ServerConfig(BaseSettings):
@@ -25,7 +25,6 @@ class ServerConfig(BaseSettings):
     PORT: int = config_value("server", "PORT", 8010)
     WORKERS: int = config_value("server", "WORKERS", 1)
     DOMAIN: str = config_value("server", "DOMAIN", "http://localhost:8010")
-    ENABLE_ENGINES: bool = config_value("server", "ENABLE_ENGINES", True)
     ENABLE_SWAGGER_DOC: bool = config_value("server", "ENABLE_SWAGGER_DOC", False)
     BACKEND_CORS_ORIGINS: list[str] = config_value("server", "BACKEND_CORS_ORIGINS", ["*"])
     ACCESS_TOKEN: Optional[str] = None

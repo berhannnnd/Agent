@@ -7,7 +7,7 @@ import { ToolApprovalPanel } from "./ToolApprovalPanel";
 type Props = {
   messages: Accessor<ChatMessage[]>;
   busy: Accessor<boolean>;
-  provider: Accessor<string>;
+  protocol: Accessor<string>;
   model: Accessor<string>;
   permissionMode: Accessor<PermissionMode>;
   latency: Accessor<number | null>;
@@ -45,7 +45,7 @@ export function ChatThread(props: Props) {
 
       <footer class="composer">
         <div class="telemetry">
-          <span>{props.provider()}</span>
+          <span>{props.protocol()}</span>
           <span>{props.model() || "model not set"}</span>
           <span>{props.latency() === null ? "no latency yet" : `${props.latency()} ms`}</span>
           <span>{props.toolCount() ? `${props.toolCount()} tools` : "no tools"}</span>

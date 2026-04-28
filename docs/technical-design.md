@@ -105,11 +105,15 @@ sandbox lease
 native tools
 ```
 
-当前本地实现：
+这些字段是逻辑 scope，用于数据库、权限、审计、记忆和运行链路。物理路径由 workspace layout 决定：
 
 ```text
-.agents/workspaces/{tenant_id}/{user_id}/{agent_id}/{workspace_id}
+local/dev default: .agents/workspaces/local/default
+local named workspace: .agents/workspaces/local/{workspace_id}
+scoped/cloud: .agents/workspaces/{tenant_id}/{user_id}/{agent_id}/{workspace_id}
 ```
+
+默认 `auto` 策略会把占位身份压缩到本地 layout；只有真实 tenant/user identity 出现时才使用 scoped layout。
 
 local provider 直接在 workspace 路径内执行。Docker provider 用 `docker run --rm -v workspace:/workspace` 方式把 workspace 挂载进去执行。
 

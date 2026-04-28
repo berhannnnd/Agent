@@ -1,5 +1,5 @@
 class ModelClientError(RuntimeError):
-    """Raised when a model provider request fails."""
+    """Raised when a model protocol request fails."""
 
 
 class ModelRateLimitError(ModelClientError):
@@ -20,6 +20,10 @@ class ModelContextWindowError(ModelClientError):
 
 class ModelTimeoutError(ModelClientError):
     """Request or connection timed out — should retry."""
+
+
+class ModelConnectionError(ModelClientError):
+    """Network connection failed before a model response — should retry."""
 
 
 class ModelBadRequestError(ModelClientError):
