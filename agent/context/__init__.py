@@ -1,4 +1,6 @@
 from agent.context.builder import ContextBuilder
+from agent.context.compaction import ConversationCompaction, ContextCompactor, HeuristicContextCompactor
+from agent.context.memory import MemoryContextRetriever, MemoryRetrievalScope
 from agent.context.pack import (
     CompiledContext,
     ContextFragment,
@@ -12,12 +14,17 @@ from agent.context.workspace import WorkspaceContext
 
 __all__ = [
     "CompiledContext",
+    "ContextCompactor",
     "ContextBuilder",
     "ContextFragment",
     "ContextLayer",
     "ContextPack",
     "ContextScope",
     "ContextTraceItem",
+    "ConversationCompaction",
+    "HeuristicContextCompactor",
+    "MemoryContextRetriever",
+    "MemoryRetrievalScope",
     "ModelRequestCompiler",
     "WorkspaceContext",
     "build_context_pack",

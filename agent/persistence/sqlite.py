@@ -157,6 +157,61 @@ CREATE TABLE IF NOT EXISTS memory_records (
 CREATE INDEX IF NOT EXISTS idx_memory_records_context
 ON memory_records(tenant_id, user_id, agent_id, workspace_id, created_at);
 
+CREATE TABLE IF NOT EXISTS tasks (
+    task_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    input TEXT NOT NULL,
+    agent_id TEXT NOT NULL DEFAULT '',
+    tenant_id TEXT NOT NULL DEFAULT '',
+    user_id TEXT NOT NULL DEFAULT '',
+    workspace_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    metadata_json TEXT NOT NULL,
+    spec_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_scope
+ON tasks(tenant_id, user_id, agent_id, created_at);
+
+CREATE TABLE IF NOT EXISTS task_steps (
+    step_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    step_index INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    input TEXT NOT NULL DEFAULT '',
+    run_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    output TEXT NOT NULL DEFAULT '',
+    error TEXT NOT NULL DEFAULT '',
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    metadata_json TEXT NOT NULL,
+    UNIQUE(task_id, step_index),
+    FOREIGN KEY(task_id) REFERENCES tasks(task_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_steps_task
+ON task_steps(task_id, step_index);
+
+CREATE TABLE IF NOT EXISTS task_attempts (
+    attempt_id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    step_id TEXT NOT NULL,
+    run_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    started_at REAL NOT NULL,
+    ended_at REAL,
+    error TEXT NOT NULL DEFAULT '',
+    metadata_json TEXT NOT NULL,
+    FOREIGN KEY(task_id) REFERENCES tasks(task_id) ON DELETE CASCADE,
+    FOREIGN KEY(step_id) REFERENCES task_steps(step_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_attempts_step
+ON task_attempts(step_id, started_at);
+
 CREATE TABLE IF NOT EXISTS credential_refs (
     credential_id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,

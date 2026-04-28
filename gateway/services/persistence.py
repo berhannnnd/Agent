@@ -8,6 +8,7 @@ from agent.capabilities.memory import MemoryStore
 from agent.runtime import CheckpointStore
 from agent.governance import CredentialRefStore
 from agent.state import AgentProfileStore, IdentityStore, RunStore, WorkspaceStore
+from agent.tasks import TaskStore
 from agent.governance.tracing import TraceStore
 from gateway.sessions import (
     create_agent_profile_store,
@@ -17,6 +18,7 @@ from gateway.sessions import (
     create_identity_store,
     create_memory_store,
     create_run_store,
+    create_task_store,
     create_trace_store,
     create_workspace_store,
 )
@@ -33,6 +35,7 @@ class GatewayPersistence:
     workspaces: WorkspaceStore
     memories: MemoryStore
     credentials: CredentialRefStore
+    tasks: TaskStore
 
 
 def create_gateway_persistence(settings: Any) -> GatewayPersistence:
@@ -46,4 +49,5 @@ def create_gateway_persistence(settings: Any) -> GatewayPersistence:
         workspaces=create_workspace_store(settings),
         memories=create_memory_store(settings),
         credentials=create_credential_ref_store(settings),
+        tasks=create_task_store(settings),
     )

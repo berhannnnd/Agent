@@ -14,7 +14,7 @@ from agent.runtime import AgentRuntime, AgentSession
 from agent.runtime.checkpoints import CheckpointStore
 from agent.governance import build_tool_permission_policy
 from agent.state.workspaces.factory import resolve_workspace
-from agent.capabilities.tools.registry import ToolRegistry
+from agent.capabilities.tools import ToolRegistry, ToolRuntimeContext, register_builtin_tools
 
 
 async def create_agent_session_async(
@@ -33,9 +33,6 @@ async def create_agent_session_async(
     )
     registry = ToolRegistry(max_concurrent=settings.agent.MAX_CONCURRENT_TOOLS, tool_timeout=settings.agent.TOOL_TIMEOUT)
     skill_registry = load_configured_skills(settings, skill_names=resolved_spec.skills)
-    await load_configured_mcp(settings, registry)
-
-    active_tools = resolve_active_tools(settings, skill_registry, resolved_spec.enabled_tools)
     workspace = resolve_workspace(
         settings,
         tenant_id=resolved_spec.workspace.tenant_id,
@@ -43,6 +40,10 @@ async def create_agent_session_async(
         agent_id=resolved_spec.workspace.agent_id,
         workspace_id=resolved_spec.workspace.workspace_id,
     )
+    register_builtin_tools(registry, ToolRuntimeContext.for_workspace(workspace))
+    await load_configured_mcp(settings, registry)
+
+    active_tools = resolve_active_tools(settings, skill_registry, resolved_spec.enabled_tools)
     context_pack = build_context_pack(
         system_prompt=settings.agent.SYSTEM_PROMPT if resolved_spec.system_prompt is None else resolved_spec.system_prompt,
         skill_registry=skill_registry,

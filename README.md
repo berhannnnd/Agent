@@ -27,6 +27,10 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Tool registry with concurrent execution, timeout handling, error-to-tool-result conversion, and MCP stdio loading.
 - `AgentSpec` spec layer for model overrides, enabled tools, skills, workspace scope, tool permissions, memory profile, and metadata.
 - Tool approval flow with `auto`, `ask`, and `deny` modes, checkpoint-backed pause/resume, run status `awaiting_approval`, and web Approve/Deny controls.
+- Long-running task foundation with task, step, attempt records and memory/SQLite stores.
+- Workspace-scoped builtin tool foundation for file read/list/write and shell execution, guarded by sandbox policy.
+- Memory retrieval and deterministic context compaction interfaces for long-context runs.
+- Governance security primitives for secret redaction and pluggable payload protection providers.
 - Workspace isolation under `tenant_id / user_id / agent_id / workspace_id`.
 - Run tracking through `RunStore`, backed by memory, local JSON files, or SQLite.
 - SQLite persistence for run records, runtime events, checkpoints, approval audit, and trace spans.
@@ -50,6 +54,7 @@ agent/
   runtime/        Agent loop, session, state, events, turns, checkpoints
   specs/          AgentSpec, model/workspace/permission specs
   state/          Runs, identity, agent profiles, workspace records
+  tasks/          Long-running task, step, and attempt state machine
   workflows/      Future workflow/DAG boundary
   schema.py       Core message/tool/model/runtime data types
 
@@ -252,6 +257,7 @@ SQLite domain tables:
 | `agent_profiles` | Stored agent definitions without API keys. |
 | `workspace_records` | Workspace ownership, path, status, and metadata. |
 | `memory_records` | User, agent, workspace, and run-scoped memories. |
+| `tasks`, `task_steps`, `task_attempts` | Long-running task state, step lifecycle, and retry attempts. |
 | `credential_refs` | References to secrets stored elsewhere; raw secrets are not stored here. |
 
 Defaults for local development:
@@ -288,5 +294,6 @@ make dev-web
 - Add model providers under `agent/models/adapters/`; keep shared stream semantics in `agent/models/protocol/`.
 - Add tools under `agent/capabilities/tools/` or load them through MCP.
 - Add new context sources through `agent/context/sources.py`.
+- Add long-running task orchestration under `agent/tasks/`; keep gateway APIs as adapters.
 - Add new run persistence backends by implementing `agent.state.runs.RunStore`; checkpoint, trace, and approval audit storage should stay behind their own store interfaces. Gateway should only choose and call adapters.
 - Add identity/auth from gateway login state later; do not trust user-supplied `tenant_id` or `user_id` in cloud mode.

@@ -233,18 +233,21 @@ def test_gateway_persistence_container_uses_sqlite_stores(tmp_path):
         )
         await persistence.memories.save(memory)
         await persistence.credentials.save(credential)
+        task = await persistence.tasks.create_task(spec, title="Task", input="Do work")
         return (
             await persistence.identities.load_user("tenant-1", "user-1"),
             await persistence.agent_profiles.load("tenant-1", "user-1", "agent-1"),
             await persistence.workspaces.load("tenant-1", "user-1", "agent-1", "workspace-1"),
             await persistence.memories.list_for_context("tenant-1", "user-1", "agent-1"),
             await persistence.credentials.list_for_scope("tenant-1", "user-1", "agent-1"),
+            await persistence.tasks.load_task(task.task_id),
         )
 
-    user, profile, workspace, memories, credentials = asyncio.run(execute())
+    user, profile, workspace, memories, credentials, task = asyncio.run(execute())
 
     assert user.user_id == "user-1"
     assert profile.name == "Agent"
     assert workspace.workspace_id == "workspace-1"
     assert memories[0].content == "remember this"
     assert credentials[0].secret_ref == "vault://secret"
+    assert task.title == "Task"

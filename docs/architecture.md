@@ -28,6 +28,7 @@ graph TB
     Governance --> GovernanceAudit["audit 审计记录"]
     Governance --> GovernanceTracing["tracing 链路追踪"]
     Agent --> Orchestration["agent.orchestration 多智能体编排"]
+    Agent --> Tasks["agent.tasks 长程任务引擎"]
     Agent --> Memory["agent.capabilities.memory"]
     Agent --> Workflows["agent.workflows"]
 ```
@@ -49,19 +50,23 @@ graph TB
 - `agent.runtime`: 智能体内核包。`loop` 负责单 Agent 执行循环，`turns.model` 负责单轮模型请求，`turns.tools` 负责工具执行边界，`state` 承载运行状态，`session` 负责会话历史，`checkpoints` 负责断点恢复存储协议。
 - `agent.models`: 模型协议包。`adapters` 负责 provider wire protocol，`protocol` 负责 provider-neutral stream 语义，`transports` 负责 HTTP/SSE，根层保留模型客户端、retry 和错误类型。
 - `agent.context`: 上下文系统。按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层组织上下文，由 `ContextBuilder` 编译并输出 trace；`ModelRequestCompiler` 负责把 runtime state 转为模型请求。
+- `agent.context.memory` / `agent.context.compaction`: memory retrieval 与上下文压缩边界。前者把 memory store 转成 context fragments，后者把长对话折叠为可注入摘要。
 - `agent.state`: 状态域聚合包。收束 runs、identity、agent profiles、workspace records，避免这些数据域散落在顶层。
 - `agent.state.runs`: 运行记录边界。定义 `RunRecord`、`RunStore`、内存、本地 JSON 和 SQLite 存储。
 - `agent.state.identity`: 身份引用边界。定义 Principal、Tenant/User/Agent 引用和 `IdentityStore`；登录鉴权仍属于 gateway。
 - `agent.state.agents`: Agent profile 边界。负责长期保存可复用 Agent 定义，持久化时不保存 API key。
 - `agent.state.workspaces`: 数据隔离边界。包含 workspace 分配器和 `WorkspaceStore`，负责 workspace 归属、路径、状态和 metadata。
 - `agent.persistence`: 本地持久化基础设施。当前提供 SQLite schema、连接管理和 JSON codec，不承载具体业务语义。
-- `agent.governance`: 治理域聚合包。收束 tool permissions、credential refs、audit、tracing，后续继续承载 sandbox、secrets、encryption。
+- `agent.governance`: 治理域聚合包。收束 tool permissions、credential refs、audit、tracing、sandbox、security。
+- `agent.governance.sandbox`: workspace sandbox policy、工具风险分类、文件/进程/网络执行授权边界。
+- `agent.governance.security`: secret redaction 与 payload protection provider 协议；本地 base64 provider 只用于测试和开发，不是生产加密。
 - `agent.governance.audit`: 可追溯审计边界。记录需要长期留存和追责的用户/系统决策，当前包含 tool approval audit。
 - `agent.governance.tracing`: 运行链路追踪边界。记录 run/model/tool/approval span，用于调试、可观测性和用户可见时间线，不替代审计记录。
-- `agent.capabilities.tools`: 工具注册表、本地工具执行、MCP stdio 工具接入。
+- `agent.capabilities.tools`: 工具注册表、本地工具执行、MCP stdio 工具接入；`builtin` 提供 workspace-scoped filesystem/shell 基础工具。
 - `agent.hooks`: Runtime 扩展点，支持意图引导、thinking 提取、审批拦截和组合 hook。
 - `agent.capabilities.skills`: skill manifest、prompt fragment、工具名声明加载。
 - `agent.orchestration`: 多智能体 planner/router/supervisor 的归属边界。
+- `agent.tasks`: 长程任务引擎地基。定义 task、step、attempt 状态机与 memory/SQLite stores，后续 background runner 和 task API 以此为中心。
 - `agent.capabilities.memory`: session memory 和 long-term memory 的归属边界。当前定义 `MemoryRecord` 和 memory store，后续由 `agent.context` 按作用域注入上下文。
 - `agent.workflows`: DAG、计划执行、多步骤任务流的归属边界。
 
@@ -71,7 +76,7 @@ graph TB
 - `gateway.core`: settings、logger、middleware、exceptions。
 - `gateway.shared.server`: FastAPI 注册器、统一响应、请求 ID、server launcher。
 - `gateway.auth`: 鉴权授权边界。
-- `gateway.services`: 跨 API 的服务容器边界。当前提供 `GatewayPersistence`，统一创建 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential stores。
+- `gateway.services`: 跨 API 的服务容器边界。当前提供 `GatewayPersistence`，统一创建 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential/task stores。
 - `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 running/awaiting_approval/finished/error，并按配置选择 memory/file/sqlite stores。
 - `gateway.streaming`: SSE 和 future WebSocket 协议边界。
 - `gateway.engines`: 可注册引擎的生命周期管理边界。
@@ -91,7 +96,7 @@ graph TB
 10. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行。
 11. 当工具需要用户确认时，runtime 发出 `tool_approval_required`，保存 `approval_required` checkpoint，gateway 将 run 标记为 `awaiting_approval`。
 12. `POST /api/v1/agent/runs/{run_id}/approval` 写入 approval audit 和 runtime approval decision，runtime 从同一 checkpoint 恢复执行，并继续产出 `tool_start`、`tool_result` 或 denied tool result。
-13. `gateway.services.GatewayPersistence` 统一持有 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential stores，避免 API 层散装持久化依赖。
+13. `gateway.services.GatewayPersistence` 统一持有 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential/task stores，避免 API 层散装持久化依赖。
 14. `agent.state.runs.RunStore` 记录 run events 和最终状态；`agent.governance.tracing.TraceStore` 记录 run/model/tool/approval span；`agent.governance.audit.ApprovalAuditStore` 记录审批决策。
 15. `GET /api/v1/agent/runs/{run_id}` 可查询 run 记录；`GET /api/v1/agent/runs/{run_id}/trace` 可查询 trace spans 和 approval audit。
 16. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
@@ -104,7 +109,8 @@ graph TB
 4. 新增 run/session 持久化：实现 `agent.state.runs.RunStore`、`agent.runtime.CheckpointStore`、`agent.governance.tracing.TraceStore` 或 `agent.governance.audit.ApprovalAuditStore`，gateway 只接 adapter。
 5. 新增长期数据域：按归属放入 `agent.state.identity`、`agent.specs`、`agent.state.workspaces`、`agent.capabilities.memory` 或 `agent.governance`，并接入 `gateway.services.GatewayPersistence`。
 6. 新增多智能体编排：放入 `agent/orchestration/`。
-7. 新增记忆能力：先扩展 `agent/capabilities/memory/`，再通过 `agent.context.sources` 接入 prompt context。
-8. 新增 HTTP 协议能力：放入 `gateway/api/`，必要时配合 `gateway/services`、`gateway/sessions/` 或 `gateway/streaming/`。
-9. 新增终端交互：放入 `cli/`。
-10. 新增浏览器界面：放入 `web/`。
+7. 新增长程任务能力：放入 `agent/tasks/`；gateway 只负责 task API、stream 和权限入口。
+8. 新增记忆能力：先扩展 `agent/capabilities/memory/`，再通过 `agent.context.memory` 或 `agent.context.sources` 接入 prompt context。
+9. 新增 HTTP 协议能力：放入 `gateway/api/`，必要时配合 `gateway/services`、`gateway/sessions/` 或 `gateway/streaming/`。
+10. 新增终端交互：放入 `cli/`。
+11. 新增浏览器界面：放入 `web/`。

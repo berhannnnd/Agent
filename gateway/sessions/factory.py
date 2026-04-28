@@ -11,6 +11,7 @@ from agent.governance.audit import (
 from agent.capabilities.memory import InMemoryMemoryStore, MemoryStore, SQLiteMemoryStore
 from agent.persistence import SQLiteDatabase, resolve_database_path
 from agent.runtime import CheckpointStore, InMemoryCheckpointStore, SQLiteCheckpointStore
+from agent.tasks import InMemoryTaskStore, SQLiteTaskStore, TaskStore
 from agent.governance import CredentialRefStore, InMemoryCredentialRefStore, SQLiteCredentialRefStore
 from agent.state import (
     AgentProfileStore,
@@ -93,6 +94,12 @@ def create_credential_ref_store(settings: Any) -> CredentialRefStore:
     if _uses_sqlite(settings):
         return SQLiteCredentialRefStore(_sqlite_database(settings))
     return InMemoryCredentialRefStore()
+
+
+def create_task_store(settings: Any) -> TaskStore:
+    if _uses_sqlite(settings):
+        return SQLiteTaskStore(_sqlite_database(settings))
+    return InMemoryTaskStore()
 
 
 def _uses_sqlite(settings: Any) -> bool:
