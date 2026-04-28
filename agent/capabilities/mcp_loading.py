@@ -17,6 +17,8 @@ async def load_configured_mcp(settings: Any, registry: ToolRegistry) -> None:
         command=command_parts[0],
         args=command_parts[1:],
         timeout_seconds=settings.mcp.CLIENT_TIMEOUT,
+        execution_mode=getattr(settings.mcp, "EXECUTION_MODE", "trusted_control_plane") or "trusted_control_plane",
+        sandbox_profile=getattr(settings.mcp, "SANDBOX_PROFILE", "") or "",
     )
     provider = MCPToolProvider(client=MCPStdioClient(server), server=server)
     await provider.load_tools(registry)

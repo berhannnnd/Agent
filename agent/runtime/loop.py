@@ -258,7 +258,7 @@ class AgentRuntime:
         for call, decision in zip(state.pending_tool_calls, decisions):
             if not decision.allowed:
                 continue
-            event = tool_start_event(call.name, call.to_dict())
+            event = tool_start_event(call)
             state.events.append(event)
             emitted.append(event)
         batch = await self.tool_orchestrator.execute_with_decisions(

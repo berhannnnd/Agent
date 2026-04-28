@@ -32,13 +32,13 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Provider-neutral streaming protocol for text deltas, reasoning deltas, tool call deltas, usage, and final messages.
 - Agent runtime with tool-call loop, streaming, hook points, checkpoint/resume support, and max-iteration guard.
 - Context system with layered fragments: system, runtime policy, workspace instructions, skills, memory, tool hints, task context.
-- Tool registry with concurrent execution, timeout handling, error-to-tool-result conversion, and MCP stdio loading.
+- Tool registry with concurrent execution, timeout handling, tool metadata, error-to-tool-result conversion, and MCP stdio loading.
 - Pluggable sandbox execution layer with local and Docker providers; native tools execute through `SandboxClient` against a persistent workspace.
 - `AgentSpec` spec layer for model overrides, enabled tools, skills, workspace scope, tool permissions, memory profile, and metadata.
 - Tool approval flow with `auto`, `ask`, and `deny` modes, checkpoint-backed pause/resume, run status `awaiting_approval`, and web Approve/Deny controls.
 - Long-running task foundation with task, step, attempt records and memory/SQLite stores.
 - Task queue/worker primitives for background execution over the same task runner.
-- Workspace-scoped builtin tools for file read/list/write, text search, git status/diff, test commands, and shell fallback, guarded by sandbox policy.
+- Workspace-scoped builtin tools for file read/list/write, structured patching, text search, git status/diff, test commands, browser fetch/download, and shell fallback, guarded by sandbox policy.
 - Memory retrieval and deterministic context compaction integrated into session assembly/windowing for long-context runs.
 - Multi-agent role/router and workflow DAG primitives for future planner/worker/reviewer orchestration.
 - Governance security primitives for secret redaction and pluggable payload protection providers.
@@ -126,7 +126,7 @@ Configuration is loaded through `gateway.core.config.settings`.
 | `settings.models.openai_responses` | `OPENAI_RESPONSES_` | `OPENAI_RESPONSES_API_KEY`, `OPENAI_RESPONSES_BASE_URL`, `OPENAI_RESPONSES_MODEL` |
 | `settings.models.anthropic` | `ANTHROPIC_` | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL` |
 | `settings.models.gemini` | `GEMINI_` | `GEMINI_API_KEY`, `GEMINI_BASE_URL`, `GEMINI_MODEL` |
-| `settings.mcp` | `MCP_` | `MCP_SERVER_NAME`, `MCP_SERVER_COMMAND`, `MCP_CLIENT_TIMEOUT` |
+| `settings.mcp` | `MCP_` | `MCP_SERVER_NAME`, `MCP_SERVER_COMMAND`, `MCP_CLIENT_TIMEOUT`, `MCP_EXECUTION_MODE` |
 
 Provider names:
 
@@ -194,11 +194,17 @@ Builtin tools are semantic APIs, not direct container controls:
 | `filesystem.read`, `filesystem.list` | low | Enabled by default. |
 | `search.grep` | low | Read-only regex search over workspace text files. |
 | `filesystem.write` | medium | Requires `AGENT_SANDBOX_ALLOW_FILE_WRITE=true` and tool enablement. |
+| `patch.apply` | medium | Applies exact text edits and file creates; returns a unified diff. |
 | `git.status`, `git.diff` | high | Requires process permission for `git`. |
 | `test.run` | high | Runs an allowlisted test command. |
+| `browser.open`, `browser.download` | high | Requires file write, process, and network permission; stores outputs under workspace paths. |
 | `shell.run` | high | Fallback escape hatch; prefer native tools. |
 
-Network-capable tools should follow the same boundary. Browser automation and untrusted local MCP servers should execute through sandbox clients. API-backed web search can stay in the control plane when the API key must not enter the sandbox.
+Network-capable tools follow the same boundary. `browser.open` and `browser.download` execute through sandbox process/network permission and write outputs into the workspace. Full interactive browser tools such as click/type/screenshot still need a dedicated browser runtime provider. API-backed web search can stay in the control plane when the API key must not enter the sandbox.
+
+Approval events include a tool impact payload with risk, paths, commands, network domains, write flags, and patch previews. Approval audit records persist the same impact payload for later review.
+
+MCP stdio tools currently run as trusted control-plane extensions by default and are tagged with `MCP_EXECUTION_MODE` metadata. Untrusted local MCP servers should not be enabled until a sandboxed MCP provider is configured.
 
 Each workspace also gets stable artifact directories under `artifacts/`, including `downloads/`, `screenshots/`, `logs/`, and `snapshots/`. Sandbox runs record workspace snapshots before and after tool execution, with diff summaries stored alongside sandbox events.
 

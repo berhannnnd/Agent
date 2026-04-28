@@ -14,7 +14,7 @@ import asyncio
 import inspect
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from agent.schema import ToolCall, ToolResult, ToolSpec
@@ -29,6 +29,7 @@ class RegisteredTool:
     description: str
     parameters: Dict[str, Any]
     handler: ToolHandler
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class ToolRegistry:
@@ -47,10 +48,17 @@ class ToolRegistry:
     def set_execution_observer(self, observer: ToolExecutionObserver | None) -> None:
         self._execution_observer = observer
 
-    def register(self, name: str, description: str, parameters: Dict[str, Any], handler: ToolHandler) -> None:
+    def register(
+        self,
+        name: str,
+        description: str,
+        parameters: Dict[str, Any],
+        handler: ToolHandler,
+        metadata: Dict[str, Any] | None = None,
+    ) -> None:
         if name in self._tools:
             raise ValueError("tool already registered: %s" % name)
-        self._tools[name] = RegisteredTool(name, description, parameters, handler)
+        self._tools[name] = RegisteredTool(name, description, parameters, handler, dict(metadata or {}))
 
     def names(self) -> List[str]:
         return sorted(self._tools)
@@ -159,6 +167,7 @@ class ToolRegistry:
             description=tool.description,
             parameters=tool.parameters,
             source="registry",
+            raw={"metadata": dict(tool.metadata or {})} if tool.metadata else None,
         )
 
     def _semaphore_for_running_loop(self) -> asyncio.Semaphore:

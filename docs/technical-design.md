@@ -133,9 +133,11 @@ RemoteSandboxProvider
 | `filesystem.list` | low | sandbox | 列 workspace 目录 |
 | `search.grep` | low | sandbox | 搜索 workspace 文本 |
 | `filesystem.write` | medium | sandbox | 写 workspace 文件 |
+| `patch.apply` | medium | sandbox | 精确文本 edit/create，返回 unified diff |
 | `git.status` | high | sandbox | 查看 Git 状态 |
 | `git.diff` | high | sandbox | 查看 diff |
 | `test.run` | high | sandbox | 运行测试命令 |
+| `browser.open` / `browser.download` | high | sandbox | 网络抓取并写入 artifacts/downloads |
 | `shell.run` | high | sandbox | 兜底命令执行 |
 
 设计原则：
@@ -157,10 +159,11 @@ web.search -> gateway/tool broker -> search API
 
 原因是 API key 不应该进入 sandbox。模型只看到搜索结果，不看到密钥。
 
-网页抓取、页面解析、浏览器点击、下载文件适合进入 execution plane：
+网页抓取、页面解析、浏览器点击、下载文件适合进入 execution plane。当前 `browser.open` / `browser.download` 已经走 sandbox process/network 权限，真实点击、输入、截图需要后续 browser runtime provider：
 
 ```text
-browser.open/click/screenshot/download -> SandboxClient -> browser runtime -> workspace/artifacts
+browser.open/download -> SandboxClient -> sandbox process/network -> workspace/artifacts
+browser.click/type/screenshot -> SandboxClient -> browser runtime -> workspace/artifacts
 ```
 
 ### Browser
@@ -172,7 +175,7 @@ browser.open
 browser.click
 browser.type
 browser.screenshot
-browser.downloads
+browser.download
 ```
 
 浏览器进程应运行在 sandbox 或 remote sandbox 内。下载文件和截图落到 workspace 的 artifacts 区域。
@@ -183,6 +186,8 @@ MCP 分两类：
 
 - 远程可信 MCP：由 gateway 代理，凭证留在 control plane。
 - 本地或用户上传 MCP：必须跑在 sandbox 内，通过受控网络和文件权限访问 workspace。
+
+当前 MCP stdio loader 标记 `execution_mode` 和 `sandbox_profile` metadata，用于权限/UI/审计区分。真正的 local MCP sandbox provider 仍是后续工作，不能和 trusted control-plane MCP 混用。
 
 ### Skill
 

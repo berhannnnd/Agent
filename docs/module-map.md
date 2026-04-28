@@ -117,13 +117,14 @@ agent/capabilities/sandbox/
   docker.py   Docker 执行 provider
   factory.py  从 settings 创建 provider/client
   store.py    lease/event 持久化接口和实现
+  workspace.py artifacts 和 workspace snapshot/diff
 ```
 
 后续方向：
 
 - remote sandbox provider。
 - resource quotas 和 remote execution lifecycle。
-- browser/runtime-specific sandbox providers。
+- browser/runtime-specific sandbox providers，用于 click/type/screenshot 等真实浏览器动作。
 
 ## agent.capabilities.skills
 

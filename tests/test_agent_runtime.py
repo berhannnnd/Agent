@@ -109,7 +109,9 @@ def test_agent_runtime_pauses_when_tool_requires_approval():
     assert checkpoint is not None
     assert checkpoint.step == "approval_required"
     assert checkpoint.pending_tool_calls == [call]
-    assert any(event.type == "tool_approval_required" for event in result.events)
+    approval_event = next(event for event in result.events if event.type == "tool_approval_required")
+    assert approval_event.payload["impact"]["tool_name"] == "dangerous"
+    assert approval_event.payload["impact"]["risk"] == "medium"
 
 
 def test_agent_runtime_resumes_after_tool_approval():
@@ -147,6 +149,7 @@ def test_agent_runtime_resumes_after_tool_approval():
         "tool_approval_required",
         "tool_approval_decision",
     ]
+    assert next(event for event in resumed.events if event.type == "tool_approval_decision").payload["impact"]["tool_name"] == "echo"
 
 
 def test_agent_runtime_saves_finished_checkpoint():

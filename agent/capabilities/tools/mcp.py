@@ -26,6 +26,8 @@ class MCPServerConfig:
     args: List[str] = field(default_factory=list)
     env: Dict[str, str] = field(default_factory=dict)
     timeout_seconds: float = 30.0
+    execution_mode: str = "trusted_control_plane"
+    sandbox_profile: str = ""
 
 
 @dataclass(frozen=True)
@@ -117,6 +119,14 @@ class MCPToolProvider:
                 tool.description,
                 tool.parameters,
                 self._handler(tool.name),
+                metadata={
+                    "source": "mcp",
+                    "server": self.server.name,
+                    "remote_name": tool.name,
+                    "execution_mode": self.server.execution_mode,
+                    "sandbox_profile": self.server.sandbox_profile,
+                    "risk": "medium",
+                },
             )
 
     def _registry_name(self, name: str) -> str:

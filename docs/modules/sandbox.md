@@ -23,6 +23,7 @@ agent/capabilities/sandbox/
   docker.py   Docker workspace 挂载执行
   factory.py  settings -> provider/client
   store.py    lease/event store
+  workspace.py artifact 目录和 workspace snapshot/diff
 ```
 
 ## 为什么放在 capabilities 下
@@ -78,6 +79,8 @@ sandbox_{run_id}_{task_id}
 - `lease_acquired`
 - `tool_started`
 - `tool_finished`
+
+写入类工具例如 `patch.apply`、`browser.open`、`browser.download` 仍然只看到模型层的语义工具；真正的文件写入、进程执行、网络访问都要先通过 `SandboxPolicy`。
 
 run 完成或失败时，gateway 会把该 run 下的 sandbox leases 标记为 `released`。这让 trace、sandbox events、run record 和 task step 能串成同一条操作动线。
 

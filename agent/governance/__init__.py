@@ -20,6 +20,7 @@ from agent.governance.sandbox import (
     ToolRisk,
     classify_tool_risk,
 )
+from agent.governance.tool_impact import ToolImpact, describe_tool_impact
 from agent.governance.security import (
     LocalBase64PayloadProtector,
     PayloadProtector,
@@ -46,6 +47,8 @@ __all__ = [
     "ToolPermissionDecision",
     "ToolPermissionPolicy",
     "ToolRisk",
+    "ToolImpact",
     "build_tool_permission_policy",
     "classify_tool_risk",
+    "describe_tool_impact",
 ]

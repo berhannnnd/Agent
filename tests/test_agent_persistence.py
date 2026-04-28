@@ -91,6 +91,7 @@ def test_sqlite_approval_audit_store_records_decisions(tmp_path):
     assert records[0].approval_id == "call-1"
     assert records[0].approved is False
     assert records[0].tool_call["arguments"] == {"text": "hi"}
+    assert records[0].impact["tool_name"] == "echo"
 
 
 def test_sqlite_trace_store_persists_run_spans(tmp_path):

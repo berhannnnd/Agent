@@ -17,11 +17,25 @@
 | `filesystem.read` | 读 workspace 文本文件 |
 | `filesystem.list` | 列 workspace 目录 |
 | `filesystem.write` | 写 workspace 文本文件 |
+| `patch.apply` | 基于精确文本匹配做结构化 edit/create，并返回 unified diff |
 | `search.grep` | 正则搜索 workspace 文本 |
 | `git.status` | 查看 Git 状态 |
 | `git.diff` | 查看 Git diff |
 | `test.run` | 运行测试命令 |
+| `browser.open` | 在 sandbox 内抓取 HTTP(S) 页面并写入 artifacts |
+| `browser.download` | 在 sandbox 内下载 HTTP(S) 资源到 workspace 路径 |
 | `shell.run` | 兜底 shell 命令 |
+
+## Tool Impact
+
+approval 事件和 audit 记录会附带 `impact`：
+
+- `risk`：low/medium/high/critical。
+- `paths`：将读取或修改的 workspace 路径。
+- `commands`：将执行的命令。
+- `domains`：将访问的网络域名。
+- `writes_files` / `requires_network`：UI 和策略层可直接使用的布尔标记。
+- `diff_preview`：`patch.apply`、`filesystem.write` 等写入类工具的预览。
 
 ## 为什么要有 native tools
 
@@ -35,8 +49,8 @@
 
 ## 后续重点
 
-- `patch.apply`。
-- 浏览器工具族。
+- `filesystem.delete`、`filesystem.move`。
+- 真实浏览器 runtime：`browser.click`、`browser.type`、`browser.screenshot`。
 - web search/fetch。
 - package/install 类工具。
-- tool metadata 和 schema validation。
+- schema validation。

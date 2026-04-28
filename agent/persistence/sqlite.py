@@ -20,6 +20,7 @@ class SQLiteDatabase:
     def initialize(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            _ensure_columns(connection, "approval_audit", APPROVAL_AUDIT_COLUMNS)
             _ensure_columns(connection, "sandbox_leases", SANDBOX_LEASE_COLUMNS)
             _ensure_columns(connection, "sandbox_events", SANDBOX_EVENT_COLUMNS)
 
@@ -49,6 +50,11 @@ SANDBOX_EVENT_COLUMNS = {
     "tool_name": "TEXT NOT NULL DEFAULT ''",
     "status": "TEXT NOT NULL DEFAULT ''",
     "duration_ms": "REAL NOT NULL DEFAULT 0",
+}
+
+
+APPROVAL_AUDIT_COLUMNS = {
+    "impact_json": "TEXT NOT NULL DEFAULT '{}'",
 }
 
 
@@ -145,6 +151,7 @@ CREATE TABLE IF NOT EXISTS approval_audit (
     approved INTEGER NOT NULL,
     reason TEXT NOT NULL DEFAULT '',
     tool_call_json TEXT NOT NULL,
+    impact_json TEXT NOT NULL DEFAULT '{}',
     created_at REAL NOT NULL,
     FOREIGN KEY(run_id) REFERENCES runs(run_id) ON DELETE CASCADE
 );

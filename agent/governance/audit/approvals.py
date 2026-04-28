@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Protocol
 
 from agent.persistence import SQLiteDatabase
 from agent.schema import ToolCall
+from agent.governance.tool_impact import describe_tool_impact
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,7 @@ class ApprovalAuditRecord:
     approved: bool
     reason: str = ""
     tool_call: dict[str, Any] = field(default_factory=dict)
+    impact: dict[str, Any] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
 
     @classmethod
@@ -35,6 +37,7 @@ class ApprovalAuditRecord:
             approved=approved,
             reason=reason,
             tool_call=call.to_dict(),
+            impact=describe_tool_impact(call).to_dict(),
         )
 
     def to_dict(self) -> dict:
@@ -45,6 +48,7 @@ class ApprovalAuditRecord:
             "approved": self.approved,
             "reason": self.reason,
             "tool_call": dict(self.tool_call),
+            "impact": dict(self.impact),
             "created_at": self.created_at,
         }
 
@@ -85,8 +89,8 @@ class SQLiteApprovalAuditStore:
             connection.execute(
                 """
                 INSERT INTO approval_audit (
-                    run_id, approval_id, tool_name, approved, reason, tool_call_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    run_id, approval_id, tool_name, approved, reason, tool_call_json, impact_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     audit.run_id,
@@ -95,6 +99,7 @@ class SQLiteApprovalAuditStore:
                     1 if audit.approved else 0,
                     audit.reason,
                     json.dumps(audit.tool_call, ensure_ascii=False, sort_keys=True),
+                    json.dumps(audit.impact, ensure_ascii=False, sort_keys=True),
                     audit.created_at,
                 ),
             )
@@ -113,6 +118,7 @@ class SQLiteApprovalAuditStore:
                 approved=bool(row["approved"]),
                 reason=str(row["reason"] or ""),
                 tool_call=dict(json.loads(row["tool_call_json"] or "{}")),
+                impact=dict(json.loads(row["impact_json"] or "{}")),
                 created_at=float(row["created_at"]),
             )
             for row in rows

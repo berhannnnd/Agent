@@ -68,10 +68,11 @@ graph TB
 - `agent.persistence`: 本地持久化基础设施。当前提供 SQLite schema、连接管理和 JSON codec，不承载具体业务语义。
 - `agent.governance`: 治理域聚合包。收束 tool permissions、credential refs、audit、tracing、sandbox、security。
 - `agent.governance.sandbox`: workspace sandbox policy、工具风险分类、文件/进程/网络执行授权边界。
+- `agent.governance.tool_impact`: 模型工具调用的可解释 impact 描述，给 approval UI、trace 和 audit 使用。
 - `agent.governance.security`: secret redaction 与 payload protection provider 协议；本地 base64 provider 只用于测试和开发，不是生产加密。
-- `agent.governance.audit`: 可追溯审计边界。记录需要长期留存和追责的用户/系统决策，当前包含 tool approval audit。
+- `agent.governance.audit`: 可追溯审计边界。记录需要长期留存和追责的用户/系统决策，当前包含带 impact payload 的 tool approval audit。
 - `agent.governance.tracing`: 运行链路追踪边界。记录 run/model/tool/approval span，用于调试、可观测性和用户可见时间线，不替代审计记录。
-- `agent.capabilities.tools`: 工具注册表、builtin 工具和 MCP stdio 工具接入；`builtin` 只暴露语义工具，实际文件/搜索/命令/测试执行通过 `agent.capabilities.sandbox.SandboxClient` 进入 workspace。
+- `agent.capabilities.tools`: 工具注册表、builtin 工具和 MCP stdio 工具接入；`builtin` 只暴露语义工具，实际文件/patch/搜索/命令/测试/browser fetch 执行通过 `agent.capabilities.sandbox.SandboxClient` 进入 workspace。
 - `agent.hooks`: Runtime 扩展点，支持意图引导、thinking 提取、审批拦截和组合 hook。
 - `agent.capabilities.skills`: skill manifest、prompt fragment、工具名声明加载。
 - `agent.orchestration`: 多智能体 planner/router/supervisor 的归属边界。当前定义 agent roles、handoff decision 和 router 协议。

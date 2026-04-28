@@ -16,6 +16,8 @@ class MCPConfig(BaseSettings):
     SERVER_NAME: str = ""
     SERVER_COMMAND: str = ""
     CLIENT_TIMEOUT: float = 30.0
+    EXECUTION_MODE: str = "trusted_control_plane"
+    SANDBOX_PROFILE: str = ""
 
 
 mcp_config = MCPConfig()

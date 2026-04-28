@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from agent.schema import ModelResponse, RuntimeEvent, ToolCall, ToolResult
 from agent.governance.permissions import ToolPermissionDecision
+from agent.governance.tool_impact import describe_tool_impact
 
 
 def model_message_event(response: ModelResponse) -> RuntimeEvent:
@@ -15,8 +16,10 @@ def model_message_event(response: ModelResponse) -> RuntimeEvent:
     )
 
 
-def tool_start_event(name: str, payload: dict) -> RuntimeEvent:
-    return RuntimeEvent(type="tool_start", name=name, payload=payload)
+def tool_start_event(call: ToolCall) -> RuntimeEvent:
+    payload = call.to_dict()
+    payload["impact"] = describe_tool_impact(call).to_dict()
+    return RuntimeEvent(type="tool_start", name=call.name, payload=payload)
 
 
 def tool_result_event(result: ToolResult) -> RuntimeEvent:
@@ -31,6 +34,7 @@ def tool_approval_required_event(call: ToolCall, decision: ToolPermissionDecisio
             "approval_id": tool_approval_id(call),
             "tool_call": call.to_dict(),
             "permission": decision.to_dict(),
+            "impact": describe_tool_impact(call).to_dict(),
         },
     )
 
@@ -40,6 +44,7 @@ def tool_approval_decision_event(call: ToolCall, approved: bool, reason: str = "
         "approval_id": tool_approval_id(call),
         "tool_call": call.to_dict(),
         "approved": approved,
+        "impact": describe_tool_impact(call).to_dict(),
     }
     if reason:
         payload["reason"] = reason
