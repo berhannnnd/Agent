@@ -155,6 +155,39 @@ def test_httpx_transport_uses_configured_proxy(monkeypatch):
     assert captured["trust_env"] is False
 
 
+def test_httpx_transport_reports_empty_http_errors(monkeypatch):
+    import asyncio
+    import httpx
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        async def post(self, url, json=None, headers=None, timeout=None):
+            request = httpx.Request("POST", url)
+            raise httpx.RemoteProtocolError("", request=request)
+
+        async def aclose(self):
+            return None
+
+    monkeypatch.setattr("agent.models.transports.http.httpx.AsyncClient", FakeClient)
+
+    try:
+        asyncio.run(
+            HttpxModelTransport("https://api.example/v1").async_post_json(
+                "/chat/completions",
+                {},
+                {},
+                30,
+            )
+        )
+    except Exception as exc:
+        assert "RemoteProtocolError" in str(exc)
+        assert "https://api.example/v1/chat/completions" in str(exc)
+    else:
+        raise AssertionError("expected transport error")
+
+
 def test_openai_chat_adapter_builds_payload_and_parses_tool_call():
     adapter = OpenAIChatCompletionsAdapter()
     payload = adapter.request_payload(sample_request())

@@ -41,6 +41,7 @@ class WorkspaceRef:
     user_id: str = ""
     agent_id: str = ""
     workspace_id: str = ""
+    path: str = ""
 
     @classmethod
     def from_dict(cls, payload: dict | None) -> "WorkspaceRef":
@@ -51,6 +52,7 @@ class WorkspaceRef:
             user_id=str(payload.get("user_id") or ""),
             agent_id=str(payload.get("agent_id") or ""),
             workspace_id=str(payload.get("workspace_id") or ""),
+            path=str(payload.get("path") or ""),
         )
 
     def to_dict(self) -> dict:
@@ -59,6 +61,7 @@ class WorkspaceRef:
             "user_id": self.user_id,
             "agent_id": self.agent_id,
             "workspace_id": self.workspace_id,
+            "path": self.path,
         }
 
 
@@ -106,6 +109,7 @@ class AgentSpec:
         user_id: str = "",
         agent_id: str = "",
         workspace_id: str = "",
+        workspace_path: str = "",
         skills: Optional[List[str]] = None,
         permission_profile: str = "",
         approval_required_tools: Optional[List[str]] = None,
@@ -124,6 +128,7 @@ class AgentSpec:
                 user_id=user_id or "",
                 agent_id=agent_id or "",
                 workspace_id=workspace_id or "",
+                path=workspace_path or "",
             ),
             system_prompt=system_prompt,
             enabled_tools=list(enabled_tools) if enabled_tools is not None else None,

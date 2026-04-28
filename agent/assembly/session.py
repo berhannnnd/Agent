@@ -47,6 +47,7 @@ async def create_agent_session_async(
         user_id=resolved_spec.workspace.user_id,
         agent_id=resolved_spec.workspace.agent_id,
         workspace_id=resolved_spec.workspace.workspace_id,
+        workspace_path=resolved_spec.workspace.path,
     )
     tool_context = ToolRuntimeContext.from_settings(
         settings,

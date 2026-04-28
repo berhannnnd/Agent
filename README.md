@@ -48,6 +48,7 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Long-term data stores for tenants/users, agent profiles, workspace records, memories, sandbox leases, and credential references.
 - Traceable run timelines through `agent.governance.tracing`, with separate approval audit records through `agent.governance.audit`.
 - Gateway chat APIs return `run_id`; streaming emits a `run_created` event before model/tool events.
+- CLI coding profile runs directly on the agent core, binds a local workspace, enables read/write/patch/search/git/test/shell tools, and handles terminal approval prompts.
 
 ## Repository Layout
 
@@ -106,7 +107,24 @@ Start the terminal chat:
 ```bash
 make cli
 # or
-agents chat --provider openai-chat --model gpt-4o
+agents chat --provider openai-chat
+```
+
+By default, `agents chat` starts in local `coding` profile. It binds the current directory as the workspace, enables coding tools, and asks before write/execute tools. For a different workspace:
+
+```bash
+agents chat --workspace-path ./sandbox-game
+```
+
+Useful CLI switches:
+
+```bash
+agents chat --profile chat                  # read-oriented chat profile
+agents chat --profile coding                # local coding profile, default
+agents chat --profile browser               # coding tools plus browser/web tools
+agents chat --permission auto               # run enabled tools without approval prompts
+agents chat --permission guarded            # read automatically, confirm writes/commands
+agents chat --tools filesystem.read,patch.apply,test.run
 ```
 
 Run tests:

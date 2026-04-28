@@ -300,6 +300,30 @@ def test_create_session_loads_workspace_agents_md(tmp_path, monkeypatch):
     assert "## project_instructions: workspace.agents\nWorkspace instruction." in session.system_prompt
 
 
+def test_create_session_can_use_explicit_workspace_path(tmp_path, monkeypatch):
+    monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
+    settings = FakeSettings()
+    settings.server.ROOT_PATH = tmp_path
+    settings.models.openai.API_KEY = "key"
+    settings.models.openai.MODEL = "model"
+    workspace = tmp_path / "project"
+    workspace.mkdir()
+    (workspace / "AGENTS.md").write_text("Local coding workspace.", encoding="utf-8")
+
+    session = create_agent_session(
+        settings,
+        AgentSpec.from_overrides(
+            user_id="user 1",
+            agent_id="agent 1",
+            workspace_path=str(workspace),
+        ),
+    )
+
+    assert session.workspace.path == workspace
+    assert session.workspace.workspace_id == "project"
+    assert "Local coding workspace." in session.system_prompt
+
+
 def test_async_create_session_can_run_inside_event_loop(tmp_path, monkeypatch):
     monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
     settings = FakeSettings()

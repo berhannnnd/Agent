@@ -40,7 +40,7 @@ class HttpxModelTransport:
         except httpx.TimeoutException as exc:
             raise ModelTimeoutError("model request timed out: %s" % exc) from exc
         except httpx.HTTPError as exc:
-            raise ModelClientError("model request failed: %s" % exc) from exc
+            raise ModelClientError(_http_error_message("model request failed", exc)) from exc
 
     async def async_stream_json(
         self, path: str, payload: Dict[str, Any], headers: Dict[str, str], timeout: float
@@ -60,7 +60,7 @@ class HttpxModelTransport:
         except httpx.TimeoutException as exc:
             raise ModelTimeoutError("model stream timed out: %s" % exc) from exc
         except httpx.HTTPError as exc:
-            raise ModelClientError("model stream failed: %s" % exc) from exc
+            raise ModelClientError(_http_error_message("model stream failed", exc)) from exc
 
     def _url(self, path: str) -> str:
         return urljoin(self.base_url, path.lstrip("/"))
@@ -85,3 +85,11 @@ def _raise_from_status(status_code: int, body: str) -> None:
             raise ModelContextWindowError("context window exceeded: %s" % body)
         raise ModelBadRequestError("bad request: %s" % body)
     raise ModelClientError("model request failed: HTTP %s %s" % (status_code, body))
+
+
+def _http_error_message(prefix: str, exc: httpx.HTTPError) -> str:
+    detail = str(exc).strip() or exc.__class__.__name__
+    request = getattr(exc, "request", None)
+    if request is not None:
+        return "%s: %s %s" % (prefix, detail, request.url)
+    return "%s: %s" % (prefix, detail)
