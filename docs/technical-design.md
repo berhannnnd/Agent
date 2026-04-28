@@ -207,7 +207,7 @@ Trace 和 audit 的边界不同：
 - trace 记录运行链路，用于调试和用户可见时间线。
 - audit 记录可追责决策，例如用户审批、凭证访问、高风险写入确认。
 
-未来需要让 `SandboxClient` 的重要动作写入 sandbox events，并和 run/tool trace 关联。
+`SandboxClient` 的重要动作会通过工具执行记录写入 sandbox events，并和 run/tool trace 关联。
 
 ## 当前实现状态
 
@@ -220,16 +220,18 @@ Trace 和 audit 的边界不同：
 - `SandboxLeaseRecord` / `SandboxEventRecord`：sandbox 租约和事件记录模型。
 - SQLite 表：`sandbox_leases`、`sandbox_events`。
 - builtin tools 已经通过 `SandboxClient` 执行。
+- run/task scoped sandbox lease id。
+- tool execution 自动写入 `sandbox_events`。
+- trace tool span 关联 sandbox metadata。
+- run 结束时 release 对应 sandbox leases。
 
 尚未完成：
 
-- run/task 级 sandbox lease 生命周期绑定。
-- tool execution 自动写入 sandbox events。
-- Docker daemon 端到端 smoke。
 - 浏览器工具族。
 - web search 控制面工具。
 - 本地 MCP server sandbox 化。
 - 高风险工具的更细审批策略和前端确认面板。
+- Docker sandbox 已有跳过式 smoke test，仍需要 CI profile 和镜像策略。
 
 ## 开发约束
 

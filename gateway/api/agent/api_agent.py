@@ -37,7 +37,11 @@ router = APIRouter(prefix="/agent")
 _agent_semaphore = asyncio.Semaphore(settings.agent.MAX_CONCURRENT_REQUESTS)
 persistence = create_gateway_persistence(settings)
 trace_store = persistence.traces
-run_service = GatewayRunService(persistence.runs, trace_recorder=create_trace_recorder(settings, trace_store))
+run_service = GatewayRunService(
+    persistence.runs,
+    trace_recorder=create_trace_recorder(settings, trace_store),
+    sandbox_store=persistence.sandboxes,
+)
 checkpoint_store = persistence.checkpoints
 approval_audit_store = persistence.approval_audit
 
@@ -47,13 +51,14 @@ async def create_agent_session(**kwargs):
         settings,
         checkpoint_store=checkpoint_store,
         memory_store=persistence.memories,
+        sandbox_store=persistence.sandboxes,
         **kwargs,
     )
 
 
 class _TaskSessionFactory:
     async def create(self, task):
-        return await create_agent_session(spec=task.to_agent_spec())
+        return await create_agent_session(spec=task.to_agent_spec(), task_id=task.task_id)
 
 
 @router.post("/chat")
@@ -142,12 +147,14 @@ async def get_run_trace(run_id: str):
         return resp.fail(resp.Resp(code="404", detail="run not found: %s" % run_id, http_status=404))
     spans = await trace_store.list_for_run(run_id)
     approvals = await approval_audit_store.list_for_run(run_id)
+    sandbox_events = await persistence.sandboxes.list_events_for_run(run_id)
     return resp.ok(
         response=resp.Resp(
             data={
                 "run_id": run_id,
                 "spans": [span.to_dict() for span in spans],
                 "approvals": [approval.to_dict() for approval in approvals],
+                "sandbox_events": [event.to_dict() for event in sandbox_events],
             }
         )
     )
@@ -239,7 +246,8 @@ async def approve_run_tools(run_id: str, request_data: RunApprovalRequest):
             await _record_approval_audit(run_id, request_data, checkpoint.pending_tool_calls, approvals)
             await run_service.mark_running(run_id)
             session = await create_agent_session(spec=record.to_agent_spec())
-            result = await session.resume(run_id, approvals=approvals)
+            step = await persistence.tasks.load_step_for_run(run_id)
+            result = await session.resume(run_id, approvals=approvals, task_id=step.task_id if step else None)
             new_events = _new_runtime_events(record.events, result.events)
             await run_service.record_events(run_id, new_events)
             await _complete_or_pause(run_id, result.status, new_events)

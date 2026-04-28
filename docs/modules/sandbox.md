@@ -55,6 +55,23 @@ Docker provider：
 - gVisor/Kata/Firecracker。
 - Kubernetes job。
 
+## Run/Task Scoped Lease
+
+工具执行时，runtime 会把 `run_id` 和可选 `task_id` 传到 `ToolRegistry`。`SandboxToolExecutionRecorder` 会为该 scope 绑定确定性的 lease id：
+
+```text
+sandbox_{run_id}
+sandbox_{run_id}_{task_id}
+```
+
+每次工具执行会写入：
+
+- `lease_acquired`
+- `tool_started`
+- `tool_finished`
+
+run 完成或失败时，gateway 会把该 run 下的 sandbox leases 标记为 `released`。这让 trace、sandbox events、run record 和 task step 能串成同一条操作动线。
+
 ## 和早期代码片段执行器的关系
 
 早期“伪 Python 代码片段执行”可以看成 future `code.run` 工具的雏形。它不应该绕过 `SandboxClient`，而应该作为一个更高层的 sandbox tool：

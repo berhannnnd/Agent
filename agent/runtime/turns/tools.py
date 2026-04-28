@@ -51,6 +51,9 @@ class ToolOrchestrator:
         self,
         calls: Iterable[ToolCall],
         decisions: Iterable[ToolPermissionDecision],
+        *,
+        run_id: str = "",
+        task_id: str = "",
     ) -> ToolExecutionBatch:
         call_list = list(calls)
         decision_list = list(decisions)
@@ -66,7 +69,7 @@ class ToolOrchestrator:
                 results_by_index[index] = _denied_result(call, decision)
 
         if allowed_calls:
-            allowed_results = await self.registry.execute_many(allowed_calls)
+            allowed_results = await self.registry.execute_many(allowed_calls, run_id=run_id, task_id=task_id)
             for index, result in zip(allowed_indexes, allowed_results):
                 results_by_index[index] = result
 

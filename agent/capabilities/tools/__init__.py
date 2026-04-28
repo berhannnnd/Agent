@@ -17,6 +17,7 @@ from agent.capabilities.tools.mcp import (
 )
 from agent.capabilities.tools.builtin import register_builtin_tools
 from agent.capabilities.tools.context import ToolRuntimeContext
+from agent.capabilities.tools.recording import ToolExecutionObserver, ToolExecutionScope
 from agent.capabilities.tools.registry import RegisteredTool, ToolRegistry
 
 __all__ = [
@@ -28,5 +29,7 @@ __all__ = [
     "RegisteredTool",
     "ToolRuntimeContext",
     "ToolRegistry",
+    "ToolExecutionObserver",
+    "ToolExecutionScope",
     "register_builtin_tools",
 ]

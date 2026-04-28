@@ -152,6 +152,8 @@ class SandboxProvider(Protocol):
         workspace: WorkspaceContext,
         policy: SandboxPolicy,
         profile: SandboxProfile | None = None,
+        lease_id: str = "",
+        metadata: dict[str, Any] | None = None,
     ) -> SandboxClient:
         raise NotImplementedError()
 

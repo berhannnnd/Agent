@@ -74,22 +74,32 @@ class AgentRuntime:
     def max_tool_iterations(self) -> int:
         return self.config.max_tool_iterations
 
-    async def run(self, messages: List[Message], run_id: str | None = None) -> AgentResult:
-        return await self._run_state(RuntimeState.from_messages(messages), run_id=run_id)
+    async def run(self, messages: List[Message], run_id: str | None = None, task_id: str | None = None) -> AgentResult:
+        return await self._run_state(RuntimeState.from_messages(messages), run_id=run_id, task_id=task_id)
 
-    async def resume(self, run_id: str, approvals: Mapping[str, bool] | None = None) -> AgentResult:
+    async def resume(
+        self,
+        run_id: str,
+        approvals: Mapping[str, bool] | None = None,
+        task_id: str | None = None,
+    ) -> AgentResult:
         checkpoint = await self.checkpoints.load(run_id)
         if checkpoint is None:
             raise AgentRuntimeError("checkpoint not found: %s" % run_id)
         state = checkpoint.to_state()
         if approvals:
             state.tool_approvals.update({str(key): bool(value) for key, value in approvals.items()})
-        return await self._run_state(state, run_id=run_id)
+        return await self._run_state(state, run_id=run_id, task_id=task_id)
 
-    async def _run_state(self, state: RuntimeState, run_id: str | None = None) -> AgentResult:
+    async def _run_state(
+        self,
+        state: RuntimeState,
+        run_id: str | None = None,
+        task_id: str | None = None,
+    ) -> AgentResult:
         try:
             if state.pending_tool_calls:
-                outcome = await self._execute_pending_tools(state, run_id)
+                outcome = await self._execute_pending_tools(state, run_id, task_id)
                 if outcome.approval_required:
                     return self._approval_result(state)
                 state.iteration += 1
@@ -99,7 +109,7 @@ class AgentRuntime:
                 calls = await self._apply_model_response(state, response, run_id)
                 if not calls:
                     return AgentResult(response.content_text(), state.messages, state.tool_results, state.events)
-                outcome = await self._execute_pending_tools(state, run_id)
+                outcome = await self._execute_pending_tools(state, run_id, task_id)
                 if outcome.approval_required:
                     return self._approval_result(state)
                 state.iteration += 1
@@ -128,7 +138,12 @@ class AgentRuntime:
         await self._record_error(state, run_id, "runtime", error_msg)
         return AgentResult(error_msg, state.messages, state.tool_results, state.events)
 
-    async def stream(self, messages: List[Message], run_id: str | None = None) -> AsyncIterable[RuntimeEvent]:
+    async def stream(
+        self,
+        messages: List[Message],
+        run_id: str | None = None,
+        task_id: str | None = None,
+    ) -> AsyncIterable[RuntimeEvent]:
         state = RuntimeState.from_messages(messages)
         error_msg = None
         terminal_status = "finished"
@@ -148,7 +163,7 @@ class AgentRuntime:
                 if not calls:
                     terminal_content = final_response.content_text()
                     return
-                outcome = await self._execute_pending_tools(state, run_id)
+                outcome = await self._execute_pending_tools(state, run_id, task_id)
                 for event in outcome.events:
                     yield event
                 if outcome.approval_required:
@@ -198,7 +213,12 @@ class AgentRuntime:
         await self._save_checkpoint(run_id, "model_response", state)
         return calls
 
-    async def _execute_pending_tools(self, state: RuntimeState, run_id: str | None) -> ToolExecutionOutcome:
+    async def _execute_pending_tools(
+        self,
+        state: RuntimeState,
+        run_id: str | None,
+        task_id: str | None = None,
+    ) -> ToolExecutionOutcome:
         if not state.pending_tool_calls:
             return ToolExecutionOutcome([])
         emitted: List[RuntimeEvent] = []
@@ -241,7 +261,12 @@ class AgentRuntime:
             event = tool_start_event(call.name, call.to_dict())
             state.events.append(event)
             emitted.append(event)
-        batch = await self.tool_orchestrator.execute_with_decisions(state.pending_tool_calls, decisions)
+        batch = await self.tool_orchestrator.execute_with_decisions(
+            state.pending_tool_calls,
+            decisions,
+            run_id=run_id or "",
+            task_id=task_id or "",
+        )
         state.tool_results.extend(batch.results)
         state.events.extend(batch.events)
         emitted.extend(batch.events)

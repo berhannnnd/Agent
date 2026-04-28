@@ -22,7 +22,7 @@ from agent.tasks import TaskStepRecord
 
 
 class FakeSession:
-    async def send(self, text, run_id=None):
+    async def send(self, text, run_id=None, task_id=None):
         return AgentResult(
             content=f"ok: {text}",
             messages=[Message.from_text("user", text), Message.from_text("assistant", f"ok: {text}")],
@@ -30,13 +30,13 @@ class FakeSession:
             events=[RuntimeEvent(type="model_message", name="assistant", payload={"content": f"ok: {text}"})],
         )
 
-    async def stream(self, text, run_id=None):
+    async def stream(self, text, run_id=None, task_id=None):
         yield RuntimeEvent(type="text_delta", name="assistant", payload={"delta": "ok"})
         yield RuntimeEvent(type="done", name="assistant", payload={"content": f"ok: {text}"})
 
 
 class FakeApprovalSession:
-    async def resume(self, run_id, approvals=None):
+    async def resume(self, run_id, approvals=None, task_id=None):
         assert approvals == {"call-1": True}
         return AgentResult(
             content="resumed",
@@ -144,6 +144,7 @@ def test_agent_run_trace_api_returns_spans(monkeypatch):
     assert [span["kind"] for span in data["spans"]] == ["run", "model"]
     assert data["spans"][0]["status"] == "done"
     assert data["approvals"] == []
+    assert data["sandbox_events"] == []
 
 
 def test_agent_run_api_returns_404_for_unknown_run():

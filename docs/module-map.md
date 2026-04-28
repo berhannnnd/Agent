@@ -31,7 +31,7 @@ cli  -> agent
 
 后续方向：
 
-- 给 run/task scoped sandbox lease 生命周期留入口。
+- 扩展不同 agent profile 的装配策略，例如 coding agent、browser agent、research agent。
 - 支持 profile 化装配，例如 coding agent、browser agent、research agent。
 
 ## agent.models
@@ -121,8 +121,7 @@ agent/capabilities/sandbox/
 
 后续方向：
 
-- run/task scoped lease acquire/release。
-- Docker daemon smoke 和镜像 profile。
+- Docker 镜像 profile 和 CI integration test。
 - remote sandbox provider。
 - resource quotas、artifact collection、workspace snapshot。
 

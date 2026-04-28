@@ -1,15 +1,22 @@
 from __future__ import annotations
 
 from agent.specs import AgentSpec
+from agent.capabilities.sandbox import InMemorySandboxStore, SandboxStore
 from agent.state.runs import InMemoryRunStore, RunRecord, RunStatus, RunStore
 from agent.schema import RuntimeEvent
 from agent.governance.tracing import InMemoryTraceStore, RuntimeTraceRecorder
 
 
 class GatewayRunService:
-    def __init__(self, store: RunStore | None = None, trace_recorder: RuntimeTraceRecorder | None = None):
+    def __init__(
+        self,
+        store: RunStore | None = None,
+        trace_recorder: RuntimeTraceRecorder | None = None,
+        sandbox_store: SandboxStore | None = None,
+    ):
         self.store = store or InMemoryRunStore()
         self.trace_recorder = trace_recorder or RuntimeTraceRecorder(InMemoryTraceStore())
+        self.sandbox_store = sandbox_store or InMemorySandboxStore()
 
     async def start(self, spec: AgentSpec) -> RunRecord:
         record = await self.store.create_run(spec)
@@ -37,6 +44,7 @@ class GatewayRunService:
     async def finish(self, run_id: str, error: str = "") -> None:
         status = RunStatus.ERROR if error else RunStatus.FINISHED
         await self.store.set_status(run_id, status)
+        await self.sandbox_store.mark_released_for_run(run_id)
         await self.trace_recorder.finish_run(run_id, error=error)
 
 

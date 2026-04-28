@@ -64,7 +64,7 @@ class TaskRunner:
         await self.engine.start_step(step.step_id, run_id=run.run_id)
         session = await self.session_factory.create(task)
         try:
-            result = await session.send(step.input, run_id=run.run_id)
+            result = await session.send(step.input, run_id=run.run_id, task_id=task.task_id)
         except Exception as exc:
             await self.engine.fail_step(step.step_id, str(exc))
             await self.run_coordinator.finish(run.run_id, str(exc))

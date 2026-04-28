@@ -14,13 +14,33 @@ def create_sandbox_client(
     settings: Any,
     workspace: WorkspaceContext,
     policy: SandboxPolicy,
+    *,
+    lease_id: str = "",
+    metadata: dict[str, Any] | None = None,
 ) -> SandboxClient:
     profile = sandbox_profile_from_settings(settings)
+    return create_sandbox_client_from_profile(
+        workspace,
+        policy,
+        profile,
+        lease_id=lease_id,
+        metadata=metadata,
+    )
+
+
+def create_sandbox_client_from_profile(
+    workspace: WorkspaceContext,
+    policy: SandboxPolicy,
+    profile: SandboxProfile,
+    *,
+    lease_id: str = "",
+    metadata: dict[str, Any] | None = None,
+) -> SandboxClient:
     provider_name = profile.provider.lower().strip() or "local"
     if provider_name == "docker":
-        return DockerSandboxProvider().acquire(workspace, policy, profile)
+        return DockerSandboxProvider().acquire(workspace, policy, profile, lease_id=lease_id, metadata=metadata)
     if provider_name == "local":
-        return LocalSandboxProvider().acquire(workspace, policy, profile)
+        return LocalSandboxProvider().acquire(workspace, policy, profile, lease_id=lease_id, metadata=metadata)
     raise ValueError("unknown sandbox provider: %s" % profile.provider)
 
 

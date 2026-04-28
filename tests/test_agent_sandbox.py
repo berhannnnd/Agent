@@ -1,16 +1,25 @@
 import asyncio
+import os
 import shlex
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from agent.capabilities.sandbox import (
+    DockerSandboxProvider,
     InMemorySandboxStore,
     LocalSandboxProvider,
     SQLiteSandboxStore,
     SandboxEventRecord,
     SandboxLeaseRecord,
+    SandboxProfile,
 )
+from agent.capabilities.sandbox.recording import SandboxToolExecutionRecorder
 from agent.capabilities.tools import ToolRegistry, ToolRuntimeContext, register_builtin_tools
+from agent.schema import ToolCall
 from agent.context.workspace import WorkspaceContext
 from agent.governance import SandboxPolicy
 from agent.persistence import SQLiteDatabase
@@ -131,3 +140,63 @@ def test_in_memory_sandbox_store_records_release(tmp_path):
 
     assert loaded is not None
     assert loaded.status == "released"
+
+
+def test_tool_execution_records_run_scoped_sandbox_events(tmp_path):
+    workspace = _workspace(tmp_path)
+    (workspace.path / "note.txt").write_text("hello", encoding="utf-8")
+    store = InMemorySandboxStore()
+    policy = SandboxPolicy.for_workspace(workspace.path)
+    context = ToolRuntimeContext(workspace=workspace, sandbox=policy, sandbox_store=store)
+    registry = ToolRegistry()
+    registry.set_execution_observer(SandboxToolExecutionRecorder(context, store))
+    register_builtin_tools(registry, context)
+
+    async def execute():
+        results = await registry.execute_many(
+            [ToolCall(id="call-1", name="filesystem.read", arguments={"path": "note.txt"})],
+            run_id="run-1",
+            task_id="task-1",
+        )
+        lease = await store.load_lease("sandbox_run-1_task-1")
+        events = await store.list_events("sandbox_run-1_task-1")
+        return results, lease, events
+
+    results, lease, events = asyncio.run(execute())
+
+    assert results[0].is_error is False
+    assert results[0].raw["_meta"]["sandbox"]["lease_id"] == "sandbox_run-1_task-1"
+    assert lease is not None
+    assert lease.run_id == "run-1"
+    assert lease.task_id == "task-1"
+    assert [event.event_type for event in events] == ["lease_acquired", "tool_started", "tool_finished"]
+    assert events[-1].tool_call_id == "call-1"
+    assert events[-1].tool_name == "filesystem.read"
+    assert events[-1].status == "succeeded"
+
+
+def test_docker_sandbox_provider_mounts_workspace_when_available(tmp_path):
+    if shutil.which("docker") is None:
+        pytest.skip("docker CLI is not available")
+    if subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode != 0:
+        pytest.skip("docker daemon is not available")
+    image = os.environ.get("AGENT_TEST_SANDBOX_IMAGE", "python:3.12-slim")
+    if subprocess.run(["docker", "image", "inspect", image], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode != 0:
+        pytest.skip("docker test image is not available locally: %s" % image)
+    workspace = _workspace(tmp_path)
+    (workspace.path / "note.txt").write_text("hello from docker", encoding="utf-8")
+    policy = SandboxPolicy.for_workspace(workspace.path, allow_process=True, allowed_commands=("python3",))
+
+    client = DockerSandboxProvider().acquire(
+        workspace,
+        policy,
+        SandboxProfile(provider="docker", image=image),
+        lease_id="sandbox-docker-test",
+        metadata={"run_id": "run-docker"},
+    )
+    read = client.read_text("note.txt")
+    result = asyncio.run(client.run_command("python3 -c 'print(123)'"))
+
+    assert read.content == "hello from docker"
+    assert result.exit_code == 0
+    assert "123" in result.stdout

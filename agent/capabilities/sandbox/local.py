@@ -31,12 +31,15 @@ class LocalSandboxProvider:
         workspace: WorkspaceContext,
         policy: SandboxPolicy,
         profile: SandboxProfile | None = None,
+        lease_id: str = "",
+        metadata: dict | None = None,
     ) -> "LocalSandboxClient":
         lease = SandboxLease(
-            lease_id="local-%s" % uuid.uuid4().hex,
+            lease_id=lease_id or "local-%s" % uuid.uuid4().hex,
             provider=self.name,
             workspace=workspace,
             profile=profile or SandboxProfile(provider=self.name),
+            metadata=dict(metadata or {}),
         )
         return LocalSandboxClient(lease=lease, policy=policy)
 

@@ -81,7 +81,11 @@ class RuntimeTraceRecorder:
                 name=event.name or "tool",
             )
         status = TraceStatus.ERROR if payload.get("is_error") else TraceStatus.DONE
-        await self.store.save_span(span.finish(status=status, attributes={"tool_result": payload}))
+        attributes = {"tool_result": payload}
+        sandbox = _sandbox_metadata(payload)
+        if sandbox:
+            attributes["sandbox"] = sandbox
+        await self.store.save_span(span.finish(status=status, attributes=attributes))
 
     async def _start_approval(self, run_id: str, event: RuntimeEvent) -> None:
         approval_id = str(event.payload.get("approval_id") or event.name)
@@ -149,3 +153,14 @@ def _tool_span_id(run_id: str, tool_call_id: str) -> str:
 
 def _approval_span_id(run_id: str, approval_id: str) -> str:
     return "%s:approval:%s" % (run_id, approval_id)
+
+
+def _sandbox_metadata(payload: dict) -> dict:
+    raw = payload.get("raw") if isinstance(payload, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    meta = raw.get("_meta")
+    if not isinstance(meta, dict):
+        return {}
+    sandbox = meta.get("sandbox")
+    return dict(sandbox) if isinstance(sandbox, dict) else {}

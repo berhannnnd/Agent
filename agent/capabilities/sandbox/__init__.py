@@ -1,5 +1,5 @@
 from agent.capabilities.sandbox.docker import DockerSandboxClient, DockerSandboxProvider
-from agent.capabilities.sandbox.factory import create_sandbox_client, sandbox_profile_from_settings
+from agent.capabilities.sandbox.factory import create_sandbox_client, create_sandbox_client_from_profile, sandbox_profile_from_settings
 from agent.capabilities.sandbox.local import LocalSandboxClient, LocalSandboxProvider
 from agent.capabilities.sandbox.store import (
     InMemorySandboxStore,
@@ -44,5 +44,6 @@ __all__ = [
     "InMemorySandboxStore",
     "SQLiteSandboxStore",
     "create_sandbox_client",
+    "create_sandbox_client_from_profile",
     "sandbox_profile_from_settings",
 ]

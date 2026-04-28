@@ -1,6 +1,7 @@
 import asyncio
 
 from agent.specs import AgentSpec
+from agent.capabilities.sandbox import InMemorySandboxStore, SandboxLeaseRecord
 from agent.state.identity import TenantRecord, UserRecord
 from agent.capabilities.memory import MemoryRecord, MemoryScope
 from agent.state.runs import RunStatus
@@ -45,6 +46,33 @@ def test_gateway_run_service_marks_error_status():
     assert record.status == RunStatus.ERROR
 
 
+def test_gateway_run_service_releases_sandbox_leases_on_finish():
+    sandbox_store = InMemorySandboxStore()
+    service = GatewayRunService(sandbox_store=sandbox_store)
+    spec = AgentSpec.from_overrides(agent_id="agent-1")
+
+    async def execute():
+        run = await service.start(spec)
+        await sandbox_store.save_lease(
+            SandboxLeaseRecord(
+                lease_id="sandbox-%s" % run.run_id,
+                provider="local",
+                tenant_id=run.tenant_id,
+                user_id=run.user_id,
+                agent_id=run.agent_id,
+                workspace_id=run.workspace_id,
+                run_id=run.run_id,
+            )
+        )
+        await service.finish(run.run_id)
+        leases = await sandbox_store.list_leases_for_run(run.run_id)
+        return leases
+
+    leases = asyncio.run(execute())
+
+    assert leases[0].status == "released"
+
+
 def test_gateway_run_service_marks_approval_status():
     service = GatewayRunService()
     spec = AgentSpec.from_overrides(agent_id="agent-1")
@@ -79,7 +107,12 @@ def test_gateway_run_service_records_trace_spans():
             RuntimeEvent(
                 type="tool_result",
                 name="echo",
-                payload={"tool_call_id": "call-1", "content": "ok", "is_error": False},
+                payload={
+                    "tool_call_id": "call-1",
+                    "content": "ok",
+                    "is_error": False,
+                    "raw": {"_meta": {"sandbox": {"lease_id": "sandbox_run-1", "provider": "local"}}},
+                },
             ),
         )
         await service.finish(run.run_id)
@@ -92,6 +125,7 @@ def test_gateway_run_service_records_trace_spans():
     assert by_id[f"{run_id}:run"].ended_at is not None
     assert by_id[f"{run_id}:tool:call-1"].status == TraceStatus.DONE
     assert by_id[f"{run_id}:tool:call-1"].attributes["tool_result"]["content"] == "ok"
+    assert by_id[f"{run_id}:tool:call-1"].attributes["sandbox"]["lease_id"] == "sandbox_run-1"
 
 
 def test_gateway_run_service_records_approval_trace_state():

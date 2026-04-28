@@ -4,6 +4,8 @@ import asyncio
 from typing import Any, Optional
 
 from agent.capabilities.memory import MemoryStore
+from agent.capabilities.sandbox.store import SandboxStore
+from agent.capabilities.sandbox.recording import SandboxToolExecutionRecorder
 from agent.config import resolve_model_client_config
 from agent.context.builder import ContextBuilder
 from agent.context.memory import MemoryContextRetriever, MemoryRetrievalScope
@@ -25,6 +27,8 @@ async def create_agent_session_async(
     hooks: Optional[AgentHooks] = None,
     checkpoint_store: Optional[CheckpointStore] = None,
     memory_store: Optional[MemoryStore] = None,
+    sandbox_store: Optional[SandboxStore] = None,
+    task_id: str = "",
 ) -> AgentSession:
     resolved_spec = spec.with_workspace_defaults()
     config = resolve_model_client_config(
@@ -43,7 +47,14 @@ async def create_agent_session_async(
         agent_id=resolved_spec.workspace.agent_id,
         workspace_id=resolved_spec.workspace.workspace_id,
     )
-    builtin_tools = register_builtin_tools(registry, ToolRuntimeContext.from_settings(settings, workspace))
+    tool_context = ToolRuntimeContext.from_settings(
+        settings,
+        workspace,
+        sandbox_store=sandbox_store,
+        task_id=task_id,
+    )
+    registry.set_execution_observer(SandboxToolExecutionRecorder(tool_context, sandbox_store))
+    builtin_tools = register_builtin_tools(registry, tool_context)
     await load_configured_mcp(settings, registry)
 
     active_tools = _resolve_active_tools(settings, skill_registry, resolved_spec.enabled_tools, builtin_tools)
@@ -85,6 +96,8 @@ def create_agent_session(
     hooks: Optional[AgentHooks] = None,
     checkpoint_store: Optional[CheckpointStore] = None,
     memory_store: Optional[MemoryStore] = None,
+    sandbox_store: Optional[SandboxStore] = None,
+    task_id: str = "",
 ) -> AgentSession:
     try:
         asyncio.get_running_loop()
@@ -96,6 +109,8 @@ def create_agent_session(
                 hooks=hooks,
                 checkpoint_store=checkpoint_store,
                 memory_store=memory_store,
+                sandbox_store=sandbox_store,
+                task_id=task_id,
             )
         )
     raise RuntimeError("create_agent_session cannot run inside an active event loop; use create_agent_session_async")

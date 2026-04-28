@@ -23,10 +23,10 @@
 
 TODO:
 
-- [ ] 将 sandbox lease 绑定到 run/task 生命周期，而不是只在 session assembly 时创建 client。
-- [ ] 每次 builtin tool 执行写入 `sandbox_events`。
-- [ ] trace span 关联 sandbox lease id。
-- [ ] Docker provider 增加端到端 smoke test，Docker 不可用时跳过。
+- [x] 将 sandbox lease 绑定到 run/task 生命周期，而不是只在 session assembly 时创建 client。
+- [x] 每次 builtin tool 执行写入 `sandbox_events`。
+- [x] trace span 关联 sandbox lease id。
+- [x] Docker provider 增加端到端 smoke test，Docker 不可用时跳过。
 - [ ] 增加 sandbox profile：coding、browser、test、restricted。
 - [ ] 增加 workspace artifacts 目录约定：`artifacts/`、`downloads/`、`screenshots/`。
 - [ ] 增加 workspace snapshot/diff 记录，用于任务完成后的变更摘要。
@@ -165,8 +165,8 @@ TODO:
 
 最近应该按这个顺序继续：
 
-1. Phase 1：run/task scoped sandbox lease。
-2. Phase 1：tool execution 写入 sandbox events 和 trace。
+1. Phase 1：sandbox profiles 和 workspace artifacts 目录约定。
+2. Phase 1：workspace snapshot/diff 记录。
 3. Phase 2：补 `patch.apply`，让代码修改走结构化工具。
 4. Phase 3：把 approval payload 做到足够可解释。
 5. Phase 2：浏览器工具族。

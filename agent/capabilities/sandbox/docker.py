@@ -32,15 +32,18 @@ class DockerSandboxProvider:
         workspace: WorkspaceContext,
         policy: SandboxPolicy,
         profile: SandboxProfile | None = None,
+        lease_id: str = "",
+        metadata: dict | None = None,
     ) -> "DockerSandboxClient":
         if shutil.which("docker") is None:
             raise RuntimeError("docker CLI is not available")
         active_profile = profile or SandboxProfile(provider=self.name)
         lease = SandboxLease(
-            lease_id="docker-%s" % uuid.uuid4().hex,
+            lease_id=lease_id or "docker-%s" % uuid.uuid4().hex,
             provider=self.name,
             workspace=workspace,
             profile=active_profile,
+            metadata=dict(metadata or {}),
         )
         return DockerSandboxClient(lease=lease, policy=policy)
 

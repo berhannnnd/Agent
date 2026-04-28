@@ -44,22 +44,32 @@ class AgentSession:
     def _truncate_messages(self, messages: List[Message]) -> List[Message]:
         return self.context_window.fit(messages)
 
-    async def send(self, text: str, run_id: str | None = None) -> AgentResult:
+    async def send(self, text: str, run_id: str | None = None, task_id: str | None = None) -> AgentResult:
         candidate = self.messages + [Message.from_text("user", text)]
         candidate = self.context_window.fit(candidate)
-        result = await self.runtime.run(candidate, run_id=run_id)
+        result = await self.runtime.run(candidate, run_id=run_id, task_id=task_id)
         self.messages = list(result.messages)
         return result
 
-    async def resume(self, run_id: str, approvals: Mapping[str, bool] | None = None) -> AgentResult:
-        result = await self.runtime.resume(run_id, approvals=approvals)
+    async def resume(
+        self,
+        run_id: str,
+        approvals: Mapping[str, bool] | None = None,
+        task_id: str | None = None,
+    ) -> AgentResult:
+        result = await self.runtime.resume(run_id, approvals=approvals, task_id=task_id)
         self.messages = list(result.messages)
         return result
 
-    async def stream(self, text: str, run_id: str | None = None) -> AsyncIterable[RuntimeEvent]:
+    async def stream(
+        self,
+        text: str,
+        run_id: str | None = None,
+        task_id: str | None = None,
+    ) -> AsyncIterable[RuntimeEvent]:
         candidate = self.messages + [Message.from_text("user", text)]
         candidate = self.context_window.fit(candidate)
-        async for event in self.runtime.stream(candidate, run_id=run_id):
+        async for event in self.runtime.stream(candidate, run_id=run_id, task_id=task_id):
             yield event
             if event.type == "done" and event.payload.get("messages"):
                 self.messages = [Message.from_dict(message) for message in event.payload["messages"]]

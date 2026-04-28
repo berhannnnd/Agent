@@ -20,11 +20,36 @@ class SQLiteDatabase:
     def initialize(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            _ensure_columns(connection, "sandbox_leases", SANDBOX_LEASE_COLUMNS)
+            _ensure_columns(connection, "sandbox_events", SANDBOX_EVENT_COLUMNS)
 
 
 def resolve_database_path(root_path: Path, configured_path: str) -> Path:
     path = Path(configured_path or ".agents/agents.db")
     return path if path.is_absolute() else Path(root_path) / path
+
+
+def _ensure_columns(connection: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+    existing = {str(row["name"]) for row in connection.execute("PRAGMA table_info(%s)" % table).fetchall()}
+    for name, definition in columns.items():
+        if name not in existing:
+            connection.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, name, definition))
+
+
+SANDBOX_LEASE_COLUMNS = {
+    "run_id": "TEXT NOT NULL DEFAULT ''",
+    "task_id": "TEXT NOT NULL DEFAULT ''",
+}
+
+
+SANDBOX_EVENT_COLUMNS = {
+    "run_id": "TEXT NOT NULL DEFAULT ''",
+    "task_id": "TEXT NOT NULL DEFAULT ''",
+    "tool_call_id": "TEXT NOT NULL DEFAULT ''",
+    "tool_name": "TEXT NOT NULL DEFAULT ''",
+    "status": "TEXT NOT NULL DEFAULT ''",
+    "duration_ms": "REAL NOT NULL DEFAULT 0",
+}
 
 
 SCHEMA = """
@@ -219,6 +244,8 @@ CREATE TABLE IF NOT EXISTS sandbox_leases (
     user_id TEXT NOT NULL DEFAULT '',
     agent_id TEXT NOT NULL DEFAULT '',
     workspace_id TEXT NOT NULL DEFAULT '',
+    run_id TEXT NOT NULL DEFAULT '',
+    task_id TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL,
     profile_json TEXT NOT NULL,
     metadata_json TEXT NOT NULL,
@@ -230,10 +257,19 @@ CREATE TABLE IF NOT EXISTS sandbox_leases (
 CREATE INDEX IF NOT EXISTS idx_sandbox_leases_scope
 ON sandbox_leases(tenant_id, user_id, agent_id, workspace_id, created_at);
 
+CREATE INDEX IF NOT EXISTS idx_sandbox_leases_run
+ON sandbox_leases(run_id, task_id, created_at);
+
 CREATE TABLE IF NOT EXISTS sandbox_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lease_id TEXT NOT NULL,
     event_type TEXT NOT NULL,
+    run_id TEXT NOT NULL DEFAULT '',
+    task_id TEXT NOT NULL DEFAULT '',
+    tool_call_id TEXT NOT NULL DEFAULT '',
+    tool_name TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT '',
+    duration_ms REAL NOT NULL DEFAULT 0,
     payload_json TEXT NOT NULL,
     created_at REAL NOT NULL,
     FOREIGN KEY(lease_id) REFERENCES sandbox_leases(lease_id) ON DELETE CASCADE
@@ -241,6 +277,9 @@ CREATE TABLE IF NOT EXISTS sandbox_events (
 
 CREATE INDEX IF NOT EXISTS idx_sandbox_events_lease
 ON sandbox_events(lease_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_sandbox_events_run
+ON sandbox_events(run_id, task_id, created_at);
 
 CREATE TABLE IF NOT EXISTS credential_refs (
     credential_id TEXT PRIMARY KEY,

@@ -260,7 +260,7 @@ Query the trace timeline for the same run:
 curl http://127.0.0.1:8010/api/v1/agent/runs/run_.../trace
 ```
 
-The response contains ordered trace spans for run/model/tool/approval activity plus approval audit decisions. Trace spans are operational observability; approval audit records are the stable accountability trail.
+The response contains ordered trace spans for run/model/tool/approval activity, approval audit decisions, and `sandbox_events` for run-scoped tool execution. Trace spans are operational observability; approval audit records are the stable accountability trail.
 
 ### Tool Approval
 

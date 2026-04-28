@@ -109,7 +109,7 @@ class FakeSessionFactory:
 
 
 class FakeTaskSession:
-    async def send(self, text, run_id=None):
+    async def send(self, text, run_id=None, task_id=None):
         return AgentResult(
             content="done: %s" % text,
             messages=[Message.from_text("assistant", "done")],
