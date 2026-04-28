@@ -30,7 +30,7 @@
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
   border: 1px solid rgba(255, 178, 79, 0.34);
   border-radius: 8px;
   padding: 10px;
@@ -51,7 +51,14 @@
 .approval-copy {
   min-width: 0;
   display: grid;
-  gap: 3px;
+  gap: 5px;
+}
+
+.approval-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .approval-copy strong {
@@ -76,31 +83,99 @@
   font: 11px/1.4 "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 }
 
-.approval-actions {
-  display: inline-flex;
-  gap: 7px;
+.risk-pill {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 178, 79, 0.3);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: #ffdaa8;
+  font-size: 10px;
+  text-transform: uppercase;
 }
 
-.approve-button,
-.deny-button {
-  width: 34px;
-  height: 34px;
+.risk-high,
+.risk-critical {
+  color: #ffd6da;
+  border-color: rgba(255, 111, 125, 0.42);
+}
+
+.approval-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.approval-meta span {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid rgba(244, 239, 228, 0.1);
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: #cdd2c1;
+  background: rgba(244, 239, 228, 0.055);
+  font-size: 11px;
+}
+
+.approval-diff {
+  max-height: 90px;
+  margin: 2px 0 0;
+  overflow: auto;
+  border: 1px solid rgba(244, 239, 228, 0.1);
+  border-radius: 8px;
+  padding: 8px;
+  color: #ffdaa8;
+  background: rgba(0, 0, 0, 0.18);
+  font: 11px/1.45 "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.approval-actions {
   display: grid;
-  place-items: center;
+  gap: 7px;
+  min-width: 132px;
+}
+
+.approval-choice {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   border-radius: 8px;
   border: 1px solid rgba(244, 239, 228, 0.12);
   cursor: pointer;
+  padding: 0 9px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
-.approve-button {
+.approve-once-button,
+.approve-run-button {
   color: #071008;
   background: linear-gradient(135deg, #dfff6f, #39d98a);
+}
+
+.approve-once-button {
+  background: #dfff6f;
 }
 
 .deny-button {
   color: #fff8e8;
   background: rgba(255, 111, 125, 0.18);
   border-color: rgba(255, 111, 125, 0.34);
+}
+
+@media (max-width: 720px) {
+  .approval-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .approval-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+  }
 }
 
 .composer-row {

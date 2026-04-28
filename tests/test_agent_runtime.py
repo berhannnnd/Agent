@@ -20,6 +20,7 @@ from agent.runtime import (
     ScriptedModelClient,
     StaticToolPermissionPolicy,
 )
+from agent.governance.approval_grants import APPROVAL_ALLOW_FOR_RUN
 from agent.schema import Message, ModelResponse, ModelStreamEvent, ToolCall
 from agent.capabilities.tools.registry import ToolRegistry
 
@@ -149,7 +150,100 @@ def test_agent_runtime_resumes_after_tool_approval():
         "tool_approval_required",
         "tool_approval_decision",
     ]
-    assert next(event for event in resumed.events if event.type == "tool_approval_decision").payload["impact"]["tool_name"] == "echo"
+    decision = next(event for event in resumed.events if event.type == "tool_approval_decision")
+    assert decision.payload["impact"]["tool_name"] == "echo"
+    assert decision.payload["scope"] == "allow_once"
+
+
+def test_agent_runtime_reuses_run_scoped_tool_approval():
+    first_call = ToolCall(id="call-1", name="echo", arguments={"text": "hi"})
+    second_call = ToolCall(id="call-2", name="echo", arguments={"text": "hi"})
+    llm = ScriptedModelClient(
+        [
+            ModelResponse(message=Message.from_text("assistant", "", tool_calls=[first_call])),
+            ModelResponse(message=Message.from_text("assistant", "", tool_calls=[second_call])),
+            ModelResponse(message=Message.from_text("assistant", "done")),
+        ]
+    )
+    store = InMemoryCheckpointStore()
+    tools = ToolRegistry()
+    calls = []
+    tools.register("echo", "Echo", {}, lambda text: calls.append(text) or text)
+    runtime = AgentRuntime(
+        model_client=llm,
+        tools=tools,
+        provider="scripted",
+        model="scripted",
+        permission_policy=StaticToolPermissionPolicy(approval_required_tools={"echo"}),
+        checkpoint_store=store,
+    )
+
+    async def execute():
+        paused = await runtime.run([Message.from_text("user", "say hi twice")], run_id="run-1")
+        resumed = await runtime.resume(
+            "run-1",
+            approvals={"call-1": True},
+            approval_scopes={"call-1": APPROVAL_ALLOW_FOR_RUN},
+        )
+        checkpoint = await store.load("run-1")
+        return paused, resumed, checkpoint
+
+    paused, resumed, checkpoint = asyncio.run(execute())
+
+    assert paused.status == "awaiting_approval"
+    assert resumed.status == "finished"
+    assert calls == ["hi", "hi"]
+    assert [event.type for event in resumed.events if event.type == "tool_approval_required"] == ["tool_approval_required"]
+    decisions = [event for event in resumed.events if event.type == "tool_approval_decision"]
+    assert [event.payload["scope"] for event in decisions] == ["allow_for_run", "allow_for_run"]
+    assert decisions[1].payload["reason"] == "run approval grant"
+    assert checkpoint is not None
+    assert checkpoint.tool_approval_grants
+
+
+def test_agent_runtime_approval_grant_does_not_override_hard_denial():
+    call = ToolCall(id="call-1", name="echo", arguments={"text": "hi"})
+    checkpoint = RuntimeCheckpoint(
+        run_id="run-1",
+        step="model_response",
+        iteration=0,
+        messages=[
+            Message.from_text("user", "say hi"),
+            Message.from_text("assistant", "", tool_calls=[call]),
+        ],
+        pending_tool_calls=[call],
+    )
+    store = InMemoryCheckpointStore()
+
+    async def seed_checkpoint():
+        await store.save(checkpoint)
+
+    asyncio.run(seed_checkpoint())
+    llm = ScriptedModelClient([ModelResponse(message=Message.from_text("assistant", "denied"))])
+    tools = ToolRegistry()
+    calls = []
+    tools.register("echo", "Echo", {}, lambda text: calls.append(text) or text)
+    runtime = AgentRuntime(
+        model_client=llm,
+        tools=tools,
+        provider="scripted",
+        model="scripted",
+        permission_policy=StaticToolPermissionPolicy(denied_tools={"echo"}),
+        checkpoint_store=store,
+    )
+
+    result = asyncio.run(
+        runtime.resume(
+            "run-1",
+            approvals={"call-1": True},
+            approval_scopes={"call-1": APPROVAL_ALLOW_FOR_RUN},
+        )
+    )
+
+    assert result.content == "denied"
+    assert calls == []
+    assert result.tool_results[0].is_error is True
+    assert not any(event.type == "tool_approval_decision" for event in result.events)
 
 
 def test_agent_runtime_saves_finished_checkpoint():

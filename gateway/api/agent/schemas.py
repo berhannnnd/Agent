@@ -52,8 +52,10 @@ class AgentChatRequest(AppSchema):
 
 class RunApprovalRequest(AppSchema):
     approved: bool = Field(True, description="Whether the selected pending tool calls are approved")
+    decision: Optional[str] = Field(None, description="Approval decision: allow_once, allow_for_run, or deny")
     tool_call_ids: Optional[List[str]] = Field(None, description="Approval ids to decide; empty means all pending calls")
     approvals: Optional[Dict[str, bool]] = Field(None, description="Explicit approval id to decision map")
+    decisions: Optional[Dict[str, str]] = Field(None, description="Explicit approval id to approval decision map")
     reason: Optional[str] = Field(None, description="Optional audit reason")
 
 

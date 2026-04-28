@@ -1,5 +1,6 @@
 import { createMemo, createSignal } from "solid-js";
 import type {
+  ApprovalDecision,
   ChatMessage,
   PermissionMode,
   Role,
@@ -79,14 +80,15 @@ export function createAgentSession() {
     }
   };
 
-  const decideApproval = async (request: ToolApprovalRequest, approved: boolean) => {
+  const decideApproval = async (request: ToolApprovalRequest, decision: ApprovalDecision) => {
     setBusy(true);
-    const id = record("approval", approved ? "Tool approved" : "Tool denied", request.toolName, "running");
+    const approved = decision !== "deny";
+    const id = record("approval", approvalDecisionTitle(decision), request.toolName, "running");
     try {
       const response = await fetch(urlFor(`/api/v1/agent/runs/${request.runId}/approval`), {
         method: "POST",
         headers: headers(),
-        body: JSON.stringify({ tool_call_ids: [request.approvalId], approved })
+        body: JSON.stringify({ tool_call_ids: [request.approvalId], approved, decision })
       });
       const data = await response.json();
       updateActivity(id, { status: response.ok ? "done" : "error", detail: `${response.status} ${response.statusText}` });
@@ -194,7 +196,8 @@ export function createAgentSession() {
       }
       if (event.type === "tool_approval_decision") {
         const approved = event.payload?.approved ? "approved" : "denied";
-        record("approval", `Tool ${approved}`, event.name || event.payload?.tool_call?.name || "tool", "done");
+        const scope = event.payload?.scope ? ` (${event.payload.scope})` : "";
+        record("approval", `Tool ${approved}${scope}`, event.name || event.payload?.tool_call?.name || "tool", "done");
         continue;
       }
       if (event.type === "tool_start") record("tool", "Tool call", event.name || event.payload?.name || "tool", "running");
@@ -249,4 +252,8 @@ export function createAgentSession() {
     streaming, setStreaming, input, setInput, messages, activity, pendingApprovals, busy, health, latency, canSend,
     toolList, send, decideApproval, clear, checkHealth
   };
+}
+
+function approvalDecisionTitle(decision: ApprovalDecision) {
+  return decision === "allow_for_run" ? "Tool allowed for run" : decision === "allow_once" ? "Tool allowed once" : "Tool denied";
 }

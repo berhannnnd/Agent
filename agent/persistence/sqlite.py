@@ -20,6 +20,7 @@ class SQLiteDatabase:
     def initialize(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            _ensure_columns(connection, "runtime_checkpoints", RUNTIME_CHECKPOINT_COLUMNS)
             _ensure_columns(connection, "approval_audit", APPROVAL_AUDIT_COLUMNS)
             _ensure_columns(connection, "sandbox_leases", SANDBOX_LEASE_COLUMNS)
             _ensure_columns(connection, "sandbox_events", SANDBOX_EVENT_COLUMNS)
@@ -55,6 +56,13 @@ SANDBOX_EVENT_COLUMNS = {
 
 APPROVAL_AUDIT_COLUMNS = {
     "impact_json": "TEXT NOT NULL DEFAULT '{}'",
+    "decision": "TEXT NOT NULL DEFAULT 'allow_once'",
+}
+
+
+RUNTIME_CHECKPOINT_COLUMNS = {
+    "tool_approval_scopes_json": "TEXT NOT NULL DEFAULT '{}'",
+    "tool_approval_grants_json": "TEXT NOT NULL DEFAULT '{}'",
 }
 
 
@@ -140,6 +148,8 @@ CREATE TABLE IF NOT EXISTS runtime_checkpoints (
     events_json TEXT NOT NULL,
     pending_tool_calls_json TEXT NOT NULL,
     tool_approvals_json TEXT NOT NULL,
+    tool_approval_scopes_json TEXT NOT NULL DEFAULT '{}',
+    tool_approval_grants_json TEXT NOT NULL DEFAULT '{}',
     created_at REAL NOT NULL
 );
 
@@ -149,6 +159,7 @@ CREATE TABLE IF NOT EXISTS approval_audit (
     approval_id TEXT NOT NULL,
     tool_name TEXT NOT NULL DEFAULT '',
     approved INTEGER NOT NULL,
+    decision TEXT NOT NULL DEFAULT 'allow_once',
     reason TEXT NOT NULL DEFAULT '',
     tool_call_json TEXT NOT NULL,
     impact_json TEXT NOT NULL DEFAULT '{}',

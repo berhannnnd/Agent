@@ -4,6 +4,14 @@ from agent.governance.credentials import (
     InMemoryCredentialRefStore,
     SQLiteCredentialRefStore,
 )
+from agent.governance.approval_grants import (
+    APPROVAL_ALLOW_FOR_RUN,
+    APPROVAL_ALLOW_ONCE,
+    APPROVAL_DENY,
+    approval_grant_key,
+    approval_is_allowed,
+    normalize_approval_decision,
+)
 from agent.governance.factory import build_tool_permission_policy
 from agent.governance.permissions import (
     AllowAllToolPermissionPolicy,
@@ -30,6 +38,9 @@ from agent.governance.security import (
 
 __all__ = [
     "AllowAllToolPermissionPolicy",
+    "APPROVAL_ALLOW_FOR_RUN",
+    "APPROVAL_ALLOW_ONCE",
+    "APPROVAL_DENY",
     "CallbackToolPermissionPolicy",
     "CredentialRef",
     "CredentialRefStore",
@@ -48,7 +59,10 @@ __all__ = [
     "ToolPermissionPolicy",
     "ToolRisk",
     "ToolImpact",
+    "approval_grant_key",
+    "approval_is_allowed",
     "build_tool_permission_policy",
     "classify_tool_risk",
     "describe_tool_impact",
+    "normalize_approval_decision",
 ]

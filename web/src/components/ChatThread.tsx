@@ -1,7 +1,7 @@
 import { Bot, Eraser, MessageSquareText, Send, Sparkles } from "lucide-solid";
 import type { Accessor, Setter } from "solid-js";
 import { For, Show } from "solid-js";
-import type { ChatMessage, PermissionMode, ToolApprovalRequest } from "../types";
+import type { ApprovalDecision, ChatMessage, PermissionMode, ToolApprovalRequest } from "../types";
 import { ToolApprovalPanel } from "./ToolApprovalPanel";
 
 type Props = {
@@ -17,7 +17,7 @@ type Props = {
   setInput: Setter<string>;
   canSend: Accessor<boolean>;
   send: () => void;
-  decideApproval: (request: ToolApprovalRequest, approved: boolean) => void;
+  decideApproval: (request: ToolApprovalRequest, decision: ApprovalDecision) => void;
   clear: () => void;
 };
 

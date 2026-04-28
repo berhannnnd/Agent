@@ -16,6 +16,7 @@ from agent.runtime.events import (
     tool_approval_required_event,
     tool_start_event,
 )
+from agent.governance.approval_grants import APPROVAL_ALLOW_FOR_RUN, APPROVAL_ALLOW_ONCE, APPROVAL_DENY, approval_grant_key
 from agent.governance.permissions import ToolPermissionDecision, ToolPermissionPolicy
 from agent.context.compiler import ModelRequestCompiler
 from agent.runtime.state import RuntimeState
@@ -81,6 +82,8 @@ class AgentRuntime:
         self,
         run_id: str,
         approvals: Mapping[str, bool] | None = None,
+        approval_scopes: Mapping[str, str] | None = None,
+        approval_grants: Mapping[str, bool] | None = None,
         task_id: str | None = None,
     ) -> AgentResult:
         checkpoint = await self.checkpoints.load(run_id)
@@ -89,6 +92,11 @@ class AgentRuntime:
         state = checkpoint.to_state()
         if approvals:
             state.tool_approvals.update({str(key): bool(value) for key, value in approvals.items()})
+        if approval_scopes:
+            state.tool_approval_scopes.update({str(key): str(value) for key, value in approval_scopes.items()})
+        if approval_grants:
+            state.tool_approval_grants.update({str(key): bool(value) for key, value in approval_grants.items()})
+        self._derive_run_grants_from_scopes(state)
         return await self._run_state(state, run_id=run_id, task_id=task_id)
 
     async def _run_state(
@@ -228,6 +236,8 @@ class AgentRuntime:
             approval_id = tool_approval_id(item.call)
             if approval_id in state.tool_approvals:
                 continue
+            if item.decision.requires_approval and approval_grant_key(item.call) in state.tool_approval_grants:
+                continue
             if item.decision.requires_approval:
                 approval_events.append(tool_approval_required_event(item.call, item.decision))
         if approval_events:
@@ -236,20 +246,48 @@ class AgentRuntime:
             return ToolExecutionOutcome(approval_events, approval_required=True)
 
         decisions: List[ToolPermissionDecision] = []
-        approved_call_ids: set[str] = set()
+        decided_call_ids: set[str] = set()
         for item in authorizations:
             approval_id = tool_approval_id(item.call)
-            if approval_id in state.tool_approvals:
+            grant_key = approval_grant_key(item.call)
+            if item.decision.requires_approval and approval_id in state.tool_approvals:
                 approved = state.tool_approvals[approval_id]
-                approved_call_ids.add(approval_id)
-                event = tool_approval_decision_event(item.call, approved)
+                scope = state.tool_approval_scopes.get(approval_id, APPROVAL_ALLOW_ONCE if approved else APPROVAL_DENY)
+                decided_call_ids.add(approval_id)
+                if approved and scope == APPROVAL_ALLOW_FOR_RUN:
+                    state.tool_approval_grants[grant_key] = True
+                event = tool_approval_decision_event(
+                    item.call,
+                    approved,
+                    scope=scope,
+                    grant_key=grant_key if scope == APPROVAL_ALLOW_FOR_RUN else "",
+                )
                 state.events.append(event)
                 emitted.append(event)
                 decisions.append(
                     ToolPermissionDecision(
                         allowed=approved,
                         reason="" if approved else "tool denied by user approval",
-                        metadata={"source": "user_approval"},
+                        metadata={"source": "user_approval", "scope": scope, "grant_key": grant_key if scope == APPROVAL_ALLOW_FOR_RUN else ""},
+                    )
+                )
+                continue
+            if item.decision.requires_approval and grant_key in state.tool_approval_grants:
+                approved = state.tool_approval_grants[grant_key]
+                event = tool_approval_decision_event(
+                    item.call,
+                    approved,
+                    reason="run approval grant",
+                    scope=APPROVAL_ALLOW_FOR_RUN,
+                    grant_key=grant_key,
+                )
+                state.events.append(event)
+                emitted.append(event)
+                decisions.append(
+                    ToolPermissionDecision(
+                        allowed=approved,
+                        reason="" if approved else "tool denied by run approval grant",
+                        metadata={"source": "run_approval_grant", "scope": APPROVAL_ALLOW_FOR_RUN, "grant_key": grant_key},
                     )
                 )
                 continue
@@ -271,11 +309,20 @@ class AgentRuntime:
         state.events.extend(batch.events)
         emitted.extend(batch.events)
         state.messages.extend(batch.messages)
-        for approval_id in approved_call_ids:
+        for approval_id in decided_call_ids:
             state.tool_approvals.pop(approval_id, None)
+            state.tool_approval_scopes.pop(approval_id, None)
         state.pending_tool_calls = []
         await self._save_checkpoint(run_id, "tool_results", state)
         return ToolExecutionOutcome(emitted)
+
+    def _derive_run_grants_from_scopes(self, state: RuntimeState) -> None:
+        for call in state.pending_tool_calls:
+            approval_id = tool_approval_id(call)
+            if not state.tool_approvals.get(approval_id):
+                continue
+            if state.tool_approval_scopes.get(approval_id) == APPROVAL_ALLOW_FOR_RUN:
+                state.tool_approval_grants[approval_grant_key(call)] = True
 
     async def _record_error(
         self,

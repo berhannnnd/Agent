@@ -40,3 +40,12 @@ def test_action_timeline_language_is_product_visible():
     assert "Tool call" in timeline
     assert "Code execution" in timeline
     assert "Web search" in timeline
+
+
+def test_tool_approval_panel_exposes_scoped_decisions():
+    panel = (FRONTEND_SRC / "components/ToolApprovalPanel.tsx").read_text(encoding="utf-8")
+
+    assert "allow_once" in panel
+    assert "allow_for_run" in panel
+    assert "Allow once" in panel
+    assert "Allow for run" in panel

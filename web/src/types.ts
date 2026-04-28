@@ -21,6 +21,16 @@ export type RuntimeEvent = {
 export const providers = ["openai-chat", "openai-responses", "claude-messages", "gemini"] as const;
 
 export type PermissionMode = "auto" | "ask" | "deny";
+export type ApprovalDecision = "allow_once" | "allow_for_run" | "deny";
+export type ToolImpact = {
+  tool_name?: string;
+  risk?: string;
+  paths?: string[];
+  commands?: string[];
+  domains?: string[];
+  diff_preview?: string;
+  cost_estimate?: Record<string, unknown>;
+};
 
 export type ToolApprovalRequest = {
   approvalId: string;
@@ -28,4 +38,5 @@ export type ToolApprovalRequest = {
   toolName: string;
   arguments: Record<string, unknown>;
   reason: string;
+  impact: ToolImpact;
 };

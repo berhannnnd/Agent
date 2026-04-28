@@ -21,7 +21,8 @@ export function approvalFromEvent(event: any, fallbackRunId: string): ToolApprov
     runId: event.payload?.run_id || fallbackRunId,
     toolName: call.name || event.name || "tool",
     arguments: call.arguments || {},
-    reason: event.payload?.permission?.reason || "Tool approval required"
+    reason: event.payload?.permission?.reason || "Tool approval required",
+    impact: event.payload?.impact || {}
   };
 }
 

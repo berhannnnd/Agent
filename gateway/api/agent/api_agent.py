@@ -18,6 +18,12 @@ from fastapi.responses import StreamingResponse
 
 from agent.assembly import create_agent_session_async as _create_agent_session_async
 from agent.governance.audit import ApprovalAuditRecord
+from agent.governance.approval_grants import (
+    APPROVAL_ALLOW_FOR_RUN,
+    approval_grant_key,
+    approval_is_allowed,
+    normalize_approval_decision,
+)
 from agent.config import AgentConfigError
 from agent.schema import RuntimeEvent
 from agent.tasks import TaskRunner, TaskStatus, TaskStepStatus
@@ -246,13 +252,24 @@ async def approve_run_tools(run_id: str, request_data: RunApprovalRequest):
         if checkpoint is None or not checkpoint.pending_tool_calls:
             return resp.fail(resp.Resp(code="409", detail="run is not waiting for tool approval", http_status=409))
 
-        approvals = _approval_map(request_data, checkpoint.pending_tool_calls)
         try:
-            await _record_approval_audit(run_id, request_data, checkpoint.pending_tool_calls, approvals)
+            approval_scopes = _approval_decision_map(request_data, checkpoint.pending_tool_calls)
+            approvals = _approval_map(approval_scopes)
+            approval_grants = _approval_grants(checkpoint.pending_tool_calls, approvals, approval_scopes)
+        except ValueError as exc:
+            return resp.fail(resp.Resp(code="400", detail=str(exc), http_status=400))
+        try:
+            await _record_approval_audit(run_id, request_data, checkpoint.pending_tool_calls, approvals, approval_scopes)
             await run_service.mark_running(run_id)
             session = await create_agent_session(spec=record.to_agent_spec())
             step = await persistence.tasks.load_step_for_run(run_id)
-            result = await session.resume(run_id, approvals=approvals, task_id=step.task_id if step else None)
+            result = await session.resume(
+                run_id,
+                approvals=approvals,
+                approval_scopes=approval_scopes,
+                approval_grants=approval_grants,
+                task_id=step.task_id if step else None,
+            )
             new_events = _new_runtime_events(record.events, result.events)
             await run_service.record_events(run_id, new_events)
             await _complete_or_pause(run_id, result.status, new_events)
@@ -336,12 +353,28 @@ async def _fail_run(run_id: str, kind: str, message: str) -> None:
     await run_service.finish(run_id, message)
 
 
-def _approval_map(request_data: RunApprovalRequest, pending_calls) -> dict[str, bool]:
+def _approval_decision_map(request_data: RunApprovalRequest, pending_calls) -> dict[str, str]:
+    if request_data.decisions:
+        return {str(key): normalize_approval_decision(value) for key, value in request_data.decisions.items()}
     if request_data.approvals:
-        return {str(key): bool(value) for key, value in request_data.approvals.items()}
+        return {str(key): normalize_approval_decision(value) for key, value in request_data.approvals.items()}
     pending_ids = [call.id or call.name for call in pending_calls]
     selected = request_data.tool_call_ids or pending_ids
-    return {str(item): bool(request_data.approved) for item in selected}
+    decision = normalize_approval_decision(request_data.decision, request_data.approved)
+    return {str(item): decision for item in selected}
+
+
+def _approval_map(decisions: dict[str, str]) -> dict[str, bool]:
+    return {approval_id: approval_is_allowed(decision) for approval_id, decision in decisions.items()}
+
+
+def _approval_grants(pending_calls, approvals: dict[str, bool], decisions: dict[str, str]) -> dict[str, bool]:
+    grants: dict[str, bool] = {}
+    for call in pending_calls:
+        approval_id = call.id or call.name
+        if approvals.get(approval_id) and decisions.get(approval_id) == APPROVAL_ALLOW_FOR_RUN:
+            grants[approval_grant_key(call)] = True
+    return grants
 
 
 def _new_runtime_events(record_events, result_events) -> list[RuntimeEvent]:
@@ -349,7 +382,13 @@ def _new_runtime_events(record_events, result_events) -> list[RuntimeEvent]:
     return list(result_events)[len(recorded_runtime_events):]
 
 
-async def _record_approval_audit(run_id: str, request_data: RunApprovalRequest, pending_calls, approvals: dict[str, bool]) -> None:
+async def _record_approval_audit(
+    run_id: str,
+    request_data: RunApprovalRequest,
+    pending_calls,
+    approvals: dict[str, bool],
+    decisions: dict[str, str],
+) -> None:
     reason = request_data.reason or ""
     for call in pending_calls:
         approval_id = call.id or call.name
@@ -360,6 +399,7 @@ async def _record_approval_audit(run_id: str, request_data: RunApprovalRequest, 
                 run_id=run_id,
                 call=call,
                 approved=approvals[approval_id],
+                decision=decisions.get(approval_id, ""),
                 reason=reason,
             )
         )

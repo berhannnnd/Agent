@@ -39,15 +39,24 @@ def tool_approval_required_event(call: ToolCall, decision: ToolPermissionDecisio
     )
 
 
-def tool_approval_decision_event(call: ToolCall, approved: bool, reason: str = "") -> RuntimeEvent:
+def tool_approval_decision_event(
+    call: ToolCall,
+    approved: bool,
+    reason: str = "",
+    scope: str = "allow_once",
+    grant_key: str = "",
+) -> RuntimeEvent:
     payload = {
         "approval_id": tool_approval_id(call),
         "tool_call": call.to_dict(),
         "approved": approved,
+        "scope": scope,
         "impact": describe_tool_impact(call).to_dict(),
     }
     if reason:
         payload["reason"] = reason
+    if grant_key:
+        payload["grant_key"] = grant_key
     return RuntimeEvent(type="tool_approval_decision", name=call.name, payload=payload)
 
 

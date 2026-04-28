@@ -16,6 +16,7 @@ from gateway.api.agent import api_agent
 from gateway.api.agent.schemas import AgentChatRequest
 from gateway.app import create_app
 from agent.specs import AgentSpec
+from agent.governance.approval_grants import APPROVAL_ALLOW_FOR_RUN, approval_grant_key
 from agent.runtime import AgentResult, InMemoryCheckpointStore, RuntimeCheckpoint
 from agent.schema import Message, RuntimeEvent, ToolCall
 from agent.tasks import TaskStepRecord
@@ -36,14 +37,16 @@ class FakeSession:
 
 
 class FakeApprovalSession:
-    async def resume(self, run_id, approvals=None, task_id=None):
+    async def resume(self, run_id, approvals=None, approval_scopes=None, approval_grants=None, task_id=None):
         assert approvals == {"call-1": True}
+        assert approval_scopes == {"call-1": APPROVAL_ALLOW_FOR_RUN}
+        assert approval_grants == {approval_grant_key(ToolCall(id="call-1", name="echo", arguments={"text": "hi"})): True}
         return AgentResult(
             content="resumed",
             messages=[Message.from_text("assistant", "resumed")],
             events=[
                 RuntimeEvent(type="tool_approval_required", name="echo", payload={"approval_id": "call-1"}),
-                RuntimeEvent(type="tool_approval_decision", name="echo", payload={"approval_id": "call-1", "approved": True}),
+                RuntimeEvent(type="tool_approval_decision", name="echo", payload={"approval_id": "call-1", "approved": True, "scope": "allow_for_run"}),
                 RuntimeEvent(type="model_message", name="assistant", payload={"content": "resumed"}),
             ],
         )
@@ -225,7 +228,7 @@ def test_agent_run_approval_api_resumes_checkpoint(monkeypatch):
     monkeypatch.setattr(api_agent, "create_agent_session", create_session)
     client = TestClient(create_app())
 
-    response = client.post("/api/v1/agent/runs/run-approval/approval", json={"tool_call_ids": ["call-1"], "approved": True})
+    response = client.post("/api/v1/agent/runs/run-approval/approval", json={"tool_call_ids": ["call-1"], "decision": "allow_for_run"})
 
     assert response.status_code == 200
     data = response.json()["data"]

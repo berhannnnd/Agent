@@ -55,9 +55,17 @@ class AgentSession:
         self,
         run_id: str,
         approvals: Mapping[str, bool] | None = None,
+        approval_scopes: Mapping[str, str] | None = None,
+        approval_grants: Mapping[str, bool] | None = None,
         task_id: str | None = None,
     ) -> AgentResult:
-        result = await self.runtime.resume(run_id, approvals=approvals, task_id=task_id)
+        result = await self.runtime.resume(
+            run_id,
+            approvals=approvals,
+            approval_scopes=approval_scopes,
+            approval_grants=approval_grants,
+            task_id=task_id,
+        )
         self.messages = list(result.messages)
         return result
 

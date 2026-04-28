@@ -14,6 +14,8 @@ class RuntimeState:
     iteration: int = 0
     pending_tool_calls: List[ToolCall] = field(default_factory=list)
     tool_approvals: Dict[str, bool] = field(default_factory=dict)
+    tool_approval_scopes: Dict[str, str] = field(default_factory=dict)
+    tool_approval_grants: Dict[str, bool] = field(default_factory=dict)
 
     @classmethod
     def from_messages(cls, messages: List[Message]) -> "RuntimeState":

@@ -20,6 +20,8 @@ class RuntimeCheckpoint:
     events: List[RuntimeEvent] = field(default_factory=list)
     pending_tool_calls: List[ToolCall] = field(default_factory=list)
     tool_approvals: Dict[str, bool] = field(default_factory=dict)
+    tool_approval_scopes: Dict[str, str] = field(default_factory=dict)
+    tool_approval_grants: Dict[str, bool] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
 
     @classmethod
@@ -33,6 +35,8 @@ class RuntimeCheckpoint:
             events=list(state.events),
             pending_tool_calls=list(state.pending_tool_calls),
             tool_approvals=dict(state.tool_approvals),
+            tool_approval_scopes=dict(state.tool_approval_scopes),
+            tool_approval_grants=dict(state.tool_approval_grants),
         )
 
     def to_state(self) -> RuntimeState:
@@ -43,6 +47,8 @@ class RuntimeCheckpoint:
             iteration=self.iteration,
             pending_tool_calls=list(self.pending_tool_calls),
             tool_approvals=dict(self.tool_approvals),
+            tool_approval_scopes=dict(self.tool_approval_scopes),
+            tool_approval_grants=dict(self.tool_approval_grants),
         )
 
 
@@ -92,8 +98,9 @@ class SQLiteCheckpointStore:
                 """
                 INSERT INTO runtime_checkpoints (
                     run_id, step, iteration, messages_json, tool_results_json, events_json,
-                    pending_tool_calls_json, tool_approvals_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    pending_tool_calls_json, tool_approvals_json, tool_approval_scopes_json,
+                    tool_approval_grants_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(run_id) DO UPDATE SET
                     step = excluded.step,
                     iteration = excluded.iteration,
@@ -102,6 +109,8 @@ class SQLiteCheckpointStore:
                     events_json = excluded.events_json,
                     pending_tool_calls_json = excluded.pending_tool_calls_json,
                     tool_approvals_json = excluded.tool_approvals_json,
+                    tool_approval_scopes_json = excluded.tool_approval_scopes_json,
+                    tool_approval_grants_json = excluded.tool_approval_grants_json,
                     created_at = excluded.created_at
                 """,
                 (
@@ -113,6 +122,8 @@ class SQLiteCheckpointStore:
                     _json_dumps([event.to_dict() for event in checkpoint.events]),
                     _json_dumps([call.to_dict() for call in checkpoint.pending_tool_calls]),
                     _json_dumps(checkpoint.tool_approvals),
+                    _json_dumps(checkpoint.tool_approval_scopes),
+                    _json_dumps(checkpoint.tool_approval_grants),
                     checkpoint.created_at,
                 ),
             )
@@ -134,6 +145,8 @@ class SQLiteCheckpointStore:
             events=[_event_from_dict(item) for item in json.loads(row["events_json"] or "[]")],
             pending_tool_calls=[ToolCall.from_dict(item) for item in json.loads(row["pending_tool_calls_json"] or "[]")],
             tool_approvals={str(key): bool(value) for key, value in json.loads(row["tool_approvals_json"] or "{}").items()},
+            tool_approval_scopes={str(key): str(value) for key, value in json.loads(row["tool_approval_scopes_json"] or "{}").items()},
+            tool_approval_grants={str(key): bool(value) for key, value in json.loads(row["tool_approval_grants_json"] or "{}").items()},
             created_at=float(row["created_at"]),
         )
 

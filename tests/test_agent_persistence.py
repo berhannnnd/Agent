@@ -9,6 +9,7 @@ from agent.state.runs import RunStatus, SQLiteRunStore
 from agent.runtime import RuntimeCheckpoint, SQLiteCheckpointStore
 from agent.schema import Message, RuntimeEvent, ToolCall
 from agent.governance import CredentialRef, SQLiteCredentialRefStore
+from agent.governance.approval_grants import APPROVAL_ALLOW_FOR_RUN, approval_grant_key
 from agent.state import AgentProfile, SQLiteAgentProfileStore
 from agent.state.workspaces import SQLiteWorkspaceStore, WorkspaceRecord
 from agent.governance.tracing import SQLiteTraceStore, TraceSpan, TraceStatus
@@ -55,6 +56,8 @@ def test_sqlite_checkpoint_store_persists_pending_tools(tmp_path):
                 ],
                 pending_tool_calls=[call],
                 tool_approvals={"call-1": True},
+                tool_approval_scopes={"call-1": APPROVAL_ALLOW_FOR_RUN},
+                tool_approval_grants={approval_grant_key(call): True},
             )
         )
         return await SQLiteCheckpointStore(SQLiteDatabase(tmp_path / "agents.db")).load("run-1")
@@ -65,6 +68,8 @@ def test_sqlite_checkpoint_store_persists_pending_tools(tmp_path):
     assert checkpoint.iteration == 2
     assert checkpoint.pending_tool_calls[0].name == "echo"
     assert checkpoint.tool_approvals == {"call-1": True}
+    assert checkpoint.tool_approval_scopes == {"call-1": "allow_for_run"}
+    assert checkpoint.tool_approval_grants == {approval_grant_key(call): True}
 
 
 def test_sqlite_approval_audit_store_records_decisions(tmp_path):
@@ -80,6 +85,7 @@ def test_sqlite_approval_audit_store_records_decisions(tmp_path):
                 run_id="run-1",
                 call=call,
                 approved=False,
+                decision="deny",
                 reason="not needed",
             )
         )
@@ -90,6 +96,7 @@ def test_sqlite_approval_audit_store_records_decisions(tmp_path):
     assert len(records) == 1
     assert records[0].approval_id == "call-1"
     assert records[0].approved is False
+    assert records[0].decision == "deny"
     assert records[0].tool_call["arguments"] == {"text": "hi"}
     assert records[0].impact["tool_name"] == "echo"
 
