@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gateway.core.config._constants import ENV_FILE
+from gateway.core.config.loader import config_value
 
 
 class MCPConfig(BaseSettings):
@@ -13,11 +14,11 @@ class MCPConfig(BaseSettings):
         env_prefix="MCP_",
     )
 
-    SERVER_NAME: str = ""
-    SERVER_COMMAND: str = ""
-    CLIENT_TIMEOUT: float = 30.0
-    EXECUTION_MODE: str = "trusted_control_plane"
-    SANDBOX_PROFILE: str = ""
+    SERVER_NAME: str = config_value("mcp", "SERVER_NAME", "")
+    SERVER_COMMAND: str = config_value("mcp", "SERVER_COMMAND", "")
+    CLIENT_TIMEOUT: float = config_value("mcp", "CLIENT_TIMEOUT", 30.0)
+    EXECUTION_MODE: str = config_value("mcp", "EXECUTION_MODE", "trusted_control_plane")
+    SANDBOX_PROFILE: str = config_value("mcp", "SANDBOX_PROFILE", "")
 
 
 mcp_config = MCPConfig()

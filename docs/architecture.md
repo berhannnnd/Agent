@@ -85,7 +85,7 @@ graph TB
 ## Gateway 网关层
 
 - `gateway.api`: FastAPI routes、schemas、Agent chat 和 stream API。
-- `gateway.core`: settings、logger、middleware、exceptions。
+- `gateway.core`: settings、logger、middleware、exceptions。部署级配置由 `gateway.core.config` 读取，非 secret 默认值在 `config/defaults.toml`，本机覆盖在 gitignored `config/local.toml`，`.env` 只放 secrets 和部署覆盖。
 - `gateway.shared.server`: FastAPI 注册器、统一响应、请求 ID、server launcher。
 - `gateway.auth`: 鉴权授权边界。
 - `gateway.services`: 跨 API 的服务容器边界。当前提供 `GatewayPersistence`，统一创建 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential/task/sandbox stores。

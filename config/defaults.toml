@@ -1,0 +1,89 @@
+# Non-secret project defaults.
+# Keep tokens and credentials in .env or a secret manager, not here.
+
+[server]
+debug = false
+project_name = "Agents"
+api_prefix = "/api"
+server_type = "uvicorn"
+host = "0.0.0.0"
+port = 8010
+workers = 1
+domain = "http://localhost:8010"
+enable_engines = true
+enable_swagger_doc = false
+backend_cors_origins = ["*"]
+
+[agent]
+provider = "openai-chat"
+timeout = 60.0
+max_tokens = 16384
+max_tool_iterations = 8
+system_prompt = ""
+enabled_tools = ""
+skills = ""
+workspace_root = ".agents/workspaces"
+run_store = "memory"
+run_root = ".agents/runs"
+db_path = ".agents/agents.db"
+http_proxy = ""
+https_proxy = ""
+all_proxy = ""
+max_retries = 3
+retry_base_delay = 1.0
+max_context_tokens = 256000
+max_concurrent_tools = 10
+max_concurrent_requests = 20
+tool_timeout = 60.0
+guided_tools = ""
+builtin_tools = "filesystem.read,filesystem.list"
+sandbox_profile = "restricted"
+sandbox_provider = "local"
+sandbox_image = "python:3.12-slim"
+sandbox_network = ""
+sandbox_memory = ""
+sandbox_cpus = ""
+sandbox_ttl_seconds = 0
+sandbox_workdir = "/workspace"
+sandbox_allowed_commands = ""
+memory_context_limit = 20
+context_compaction_target_tokens = 32000
+claude_base_url = ""
+claude_model = ""
+
+[models.openai]
+base_url = "https://api.openai.com/v1"
+model = ""
+
+[models.openai_responses]
+base_url = "https://api.openai.com/v1"
+model = ""
+
+[models.anthropic]
+base_url = "https://api.anthropic.com/v1"
+model = ""
+
+[models.gemini]
+base_url = "https://generativelanguage.googleapis.com/v1"
+model = ""
+
+[mcp]
+server_name = ""
+server_command = ""
+client_timeout = 30.0
+execution_mode = "trusted_control_plane"
+sandbox_profile = ""
+
+[web_search]
+provider = "none"
+tavily_base_url = "https://api.tavily.com"
+timeout = 30.0
+max_results = 5
+max_credits_per_run = 10.0
+allow_domains = ""
+deny_domains = ""
+allow_advanced = false
+allow_raw_content = false
+
+[log]
+log_level = "INFO"

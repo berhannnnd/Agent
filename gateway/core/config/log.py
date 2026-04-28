@@ -3,6 +3,7 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gateway.core.config._constants import ENV_FILE
+from gateway.core.config.loader import config_value
 from gateway.utils.terminal import TermColors
 
 
@@ -15,7 +16,7 @@ class LogConfig(BaseSettings):
         extra="ignore",
     )
 
-    LOG_LEVEL: str = "INFO"
+    LOG_LEVEL: str = config_value("log", "LOG_LEVEL", "INFO")
     LOG_PATH: str = os.path.abspath(os.path.join(os.getcwd(), "logs"))
     LOGGER_FORMAT: str = (
         f"{TermColors.WHITE}[ {TermColors.GRAY}%(asctime)s {TermColors.WHITE}]"

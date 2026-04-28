@@ -119,6 +119,21 @@ make test
 
 Configuration is loaded through `gateway.core.config.settings`.
 
+Non-secret defaults are committed in `config/defaults.toml`. Local non-secret overrides belong in `config/local.toml`, which is gitignored. `.env` should stay focused on tokens, secrets, and deployment-only overrides.
+
+Precedence:
+
+```text
+class fallback < config/defaults.toml < config/local.toml < .env / shell env < request AgentSpec
+```
+
+Override config file paths when needed:
+
+```bash
+AGENTS_DEFAULT_CONFIG=config/defaults.toml
+AGENTS_LOCAL_CONFIG=config/local.toml
+```
+
 | Domain | Env prefix | Common fields |
 |---|---|---|
 | `settings.agent` | `AGENT_` | `AGENT_PROVIDER`, `AGENT_MAX_TOKENS`, `AGENT_MAX_RETRIES`, `AGENT_ENABLED_TOOLS`, `AGENT_SKILLS`, `AGENT_WORKSPACE_ROOT`, `AGENT_SANDBOX_PROVIDER`, `AGENT_RUN_STORE`, `AGENT_RUN_ROOT`, `AGENT_DB_PATH` |

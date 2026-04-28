@@ -5,6 +5,7 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gateway.core.config._constants import ENV_FILE, ROOT_PATH
+from gateway.core.config.loader import config_value
 
 
 class ServerConfig(BaseSettings):
@@ -16,17 +17,17 @@ class ServerConfig(BaseSettings):
         extra="ignore",
     )
 
-    DEBUG: bool = False
-    PROJECT_NAME: str = "Agents"
-    API_PREFIX: str = "/api"
-    SERVER_TYPE: str = "uvicorn"
-    HOST: str = "0.0.0.0"
-    PORT: int = 8010
-    WORKERS: int = 1
-    DOMAIN: str = "http://localhost:8010"
-    ENABLE_ENGINES: bool = True
-    ENABLE_SWAGGER_DOC: bool = False
-    BACKEND_CORS_ORIGINS: list[str] = ["*"]
+    DEBUG: bool = config_value("server", "DEBUG", False)
+    PROJECT_NAME: str = config_value("server", "PROJECT_NAME", "Agents")
+    API_PREFIX: str = config_value("server", "API_PREFIX", "/api")
+    SERVER_TYPE: str = config_value("server", "SERVER_TYPE", "uvicorn")
+    HOST: str = config_value("server", "HOST", "0.0.0.0")
+    PORT: int = config_value("server", "PORT", 8010)
+    WORKERS: int = config_value("server", "WORKERS", 1)
+    DOMAIN: str = config_value("server", "DOMAIN", "http://localhost:8010")
+    ENABLE_ENGINES: bool = config_value("server", "ENABLE_ENGINES", True)
+    ENABLE_SWAGGER_DOC: bool = config_value("server", "ENABLE_SWAGGER_DOC", False)
+    BACKEND_CORS_ORIGINS: list[str] = config_value("server", "BACKEND_CORS_ORIGINS", ["*"])
     ACCESS_TOKEN: Optional[str] = None
     CACHE_FILE_DIR: str = os.path.abspath(os.path.join(os.getcwd(), "cache"))
     ROOT_PATH: str = ROOT_PATH

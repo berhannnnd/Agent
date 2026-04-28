@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gateway.core.config._constants import ENV_FILE
+from gateway.core.config.loader import config_value
 
 
 class OpenAIConfig(BaseSettings):
@@ -14,8 +15,8 @@ class OpenAIConfig(BaseSettings):
     )
 
     API_KEY: str = ""
-    BASE_URL: str = "https://api.openai.com/v1"
-    MODEL: str = ""
+    BASE_URL: str = config_value("models.openai", "BASE_URL", "https://api.openai.com/v1")
+    MODEL: str = config_value("models.openai", "MODEL", "")
 
 
 class OpenAIResponsesConfig(BaseSettings):
@@ -29,8 +30,8 @@ class OpenAIResponsesConfig(BaseSettings):
     )
 
     API_KEY: str = ""
-    BASE_URL: str = "https://api.openai.com/v1"
-    MODEL: str = ""
+    BASE_URL: str = config_value("models.openai_responses", "BASE_URL", "https://api.openai.com/v1")
+    MODEL: str = config_value("models.openai_responses", "MODEL", "")
 
 
 class AnthropicConfig(BaseSettings):
@@ -44,8 +45,8 @@ class AnthropicConfig(BaseSettings):
     )
 
     API_KEY: str = ""
-    BASE_URL: str = "https://api.anthropic.com/v1"
-    MODEL: str = ""
+    BASE_URL: str = config_value("models.anthropic", "BASE_URL", "https://api.anthropic.com/v1")
+    MODEL: str = config_value("models.anthropic", "MODEL", "")
 
 
 class GeminiConfig(BaseSettings):
@@ -59,8 +60,8 @@ class GeminiConfig(BaseSettings):
     )
 
     API_KEY: str = ""
-    BASE_URL: str = "https://generativelanguage.googleapis.com/v1"
-    MODEL: str = ""
+    BASE_URL: str = config_value("models.gemini", "BASE_URL", "https://generativelanguage.googleapis.com/v1")
+    MODEL: str = config_value("models.gemini", "MODEL", "")
 
 
 class ModelConfigs:

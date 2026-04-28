@@ -16,6 +16,7 @@ htmlcov/
 logs/
 cache/
 data/
+config/local.toml
 .agents/workspaces/
 .idea/
 .vscode/
