@@ -1,6 +1,6 @@
 # Agent Runtime Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Historical implementation plan. The canonical architecture now lives in `README.md` and `docs/architecture.md`.
 
 **Goal:** Implement a fresh multi-provider tool-calling agent runtime with CLI and FastAPI/SSE interfaces.
 
@@ -26,9 +26,9 @@
 ### Task 2: Tool Registry, MCP, and Skills
 
 **Files:**
-- Create: `agent/tools/registry.py`
-- Create: `agent/tools/mcp.py`
-- Create: `agent/skills.py`
+- Create: `agent/capabilities/tools/registry.py`
+- Create: `agent/capabilities/tools/mcp.py`
+- Create: `agent/capabilities/skills/__init__.py`
 - Create: `tests/test_agent_tools.py`
 
 - [ ] Write tests for function tool registration, duplicate rejection, parallel execution ordering, MCP tool loading with fake client, and skill manifest loading.

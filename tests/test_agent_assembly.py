@@ -13,7 +13,7 @@ import json
 
 from agent.assembly import create_agent_session, create_agent_session_async
 from agent.config import resolve_model_client_config
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 
 
 class FakeModelConfig:

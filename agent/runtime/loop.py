@@ -22,7 +22,7 @@ from agent.runtime.state import RuntimeState
 from agent.runtime.turns import ModelTurnRunner, ToolOrchestrator
 from agent.runtime.types import AgentResult, ModelClientProtocol
 from agent.schema import Message, ModelResponse, RuntimeEvent, ToolCall
-from agent.tools.registry import ToolRegistry
+from agent.capabilities.tools.registry import ToolRegistry
 
 
 @dataclass(frozen=True)

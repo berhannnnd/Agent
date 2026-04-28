@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 
 from agent.schema import ToolCall
-from agent.skills import SkillLoader, SkillRegistry
-from agent.tools.mcp import MCPServerConfig, MCPToolDefinition, MCPToolProvider
-from agent.tools.registry import ToolRegistry
+from agent.capabilities.skills import SkillLoader, SkillRegistry
+from agent.capabilities.tools.mcp import MCPServerConfig, MCPToolDefinition, MCPToolProvider
+from agent.capabilities.tools.registry import ToolRegistry
 
 
 def test_tool_registry_registers_specs_and_rejects_duplicates():

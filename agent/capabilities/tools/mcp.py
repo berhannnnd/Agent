@@ -16,7 +16,7 @@ import shutil
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Protocol
 
-from agent.tools.registry import ToolRegistry
+from agent.capabilities.tools.registry import ToolRegistry
 
 
 @dataclass(frozen=True)

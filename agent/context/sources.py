@@ -4,7 +4,7 @@ from typing import Iterable, List
 
 from agent.context.pack import ContextFragment, ContextLayer, ContextPack, ContextScope
 from agent.context.workspace import WorkspaceContext
-from agent.skills import SkillRegistry
+from agent.capabilities.skills import SkillRegistry
 
 
 def build_context_pack(
@@ -104,7 +104,7 @@ def _tool_hint_fragments(enabled_tools: Iterable[str]) -> List[ContextFragment]:
             id="tools.enabled",
             layer=ContextLayer.TOOL_HINTS,
             text="Enabled tools for this session: %s." % ", ".join(names),
-            source="agent.integrations",
+            source="agent.capabilities",
             priority=40,
             scope=ContextScope.TOOL,
         )

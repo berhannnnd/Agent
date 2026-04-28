@@ -4,7 +4,7 @@ from typing import List
 
 from agent.runtime.config import RuntimeConfig
 from agent.schema import Message, ModelRequest
-from agent.tools.registry import ToolRegistry
+from agent.capabilities.tools.registry import ToolRegistry
 
 
 class ModelRequestCompiler:

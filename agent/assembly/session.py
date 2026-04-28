@@ -6,15 +6,15 @@ from typing import Any, Optional
 from agent.config import resolve_model_client_config
 from agent.context.builder import ContextBuilder
 from agent.context.sources import build_context_pack
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 from agent.hooks import AgentHooks, hooks_from_settings
-from agent.integrations import load_configured_mcp, load_configured_skills, resolve_active_tools
+from agent.capabilities import load_configured_mcp, load_configured_skills, resolve_active_tools
 from agent.models import ModelClient
 from agent.runtime import AgentRuntime, AgentSession
 from agent.runtime.checkpoints import CheckpointStore
 from agent.governance import build_tool_permission_policy
 from agent.state.workspaces.factory import resolve_workspace
-from agent.tools.registry import ToolRegistry
+from agent.capabilities.tools.registry import ToolRegistry
 
 
 async def create_agent_session_async(

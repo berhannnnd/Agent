@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, List, Optional
 
-from agent.definitions.permissions import ToolPermissionSpec
+from agent.specs.permissions import ToolPermissionSpec
 
 
 @dataclass(frozen=True)

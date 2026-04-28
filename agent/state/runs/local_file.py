@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 from agent.state.runs.types import RunRecord, RunStatus
 from agent.schema import RuntimeEvent
 

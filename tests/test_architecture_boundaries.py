@@ -9,7 +9,7 @@ def test_top_level_packages_define_runtime_gateway_and_cli_boundaries():
 
 def test_agent_system_exposes_future_multi_agent_boundaries():
     assert importlib.util.find_spec("agent.orchestration") is not None
-    assert importlib.util.find_spec("agent.memory") is not None
+    assert importlib.util.find_spec("agent.capabilities.memory") is not None
     assert importlib.util.find_spec("agent.workflows") is not None
     assert importlib.util.find_spec("agent.context") is not None
     assert importlib.util.find_spec("agent.state") is not None
@@ -21,18 +21,26 @@ def test_agent_system_exposes_future_multi_agent_boundaries():
     assert importlib.util.find_spec("agent.governance.tracing") is not None
     assert importlib.util.find_spec("agent.models") is not None
     assert importlib.util.find_spec("agent.config") is not None
-    assert importlib.util.find_spec("agent.definitions") is not None
+    assert importlib.util.find_spec("agent.specs") is not None
     assert importlib.util.find_spec("agent.state.agents") is not None
-    assert importlib.util.find_spec("agent.integrations") is not None
+    assert importlib.util.find_spec("agent.capabilities") is not None
+    assert importlib.util.find_spec("agent.capabilities.memory") is not None
+    assert importlib.util.find_spec("agent.capabilities.skills") is not None
+    assert importlib.util.find_spec("agent.capabilities.tools") is not None
     assert importlib.util.find_spec("agent.assembly") is not None
     assert importlib.util.find_spec("agent.state.runs") is not None
     assert importlib.util.find_spec("agent.persistence") is not None
     assert importlib.util.find_spec("agent.state.identity") is not None
+    assert importlib.util.find_spec("agent.definitions") is None
+    assert importlib.util.find_spec("agent.integrations") is None
     assert importlib.util.find_spec("agent.audit") is None
     assert importlib.util.find_spec("agent.identity") is None
+    assert importlib.util.find_spec("agent.memory") is None
     assert importlib.util.find_spec("agent.runs") is None
     assert importlib.util.find_spec("agent.security") is None
+    assert importlib.util.find_spec("agent.skills") is None
     assert importlib.util.find_spec("agent.storage") is None
+    assert importlib.util.find_spec("agent.tools") is None
     assert importlib.util.find_spec("agent.tracing") is None
 
 

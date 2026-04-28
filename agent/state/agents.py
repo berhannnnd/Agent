@@ -4,7 +4,7 @@ import time
 from dataclasses import dataclass, field, replace
 from typing import Dict, List, Optional, Protocol, Tuple
 
-from agent.definitions.spec import AgentSpec
+from agent.specs.spec import AgentSpec
 from agent.persistence import SQLiteDatabase, json_dict, json_dumps
 
 

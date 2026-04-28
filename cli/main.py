@@ -18,7 +18,7 @@ import typer
 
 from agent.assembly import create_agent_session as _create_agent_session
 from agent.config import AgentConfigError
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 from gateway.core.config import settings
 
 client = typer.Typer(rich_markup_mode="rich")

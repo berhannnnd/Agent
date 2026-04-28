@@ -30,9 +30,9 @@ def __getattr__(name):
 
         return AgentConfigError
     if name in {"AgentModelSpec", "AgentSpec", "WorkspaceRef"}:
-        from agent import definitions
+        from agent import specs
 
-        return getattr(definitions, name)
+        return getattr(specs, name)
     if name in {"AgentRuntime", "AgentSession"}:
         from agent import runtime
 

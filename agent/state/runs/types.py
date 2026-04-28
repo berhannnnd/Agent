@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Any, List, Optional, Protocol
 from uuid import uuid4
 
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 from agent.schema import RuntimeEvent
 
 

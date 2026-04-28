@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 from agent.state.runs import InMemoryRunStore, RunRecord, RunStatus, RunStore
 from agent.schema import RuntimeEvent
 from agent.governance.tracing import InMemoryTraceStore, RuntimeTraceRecorder

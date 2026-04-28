@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable, List, Optional
 
-from agent.skills import SkillLoader, SkillRegistry
+from agent.capabilities.skills import SkillLoader, SkillRegistry
 
 
 def load_configured_skills(settings: Any, skill_names: Optional[Iterable[str]] = None) -> SkillRegistry:

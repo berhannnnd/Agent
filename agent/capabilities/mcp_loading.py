@@ -3,8 +3,8 @@ from __future__ import annotations
 import shlex
 from typing import Any
 
-from agent.tools.mcp import MCPServerConfig, MCPStdioClient, MCPToolProvider
-from agent.tools.registry import ToolRegistry
+from agent.capabilities.tools.mcp import MCPServerConfig, MCPStdioClient, MCPToolProvider
+from agent.capabilities.tools.registry import ToolRegistry
 
 
 async def load_configured_mcp(settings: Any, registry: ToolRegistry) -> None:

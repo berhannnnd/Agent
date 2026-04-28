@@ -1,4 +1,4 @@
-from agent.memory.store import (
+from agent.capabilities.memory.store import (
     InMemoryMemoryStore,
     MemoryRecord,
     MemoryScope,

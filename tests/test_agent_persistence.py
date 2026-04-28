@@ -1,9 +1,9 @@
 import asyncio
 
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 from agent.governance.audit import ApprovalAuditRecord, SQLiteApprovalAuditStore
 from agent.state.identity import SQLiteIdentityStore, TenantRecord, UserRecord
-from agent.memory import MemoryRecord, MemoryScope, SQLiteMemoryStore
+from agent.capabilities.memory import MemoryRecord, MemoryScope, SQLiteMemoryStore
 from agent.persistence import SQLiteDatabase
 from agent.state.runs import RunStatus, SQLiteRunStore
 from agent.runtime import RuntimeCheckpoint, SQLiteCheckpointStore

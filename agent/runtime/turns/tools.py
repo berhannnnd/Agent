@@ -8,7 +8,7 @@ from agent.hooks import AgentHooks
 from agent.governance.permissions import AllowAllToolPermissionPolicy, ToolPermissionDecision, ToolPermissionPolicy
 from agent.runtime.events import tool_result_event
 from agent.schema import Message, RuntimeEvent, ToolCall, ToolResult
-from agent.tools.registry import ToolRegistry
+from agent.capabilities.tools.registry import ToolRegistry
 
 
 @dataclass(frozen=True)

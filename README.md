@@ -12,7 +12,7 @@ gateway -> agent
 agent   -> no gateway, FastAPI, or UI dependency
 ```
 
-`agent/` is the core SDK/kernel. It defines agents, model protocols, context assembly, tools, permissions, runtime loops, checkpoints, run records, workspaces, skills, and MCP integration.
+`agent/` is the core SDK/kernel. It defines agent specs, model protocols, context assembly, capabilities, governance, runtime loops, checkpoints, run records, workspaces, skills, memory, and MCP integration.
 
 `gateway/` is the service adapter. It exposes the agent core over HTTP/SSE, owns request/response schemas, service concurrency, run lifecycle tracking, and future auth/session persistence.
 
@@ -25,7 +25,7 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Agent runtime with tool-call loop, streaming, hook points, checkpoint/resume support, and max-iteration guard.
 - Context system with layered fragments: system, runtime policy, workspace instructions, skills, memory, tool hints, task context.
 - Tool registry with concurrent execution, timeout handling, error-to-tool-result conversion, and MCP stdio loading.
-- `AgentSpec` definition layer for model overrides, enabled tools, skills, workspace scope, tool permissions, memory profile, and metadata.
+- `AgentSpec` spec layer for model overrides, enabled tools, skills, workspace scope, tool permissions, memory profile, and metadata.
 - Tool approval flow with `auto`, `ask`, and `deny` modes, checkpoint-backed pause/resume, run status `awaiting_approval`, and web Approve/Deny controls.
 - Workspace isolation under `tenant_id / user_id / agent_id / workspace_id`.
 - Run tracking through `RunStore`, backed by memory, local JSON files, or SQLite.
@@ -39,20 +39,17 @@ agent   -> no gateway, FastAPI, or UI dependency
 ```text
 agent/
   assembly/       Build AgentSession from settings + AgentSpec
+  capabilities/   Tools, skills, MCP loading, and memory capability APIs
   config/         Model/provider config resolution
   context/        ContextPack, ContextBuilder, windowing, request compilation
-  definitions/    AgentSpec, model/workspace/permission definitions
   governance/     Permissions, credentials, audit, tracing
   hooks/          Runtime hooks and hook composition
-  integrations/   Skills and MCP loading
-  memory/         MemoryRecord and memory stores
   models/         ModelClient, adapters, protocol, transports, retry, errors
   orchestration/  Future multi-agent planner/router/supervisor boundary
   persistence/    Shared local persistence primitives
   runtime/        Agent loop, session, state, events, turns, checkpoints
-  skills/         Skill manifest and prompt fragment loading
+  specs/          AgentSpec, model/workspace/permission specs
   state/          Runs, identity, agent profiles, workspace records
-  tools/          ToolRegistry and MCP tool provider
   workflows/      Future workflow/DAG boundary
   schema.py       Core message/tool/model/runtime data types
 
@@ -289,7 +286,7 @@ make dev-web
 - Put agent logic in `agent/`, not in `gateway/`, `cli/`, or `web/`.
 - Put HTTP/session/auth protocol code in `gateway/`.
 - Add model providers under `agent/models/adapters/`; keep shared stream semantics in `agent/models/protocol/`.
-- Add tools under `agent/tools/` or load them through MCP.
+- Add tools under `agent/capabilities/tools/` or load them through MCP.
 - Add new context sources through `agent/context/sources.py`.
 - Add new run persistence backends by implementing `agent.state.runs.RunStore`; checkpoint, trace, and approval audit storage should stay behind their own store interfaces. Gateway should only choose and call adapters.
 - Add identity/auth from gateway login state later; do not trust user-supplied `tenant_id` or `user_id` in cloud mode.

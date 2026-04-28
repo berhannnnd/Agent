@@ -21,7 +21,7 @@ from agent.runtime import (
     StaticToolPermissionPolicy,
 )
 from agent.schema import Message, ModelResponse, ModelStreamEvent, ToolCall
-from agent.tools.registry import ToolRegistry
+from agent.capabilities.tools.registry import ToolRegistry
 
 
 def test_agent_runtime_runs_model_tool_model_loop():

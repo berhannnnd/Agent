@@ -8,7 +8,7 @@ from agent.governance.audit import (
     InMemoryApprovalAuditStore,
     SQLiteApprovalAuditStore,
 )
-from agent.memory import InMemoryMemoryStore, MemoryStore, SQLiteMemoryStore
+from agent.capabilities.memory import InMemoryMemoryStore, MemoryStore, SQLiteMemoryStore
 from agent.persistence import SQLiteDatabase, resolve_database_path
 from agent.runtime import CheckpointStore, InMemoryCheckpointStore, SQLiteCheckpointStore
 from agent.governance import CredentialRefStore, InMemoryCredentialRefStore, SQLiteCredentialRefStore

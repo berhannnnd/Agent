@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from agent.governance.audit import ApprovalAuditStore
-from agent.memory import MemoryStore
+from agent.capabilities.memory import MemoryStore
 from agent.runtime import CheckpointStore
 from agent.governance import CredentialRefStore
 from agent.state import AgentProfileStore, IdentityStore, RunStore, WorkspaceStore

@@ -1,8 +1,8 @@
 import asyncio
 
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 from agent.state.identity import TenantRecord, UserRecord
-from agent.memory import MemoryRecord, MemoryScope
+from agent.capabilities.memory import MemoryRecord, MemoryScope
 from agent.state.runs import RunStatus
 from agent.runtime import RuntimeCheckpoint
 from agent.schema import RuntimeEvent

@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 
 from pydantic import Field
 
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 from gateway.shared.server.schemas.base_models import AppSchema
 
 

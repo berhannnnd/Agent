@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from gateway.api.agent import api_agent
 from gateway.api.agent.schemas import AgentChatRequest
 from gateway.app import create_app
-from agent.definitions import AgentSpec
+from agent.specs import AgentSpec
 from agent.runtime import AgentResult, InMemoryCheckpointStore, RuntimeCheckpoint
 from agent.schema import Message, RuntimeEvent, ToolCall
 
