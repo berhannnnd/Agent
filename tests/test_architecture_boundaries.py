@@ -12,21 +12,28 @@ def test_agent_system_exposes_future_multi_agent_boundaries():
     assert importlib.util.find_spec("agent.memory") is not None
     assert importlib.util.find_spec("agent.workflows") is not None
     assert importlib.util.find_spec("agent.context") is not None
-    assert importlib.util.find_spec("agent.storage") is not None
-    assert importlib.util.find_spec("agent.storage.metadata") is not None
-    assert importlib.util.find_spec("agent.security") is not None
-    assert importlib.util.find_spec("agent.security.credentials") is not None
-    assert importlib.util.find_spec("agent.audit") is not None
-    assert importlib.util.find_spec("agent.tracing") is not None
+    assert importlib.util.find_spec("agent.state") is not None
+    assert importlib.util.find_spec("agent.state.workspaces") is not None
+    assert importlib.util.find_spec("agent.state.workspaces.metadata") is not None
+    assert importlib.util.find_spec("agent.governance") is not None
+    assert importlib.util.find_spec("agent.governance.credentials") is not None
+    assert importlib.util.find_spec("agent.governance.audit") is not None
+    assert importlib.util.find_spec("agent.governance.tracing") is not None
     assert importlib.util.find_spec("agent.models") is not None
     assert importlib.util.find_spec("agent.config") is not None
     assert importlib.util.find_spec("agent.definitions") is not None
-    assert importlib.util.find_spec("agent.definitions.profiles") is not None
+    assert importlib.util.find_spec("agent.state.agents") is not None
     assert importlib.util.find_spec("agent.integrations") is not None
     assert importlib.util.find_spec("agent.assembly") is not None
-    assert importlib.util.find_spec("agent.runs") is not None
+    assert importlib.util.find_spec("agent.state.runs") is not None
     assert importlib.util.find_spec("agent.persistence") is not None
-    assert importlib.util.find_spec("agent.identity") is not None
+    assert importlib.util.find_spec("agent.state.identity") is not None
+    assert importlib.util.find_spec("agent.audit") is None
+    assert importlib.util.find_spec("agent.identity") is None
+    assert importlib.util.find_spec("agent.runs") is None
+    assert importlib.util.find_spec("agent.security") is None
+    assert importlib.util.find_spec("agent.storage") is None
+    assert importlib.util.find_spec("agent.tracing") is None
 
 
 def test_agent_runtime_is_split_into_explicit_kernel_modules():
@@ -37,7 +44,7 @@ def test_agent_runtime_is_split_into_explicit_kernel_modules():
     assert importlib.util.find_spec("agent.runtime.turns") is not None
     assert importlib.util.find_spec("agent.runtime.turns.model") is not None
     assert importlib.util.find_spec("agent.runtime.turns.tools") is not None
-    assert importlib.util.find_spec("agent.security.permissions") is not None
+    assert importlib.util.find_spec("agent.governance.permissions") is not None
     assert importlib.util.find_spec("agent.runtime.checkpoints") is not None
     assert importlib.util.find_spec("agent.runtime.state") is not None
 

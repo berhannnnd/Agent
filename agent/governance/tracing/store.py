@@ -4,7 +4,7 @@ import json
 from typing import Dict, List, Optional
 
 from agent.persistence import SQLiteDatabase
-from agent.tracing.types import TraceSpan, TraceStatus
+from agent.governance.tracing.types import TraceSpan, TraceStatus
 
 
 class NullTraceStore:

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from agent.runs import RunRecord
+from agent.state.runs import RunRecord
 from agent.schema import RuntimeEvent
-from agent.tracing.types import TraceSpan, TraceStatus, TraceStore
+from agent.governance.tracing.types import TraceSpan, TraceStatus, TraceStore
 
 
 class RuntimeTraceRecorder:

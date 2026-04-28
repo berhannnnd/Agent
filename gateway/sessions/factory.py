@@ -3,20 +3,31 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from agent.audit import (
+from agent.governance.audit import (
     ApprovalAuditStore,
     InMemoryApprovalAuditStore,
     SQLiteApprovalAuditStore,
 )
-from agent.definitions import AgentProfileStore, InMemoryAgentProfileStore, SQLiteAgentProfileStore
-from agent.identity import IdentityStore, InMemoryIdentityStore, SQLiteIdentityStore
 from agent.memory import InMemoryMemoryStore, MemoryStore, SQLiteMemoryStore
 from agent.persistence import SQLiteDatabase, resolve_database_path
-from agent.runs import InMemoryRunStore, LocalFileRunStore, RunStore, SQLiteRunStore
 from agent.runtime import CheckpointStore, InMemoryCheckpointStore, SQLiteCheckpointStore
-from agent.security import CredentialRefStore, InMemoryCredentialRefStore, SQLiteCredentialRefStore
-from agent.storage import InMemoryWorkspaceStore, SQLiteWorkspaceStore, WorkspaceStore
-from agent.tracing import InMemoryTraceStore, RuntimeTraceRecorder, SQLiteTraceStore, TraceStore
+from agent.governance import CredentialRefStore, InMemoryCredentialRefStore, SQLiteCredentialRefStore
+from agent.state import (
+    AgentProfileStore,
+    IdentityStore,
+    InMemoryAgentProfileStore,
+    InMemoryIdentityStore,
+    InMemoryRunStore,
+    InMemoryWorkspaceStore,
+    LocalFileRunStore,
+    RunStore,
+    SQLiteAgentProfileStore,
+    SQLiteIdentityStore,
+    SQLiteRunStore,
+    SQLiteWorkspaceStore,
+    WorkspaceStore,
+)
+from agent.governance.tracing import InMemoryTraceStore, RuntimeTraceRecorder, SQLiteTraceStore, TraceStore
 
 
 def create_run_store(settings: Any) -> RunStore:

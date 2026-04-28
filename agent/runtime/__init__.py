@@ -8,7 +8,7 @@ from agent.runtime.checkpoints import (
 )
 from agent.runtime.errors import AgentRuntimeError
 from agent.runtime.loop import AgentRuntime
-from agent.security.permissions import (
+from agent.governance.permissions import (
     AllowAllToolPermissionPolicy,
     CallbackToolPermissionPolicy,
     DenyAllToolPermissionPolicy,

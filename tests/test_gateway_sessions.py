@@ -1,14 +1,15 @@
 import asyncio
 
-from agent.definitions import AgentProfile, AgentSpec
-from agent.identity import TenantRecord, UserRecord
+from agent.definitions import AgentSpec
+from agent.state.identity import TenantRecord, UserRecord
 from agent.memory import MemoryRecord, MemoryScope
-from agent.runs import RunStatus
+from agent.state.runs import RunStatus
 from agent.runtime import RuntimeCheckpoint
 from agent.schema import RuntimeEvent
-from agent.security import CredentialRef
-from agent.storage import WorkspaceRecord
-from agent.tracing import InMemoryTraceStore, RuntimeTraceRecorder, TraceStatus
+from agent.governance import CredentialRef
+from agent.state import AgentProfile
+from agent.state.workspaces import WorkspaceRecord
+from agent.governance.tracing import InMemoryTraceStore, RuntimeTraceRecorder, TraceStatus
 from gateway.services import create_gateway_persistence
 from gateway.sessions import GatewayRunService, create_checkpoint_store, create_run_store
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from agent.definitions import AgentSpec
-from agent.security.permissions import (
+from agent.governance.permissions import (
     DenyAllToolPermissionPolicy,
     StaticToolPermissionPolicy,
     ToolPermissionPolicy,

@@ -12,8 +12,8 @@ from agent.integrations import load_configured_mcp, load_configured_skills, reso
 from agent.models import ModelClient
 from agent.runtime import AgentRuntime, AgentSession
 from agent.runtime.checkpoints import CheckpointStore
-from agent.security import build_tool_permission_policy
-from agent.storage.factory import resolve_workspace
+from agent.governance import build_tool_permission_policy
+from agent.state.workspaces.factory import resolve_workspace
 from agent.tools.registry import ToolRegistry
 
 

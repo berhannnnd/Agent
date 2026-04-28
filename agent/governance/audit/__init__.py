@@ -1,4 +1,4 @@
-from agent.audit.approvals import (
+from agent.governance.audit.approvals import (
     ApprovalAuditRecord,
     ApprovalAuditStore,
     InMemoryApprovalAuditStore,

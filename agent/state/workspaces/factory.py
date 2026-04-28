@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from agent.storage.workspaces import LocalWorkspaceStore
+from agent.state.workspaces.workspaces import LocalWorkspaceStore
 
 
 def resolve_workspace(

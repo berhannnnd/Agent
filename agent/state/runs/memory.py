@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Dict, Optional
 
 from agent.definitions import AgentSpec
-from agent.runs.types import RunRecord, RunStatus
+from agent.state.runs.types import RunRecord, RunStatus
 from agent.schema import RuntimeEvent
 
 

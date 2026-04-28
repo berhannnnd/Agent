@@ -17,7 +17,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from agent.assembly import create_agent_session_async as _create_agent_session_async
-from agent.audit import ApprovalAuditRecord
+from agent.governance.audit import ApprovalAuditRecord
 from agent.config import AgentConfigError
 from agent.schema import RuntimeEvent
 from gateway.api.agent.schemas import AgentChatRequest, RunApprovalRequest

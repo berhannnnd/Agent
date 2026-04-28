@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from agent.definitions import AgentSpec
-from agent.runs.types import RunRecord, RunStatus
+from agent.state.runs.types import RunRecord, RunStatus
 from agent.schema import RuntimeEvent
 
 

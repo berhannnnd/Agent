@@ -6,7 +6,7 @@ from typing import Optional
 
 from agent.definitions import AgentSpec
 from agent.persistence import SQLiteDatabase
-from agent.runs.types import RunRecord, RunStatus
+from agent.state.runs.types import RunRecord, RunStatus
 from agent.schema import RuntimeEvent
 
 

@@ -1,16 +1,17 @@
 import asyncio
 
-from agent.definitions import AgentProfile, AgentSpec, SQLiteAgentProfileStore
-from agent.audit import ApprovalAuditRecord, SQLiteApprovalAuditStore
-from agent.identity import SQLiteIdentityStore, TenantRecord, UserRecord
+from agent.definitions import AgentSpec
+from agent.governance.audit import ApprovalAuditRecord, SQLiteApprovalAuditStore
+from agent.state.identity import SQLiteIdentityStore, TenantRecord, UserRecord
 from agent.memory import MemoryRecord, MemoryScope, SQLiteMemoryStore
 from agent.persistence import SQLiteDatabase
-from agent.runs import RunStatus, SQLiteRunStore
+from agent.state.runs import RunStatus, SQLiteRunStore
 from agent.runtime import RuntimeCheckpoint, SQLiteCheckpointStore
 from agent.schema import Message, RuntimeEvent, ToolCall
-from agent.security import CredentialRef, SQLiteCredentialRefStore
-from agent.storage import SQLiteWorkspaceStore, WorkspaceRecord
-from agent.tracing import SQLiteTraceStore, TraceSpan, TraceStatus
+from agent.governance import CredentialRef, SQLiteCredentialRefStore
+from agent.state import AgentProfile, SQLiteAgentProfileStore
+from agent.state.workspaces import SQLiteWorkspaceStore, WorkspaceRecord
+from agent.governance.tracing import SQLiteTraceStore, TraceSpan, TraceStatus
 
 
 def test_sqlite_run_store_persists_records_and_events(tmp_path):

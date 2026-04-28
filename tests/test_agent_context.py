@@ -1,5 +1,5 @@
 from agent.context import ContextBuilder, ContextFragment, ContextLayer, ContextPack, ContextScope
-from agent.storage import LocalWorkspaceStore
+from agent.state.workspaces import LocalWorkspaceStore
 
 
 def test_context_builder_orders_layers_and_records_trace():

@@ -31,7 +31,7 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Run tracking through `RunStore`, backed by memory, local JSON files, or SQLite.
 - SQLite persistence for run records, runtime events, checkpoints, approval audit, and trace spans.
 - Long-term data stores for tenants/users, agent profiles, workspace records, memories, and credential references.
-- Traceable run timelines through `agent.tracing`, with separate approval audit records through `agent.audit`.
+- Traceable run timelines through `agent.governance.tracing`, with separate approval audit records through `agent.governance.audit`.
 - Gateway chat APIs return `run_id`; streaming emits a `run_created` event before model/tool events.
 
 ## Repository Layout
@@ -39,24 +39,20 @@ agent   -> no gateway, FastAPI, or UI dependency
 ```text
 agent/
   assembly/       Build AgentSession from settings + AgentSpec
-  audit/          Approval audit records and audit stores
   config/         Model/provider config resolution
   context/        ContextPack, ContextBuilder, windowing, request compilation
-  definitions/    AgentSpec, AgentProfile, model/workspace/permission definitions
+  definitions/    AgentSpec, model/workspace/permission definitions
+  governance/     Permissions, credentials, audit, tracing
   hooks/          Runtime hooks and hook composition
-  identity/       Tenant/user/agent identity references and identity stores
   integrations/   Skills and MCP loading
   memory/         MemoryRecord and memory stores
   models/         ModelClient, adapters, protocol, transports, retry, errors
   orchestration/  Future multi-agent planner/router/supervisor boundary
   persistence/    Shared local persistence primitives
-  runs/           RunRecord, RunStore, memory/file/sqlite stores
   runtime/        Agent loop, session, state, events, turns, checkpoints
-  security/       Tool permission rules, credential refs, future safety boundaries
   skills/         Skill manifest and prompt fragment loading
-  storage/        Workspace allocation and workspace records
+  state/          Runs, identity, agent profiles, workspace records
   tools/          ToolRegistry and MCP tool provider
-  tracing/        Run/tool/model/approval trace spans
   workflows/      Future workflow/DAG boundary
   schema.py       Core message/tool/model/runtime data types
 
@@ -295,5 +291,5 @@ make dev-web
 - Add model providers under `agent/models/adapters/`; keep shared stream semantics in `agent/models/protocol/`.
 - Add tools under `agent/tools/` or load them through MCP.
 - Add new context sources through `agent/context/sources.py`.
-- Add new run persistence backends by implementing `agent.runs.RunStore`; checkpoint, trace, and approval audit storage should stay behind their own store interfaces. Gateway should only choose and call adapters.
+- Add new run persistence backends by implementing `agent.state.runs.RunStore`; checkpoint, trace, and approval audit storage should stay behind their own store interfaces. Gateway should only choose and call adapters.
 - Add identity/auth from gateway login state later; do not trust user-supplied `tenant_id` or `user_id` in cloud mode.

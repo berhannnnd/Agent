@@ -16,7 +16,7 @@ from agent.runtime.events import (
     tool_approval_required_event,
     tool_start_event,
 )
-from agent.security.permissions import ToolPermissionDecision, ToolPermissionPolicy
+from agent.governance.permissions import ToolPermissionDecision, ToolPermissionPolicy
 from agent.context.compiler import ModelRequestCompiler
 from agent.runtime.state import RuntimeState
 from agent.runtime.turns import ModelTurnRunner, ToolOrchestrator

@@ -1,5 +1,5 @@
-from agent.identity.principal import AgentRef, Principal, TenantRef, UserRef
-from agent.identity.store import (
+from agent.state.identity.principal import AgentRef, Principal, TenantRef, UserRef
+from agent.state.identity.store import (
     IdentityStore,
     InMemoryIdentityStore,
     SQLiteIdentityStore,

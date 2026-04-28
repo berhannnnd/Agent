@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Iterable, List
 
 from agent.hooks import AgentHooks
-from agent.security.permissions import AllowAllToolPermissionPolicy, ToolPermissionDecision, ToolPermissionPolicy
+from agent.governance.permissions import AllowAllToolPermissionPolicy, ToolPermissionDecision, ToolPermissionPolicy
 from agent.runtime.events import tool_result_event
 from agent.schema import Message, RuntimeEvent, ToolCall, ToolResult
 from agent.tools.registry import ToolRegistry

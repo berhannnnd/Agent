@@ -1,11 +1,11 @@
-from agent.storage.factory import resolve_workspace
-from agent.storage.metadata import (
+from agent.state.workspaces.factory import resolve_workspace
+from agent.state.workspaces.metadata import (
     InMemoryWorkspaceStore,
     SQLiteWorkspaceStore,
     WorkspaceRecord,
     WorkspaceStore,
 )
-from agent.storage.workspaces import LocalWorkspaceStore
+from agent.state.workspaces.workspaces import LocalWorkspaceStore
 
 __all__ = [
     "InMemoryWorkspaceStore",

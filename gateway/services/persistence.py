@@ -3,15 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from agent.audit import ApprovalAuditStore
-from agent.definitions import AgentProfileStore
-from agent.identity import IdentityStore
+from agent.governance.audit import ApprovalAuditStore
 from agent.memory import MemoryStore
-from agent.runs import RunStore
 from agent.runtime import CheckpointStore
-from agent.security import CredentialRefStore
-from agent.storage import WorkspaceStore
-from agent.tracing import TraceStore
+from agent.governance import CredentialRefStore
+from agent.state import AgentProfileStore, IdentityStore, RunStore, WorkspaceStore
+from agent.governance.tracing import TraceStore
 from gateway.sessions import (
     create_agent_profile_store,
     create_approval_audit_store,

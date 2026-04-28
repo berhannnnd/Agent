@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from agent.schema import ModelResponse, RuntimeEvent, ToolCall, ToolResult
-from agent.security.permissions import ToolPermissionDecision
+from agent.governance.permissions import ToolPermissionDecision
 
 
 def model_message_event(response: ModelResponse) -> RuntimeEvent:

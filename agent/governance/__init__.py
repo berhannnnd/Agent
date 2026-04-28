@@ -1,10 +1,11 @@
-from agent.security.credentials import (
+from agent.governance.credentials import (
     CredentialRef,
     CredentialRefStore,
     InMemoryCredentialRefStore,
     SQLiteCredentialRefStore,
 )
-from agent.security.permissions import (
+from agent.governance.factory import build_tool_permission_policy
+from agent.governance.permissions import (
     AllowAllToolPermissionPolicy,
     CallbackToolPermissionPolicy,
     DenyAllToolPermissionPolicy,
@@ -12,7 +13,6 @@ from agent.security.permissions import (
     ToolPermissionDecision,
     ToolPermissionPolicy,
 )
-from agent.security.factory import build_tool_permission_policy
 
 __all__ = [
     "AllowAllToolPermissionPolicy",
