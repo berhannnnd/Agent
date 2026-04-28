@@ -212,6 +212,36 @@ CREATE TABLE IF NOT EXISTS task_attempts (
 CREATE INDEX IF NOT EXISTS idx_task_attempts_step
 ON task_attempts(step_id, started_at);
 
+CREATE TABLE IF NOT EXISTS sandbox_leases (
+    lease_id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    tenant_id TEXT NOT NULL DEFAULT '',
+    user_id TEXT NOT NULL DEFAULT '',
+    agent_id TEXT NOT NULL DEFAULT '',
+    workspace_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    profile_json TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    expires_at REAL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sandbox_leases_scope
+ON sandbox_leases(tenant_id, user_id, agent_id, workspace_id, created_at);
+
+CREATE TABLE IF NOT EXISTS sandbox_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lease_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    FOREIGN KEY(lease_id) REFERENCES sandbox_leases(lease_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_sandbox_events_lease
+ON sandbox_events(lease_id, created_at);
+
 CREATE TABLE IF NOT EXISTS credential_refs (
     credential_id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,

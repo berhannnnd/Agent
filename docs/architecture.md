@@ -17,6 +17,7 @@ graph TB
     Agent --> Capabilities["agent.capabilities 能力接入"]
     Agent --> Context["agent.context 上下文"]
     Agent --> Tools["agent.capabilities.tools / MCP"]
+    Capabilities --> SandboxExec["agent.capabilities.sandbox 执行租约"]
     Agent --> Hooks["agent.hooks"]
     Agent --> State["agent.state 状态域"]
     State --> StateRuns["runs 运行记录"]
@@ -47,6 +48,7 @@ graph TB
 - `agent.assembly`: SDK 装配入口。负责把 settings、模型配置、工具、skills、MCP、workspace、context 和 hooks 组装成 `AgentSession`，并提供 sync/async 两种入口。
 - `agent.config`: 配置解析边界。负责模型 provider fallback、API key/base URL/model/proxy 解析。
 - `agent.capabilities`: 能力域聚合包。收束 tools、skills、MCP 装配和 memory store，避免能力相关代码散落在 `agent` 顶层。
+- `agent.capabilities.sandbox`: 执行资源边界。定义 `SandboxClient`、local/Docker provider、lease record 和 event store。workspace 是持久化数据，sandbox 是工具执行租约。
 - `agent.runtime`: 智能体内核包。`loop` 负责单 Agent 执行循环，`turns.model` 负责单轮模型请求，`turns.tools` 负责工具执行边界，`state` 承载运行状态，`session` 负责会话历史，`checkpoints` 负责断点恢复存储协议。
 - `agent.models`: 模型协议包。`adapters` 负责 provider wire protocol，`protocol` 负责 provider-neutral stream 语义，`transports` 负责 HTTP/SSE，根层保留模型客户端、retry 和错误类型。
 - `agent.context`: 上下文系统。按 system、runtime policy、workspace instructions、skills、memory、tool hints 分层组织上下文，由 `ContextBuilder` 编译并输出 trace；`ModelRequestCompiler` 负责把 runtime state 转为模型请求。
@@ -62,7 +64,7 @@ graph TB
 - `agent.governance.security`: secret redaction 与 payload protection provider 协议；本地 base64 provider 只用于测试和开发，不是生产加密。
 - `agent.governance.audit`: 可追溯审计边界。记录需要长期留存和追责的用户/系统决策，当前包含 tool approval audit。
 - `agent.governance.tracing`: 运行链路追踪边界。记录 run/model/tool/approval span，用于调试、可观测性和用户可见时间线，不替代审计记录。
-- `agent.capabilities.tools`: 工具注册表、本地工具执行、MCP stdio 工具接入；`builtin` 提供 workspace-scoped filesystem/shell 基础工具。
+- `agent.capabilities.tools`: 工具注册表、builtin 工具和 MCP stdio 工具接入；`builtin` 只暴露语义工具，实际文件/搜索/命令/测试执行通过 `agent.capabilities.sandbox.SandboxClient` 进入 workspace。
 - `agent.hooks`: Runtime 扩展点，支持意图引导、thinking 提取、审批拦截和组合 hook。
 - `agent.capabilities.skills`: skill manifest、prompt fragment、工具名声明加载。
 - `agent.orchestration`: 多智能体 planner/router/supervisor 的归属边界。当前定义 agent roles、handoff decision 和 router 协议。
@@ -76,7 +78,7 @@ graph TB
 - `gateway.core`: settings、logger、middleware、exceptions。
 - `gateway.shared.server`: FastAPI 注册器、统一响应、请求 ID、server launcher。
 - `gateway.auth`: 鉴权授权边界。
-- `gateway.services`: 跨 API 的服务容器边界。当前提供 `GatewayPersistence`，统一创建 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential/task stores。
+- `gateway.services`: 跨 API 的服务容器边界。当前提供 `GatewayPersistence`，统一创建 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential/task/sandbox stores。
 - `gateway.sessions`: HTTP run/session 生命周期边界。当前负责创建 run、记录 runtime events、标记 running/awaiting_approval/finished/error，并按配置选择 memory/file/sqlite stores。
 - `gateway.streaming`: SSE 和 future WebSocket 协议边界。
 - `gateway.engines`: 可注册引擎的生命周期管理边界。
@@ -90,22 +92,23 @@ graph TB
 4. `gateway.api` 将 `AgentSpec` 传给 `agent.assembly.create_agent_session_async()`；CLI 使用同步 `create_agent_session()`。
 5. `agent.config` 解析模型配置；`agent.assembly` 创建 `ModelClient`、`ToolRegistry` 和 hooks。
 6. `agent.capabilities` 装配 skills/MCP；`agent.state.workspaces` 根据 `AgentSpec.workspace` 解析 workspace。
-7. `agent.context` 把 system prompt、runtime policy、workspace instructions、skills、tool hints 放入 `ContextPack`，由 `ContextBuilder` 编译为上下文。
-8. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
-9. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
-10. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行。
-11. 当工具需要用户确认时，runtime 发出 `tool_approval_required`，保存 `approval_required` checkpoint，gateway 将 run 标记为 `awaiting_approval`。
-12. `POST /api/v1/agent/runs/{run_id}/approval` 写入 approval audit 和 runtime approval decision，runtime 从同一 checkpoint 恢复执行，并继续产出 `tool_start`、`tool_result` 或 denied tool result。
-13. `gateway.services.GatewayPersistence` 统一持有 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential/task stores，避免 API 层散装持久化依赖。
-14. `agent.state.runs.RunStore` 记录 run events 和最终状态；`agent.governance.tracing.TraceStore` 记录 run/model/tool/approval span；`agent.governance.audit.ApprovalAuditStore` 记录审批决策。
-15. `GET /api/v1/agent/runs/{run_id}` 可查询 run 记录；`GET /api/v1/agent/runs/{run_id}/trace` 可查询 trace spans 和 approval audit。
-16. `POST /api/v1/agent/tasks` 创建 durable task；`POST /api/v1/agent/tasks/{task_id}/run` 通过 `agent.tasks.TaskRunner` 创建 step/attempt/run 并复用同一个 `AgentSession` 执行。
-17. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
+7. `agent.capabilities.sandbox` 根据 workspace、sandbox policy 和 provider 配置创建 `SandboxClient`；builtin tools 只持有该 client，不直接访问宿主路径或本机 subprocess。
+8. `agent.context` 把 system prompt、runtime policy、workspace instructions、skills、tool hints 放入 `ContextPack`，由 `ContextBuilder` 编译为上下文。
+9. `agent.runtime.AgentSession` 维护对话历史，并通过 `ContextWindowManager` 控制上下文窗口。
+10. `agent.runtime.AgentRuntime` 使用 `RuntimeState` 管理消息、事件、工具结果和 pending tool calls。
+11. `ModelRequestCompiler` 编译请求，`runtime.turns.tools.ToolOrchestrator` 执行工具，`ToolPermissionPolicy` 判定工具是否可执行。
+12. 当工具需要用户确认时，runtime 发出 `tool_approval_required`，保存 `approval_required` checkpoint，gateway 将 run 标记为 `awaiting_approval`。
+13. `POST /api/v1/agent/runs/{run_id}/approval` 写入 approval audit 和 runtime approval decision，runtime 从同一 checkpoint 恢复执行，并继续产出 `tool_start`、`tool_result` 或 denied tool result。
+14. `gateway.services.GatewayPersistence` 统一持有 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential/task/sandbox stores，避免 API 层散装持久化依赖。
+15. `agent.state.runs.RunStore` 记录 run events 和最终状态；`agent.governance.tracing.TraceStore` 记录 run/model/tool/approval span；`agent.governance.audit.ApprovalAuditStore` 记录审批决策。
+16. `GET /api/v1/agent/runs/{run_id}` 可查询 run 记录；`GET /api/v1/agent/runs/{run_id}/trace` 可查询 trace spans 和 approval audit。
+17. `POST /api/v1/agent/tasks` 创建 durable task；`POST /api/v1/agent/tasks/{task_id}/run` 通过 `agent.tasks.TaskRunner` 创建 step/attempt/run 并复用同一个 `AgentSession` 执行。
+18. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
 
 ## 新模块接入流程
 
 1. 新增模型能力：provider 适配放入 `agent/models/adapters/`，通用 stream 协议放入 `agent/models/protocol/`，传输层放入 `agent/models/transports/`。
-2. 新增工具能力：放入 `agent/capabilities/tools/` 或通过 MCP 接入。
+2. 新增工具能力：放入 `agent/capabilities/tools/` 或通过 MCP 接入；会读写文件、执行命令、测试、浏览器自动化的工具必须通过 `agent.capabilities.sandbox` 的 client 执行。
 3. 新增 Agent 规格字段：优先放入 `agent/specs/`，再由 assembly 消费。
 4. 新增 run/session 持久化：实现 `agent.state.runs.RunStore`、`agent.runtime.CheckpointStore`、`agent.governance.tracing.TraceStore` 或 `agent.governance.audit.ApprovalAuditStore`，gateway 只接 adapter。
 5. 新增长期数据域：按归属放入 `agent.state.identity`、`agent.specs`、`agent.state.workspaces`、`agent.capabilities.memory` 或 `agent.governance`，并接入 `gateway.services.GatewayPersistence`。

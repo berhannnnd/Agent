@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from agent.capabilities.sandbox import InMemorySandboxStore, SandboxStore, SQLiteSandboxStore
 from agent.governance.audit import (
     ApprovalAuditStore,
     InMemoryApprovalAuditStore,
@@ -100,6 +101,12 @@ def create_task_store(settings: Any) -> TaskStore:
     if _uses_sqlite(settings):
         return SQLiteTaskStore(_sqlite_database(settings))
     return InMemoryTaskStore()
+
+
+def create_sandbox_store(settings: Any) -> SandboxStore:
+    if _uses_sqlite(settings):
+        return SQLiteSandboxStore(_sqlite_database(settings))
+    return InMemorySandboxStore()
 
 
 def _uses_sqlite(settings: Any) -> bool:

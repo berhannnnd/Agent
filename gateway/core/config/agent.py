@@ -37,6 +37,13 @@ class AgentConfig(BaseSettings):
     TOOL_TIMEOUT: float = 60.0
     GUIDED_TOOLS: str = ""
     BUILTIN_TOOLS: str = "filesystem.read,filesystem.list"
+    SANDBOX_PROVIDER: str = "local"
+    SANDBOX_IMAGE: str = "python:3.12-slim"
+    SANDBOX_NETWORK: str = "none"
+    SANDBOX_MEMORY: str = ""
+    SANDBOX_CPUS: str = ""
+    SANDBOX_TTL_SECONDS: int = 0
+    SANDBOX_WORKDIR: str = "/workspace"
     SANDBOX_ALLOW_FILE_WRITE: bool = False
     SANDBOX_ALLOW_PROCESS: bool = False
     SANDBOX_ALLOW_NETWORK: bool = False

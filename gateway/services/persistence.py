@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from agent.capabilities.sandbox import SandboxStore
 from agent.governance.audit import ApprovalAuditStore
 from agent.capabilities.memory import MemoryStore
 from agent.runtime import CheckpointStore
@@ -18,6 +19,7 @@ from gateway.sessions import (
     create_identity_store,
     create_memory_store,
     create_run_store,
+    create_sandbox_store,
     create_task_store,
     create_trace_store,
     create_workspace_store,
@@ -36,6 +38,7 @@ class GatewayPersistence:
     memories: MemoryStore
     credentials: CredentialRefStore
     tasks: TaskStore
+    sandboxes: SandboxStore
 
 
 def create_gateway_persistence(settings: Any) -> GatewayPersistence:
@@ -50,4 +53,5 @@ def create_gateway_persistence(settings: Any) -> GatewayPersistence:
         memories=create_memory_store(settings),
         credentials=create_credential_ref_store(settings),
         tasks=create_task_store(settings),
+        sandboxes=create_sandbox_store(settings),
     )

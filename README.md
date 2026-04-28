@@ -25,18 +25,19 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Agent runtime with tool-call loop, streaming, hook points, checkpoint/resume support, and max-iteration guard.
 - Context system with layered fragments: system, runtime policy, workspace instructions, skills, memory, tool hints, task context.
 - Tool registry with concurrent execution, timeout handling, error-to-tool-result conversion, and MCP stdio loading.
+- Pluggable sandbox execution layer with local and Docker providers; native tools execute through `SandboxClient` against a persistent workspace.
 - `AgentSpec` spec layer for model overrides, enabled tools, skills, workspace scope, tool permissions, memory profile, and metadata.
 - Tool approval flow with `auto`, `ask`, and `deny` modes, checkpoint-backed pause/resume, run status `awaiting_approval`, and web Approve/Deny controls.
 - Long-running task foundation with task, step, attempt records and memory/SQLite stores.
 - Task queue/worker primitives for background execution over the same task runner.
-- Workspace-scoped builtin tool foundation for file read/list/write and shell execution, guarded by sandbox policy.
+- Workspace-scoped builtin tools for file read/list/write, text search, git status/diff, test commands, and shell fallback, guarded by sandbox policy.
 - Memory retrieval and deterministic context compaction integrated into session assembly/windowing for long-context runs.
 - Multi-agent role/router and workflow DAG primitives for future planner/worker/reviewer orchestration.
 - Governance security primitives for secret redaction and pluggable payload protection providers.
 - Workspace isolation under `tenant_id / user_id / agent_id / workspace_id`.
 - Run tracking through `RunStore`, backed by memory, local JSON files, or SQLite.
 - SQLite persistence for run records, runtime events, checkpoints, approval audit, and trace spans.
-- Long-term data stores for tenants/users, agent profiles, workspace records, memories, and credential references.
+- Long-term data stores for tenants/users, agent profiles, workspace records, memories, sandbox leases, and credential references.
 - Traceable run timelines through `agent.governance.tracing`, with separate approval audit records through `agent.governance.audit`.
 - Gateway chat APIs return `run_id`; streaming emits a `run_created` event before model/tool events.
 
@@ -46,6 +47,7 @@ agent   -> no gateway, FastAPI, or UI dependency
 agent/
   assembly/       Build AgentSession from settings + AgentSpec
   capabilities/   Tools, skills, MCP loading, and memory capability APIs
+    sandbox/      Local/Docker sandbox clients and sandbox lease records
   config/         Model/provider config resolution
   context/        ContextPack, ContextBuilder, windowing, request compilation
   governance/     Permissions, credentials, audit, tracing
@@ -111,7 +113,7 @@ Configuration is loaded through `gateway.core.config.settings`.
 
 | Domain | Env prefix | Common fields |
 |---|---|---|
-| `settings.agent` | `AGENT_` | `AGENT_PROVIDER`, `AGENT_MAX_TOKENS`, `AGENT_MAX_RETRIES`, `AGENT_ENABLED_TOOLS`, `AGENT_SKILLS`, `AGENT_WORKSPACE_ROOT`, `AGENT_RUN_STORE`, `AGENT_RUN_ROOT`, `AGENT_DB_PATH` |
+| `settings.agent` | `AGENT_` | `AGENT_PROVIDER`, `AGENT_MAX_TOKENS`, `AGENT_MAX_RETRIES`, `AGENT_ENABLED_TOOLS`, `AGENT_SKILLS`, `AGENT_WORKSPACE_ROOT`, `AGENT_SANDBOX_PROVIDER`, `AGENT_RUN_STORE`, `AGENT_RUN_ROOT`, `AGENT_DB_PATH` |
 | `settings.models.openai` | `OPENAI_` | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` |
 | `settings.models.openai_responses` | `OPENAI_RESPONSES_` | `OPENAI_RESPONSES_API_KEY`, `OPENAI_RESPONSES_BASE_URL`, `OPENAI_RESPONSES_MODEL` |
 | `settings.models.anthropic` | `ANTHROPIC_` | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL` |
@@ -142,6 +144,43 @@ To persist runs, runtime events, approval checkpoints, approval audit, trace spa
 AGENT_RUN_STORE=sqlite
 AGENT_DB_PATH=.agents/agents.db
 ```
+
+## Sandbox And Workspace Model
+
+The agent runtime does not run inside the sandbox. Runtime, gateway, model calls, credentials, approval state, traces, and audit records stay in the control plane. The sandbox is the execution plane for high-risk native tools.
+
+```text
+model -> runtime -> tool registry -> builtin tool -> SandboxClient -> local/docker execution -> workspace
+```
+
+The persistent data boundary is the workspace:
+
+```text
+.agents/workspaces/{tenant_id}/{user_id}/{agent_id}/{workspace_id}
+```
+
+The sandbox gets a lease against that workspace. With the local provider, tools execute directly inside the resolved workspace path. With the Docker provider, each command runs with the workspace mounted at `/workspace` by default:
+
+```bash
+AGENT_SANDBOX_PROVIDER=docker
+AGENT_SANDBOX_IMAGE=python:3.12-slim
+AGENT_SANDBOX_ALLOW_FILE_WRITE=true
+AGENT_SANDBOX_ALLOW_PROCESS=true
+AGENT_SANDBOX_ALLOWED_COMMANDS=git,pytest,python3
+```
+
+Builtin tools are semantic APIs, not direct container controls:
+
+| Tool | Default risk | Notes |
+|---|---|---|
+| `filesystem.read`, `filesystem.list` | low | Enabled by default. |
+| `search.grep` | low | Read-only regex search over workspace text files. |
+| `filesystem.write` | medium | Requires `AGENT_SANDBOX_ALLOW_FILE_WRITE=true` and tool enablement. |
+| `git.status`, `git.diff` | high | Requires process permission for `git`. |
+| `test.run` | high | Runs an allowlisted test command. |
+| `shell.run` | high | Fallback escape hatch; prefer native tools. |
+
+Network-capable tools should follow the same boundary. Browser automation and untrusted local MCP servers should execute through sandbox clients. API-backed web search can stay in the control plane when the API key must not enter the sandbox.
 
 ## HTTP API
 
@@ -274,6 +313,7 @@ SQLite domain tables:
 | `workspace_records` | Workspace ownership, path, status, and metadata. |
 | `memory_records` | User, agent, workspace, and run-scoped memories. |
 | `tasks`, `task_steps`, `task_attempts` | Long-running task state, step lifecycle, and retry attempts. |
+| `sandbox_leases`, `sandbox_events` | Sandbox execution leases and lifecycle/tool execution events. |
 | `credential_refs` | References to secrets stored elsewhere; raw secrets are not stored here. |
 
 Defaults for local development:
@@ -309,6 +349,7 @@ make dev-web
 - Put HTTP/session/auth protocol code in `gateway/`.
 - Add model providers under `agent/models/adapters/`; keep shared stream semantics in `agent/models/protocol/`.
 - Add tools under `agent/capabilities/tools/` or load them through MCP.
+- Route host-affecting tools through `agent/capabilities/sandbox/`; do not let tools touch host paths or subprocesses directly.
 - Add new context sources through `agent/context/sources.py`.
 - Add long-running task orchestration under `agent/tasks/`; keep gateway APIs as adapters.
 - Add new run persistence backends by implementing `agent.state.runs.RunStore`; checkpoint, trace, and approval audit storage should stay behind their own store interfaces. Gateway should only choose and call adapters.

@@ -27,6 +27,7 @@ def test_agent_system_exposes_future_multi_agent_boundaries():
     assert importlib.util.find_spec("agent.state.agents") is not None
     assert importlib.util.find_spec("agent.capabilities") is not None
     assert importlib.util.find_spec("agent.capabilities.memory") is not None
+    assert importlib.util.find_spec("agent.capabilities.sandbox") is not None
     assert importlib.util.find_spec("agent.capabilities.skills") is not None
     assert importlib.util.find_spec("agent.capabilities.tools") is not None
     assert importlib.util.find_spec("agent.assembly") is not None
@@ -67,6 +68,8 @@ def test_agent_runtime_is_split_into_explicit_kernel_modules():
 def test_agent_capabilities_expose_builtin_tool_boundaries():
     assert importlib.util.find_spec("agent.capabilities.tools.builtin") is not None
     assert importlib.util.find_spec("agent.capabilities.tools.context") is not None
+    assert importlib.util.find_spec("agent.capabilities.sandbox.local") is not None
+    assert importlib.util.find_spec("agent.capabilities.sandbox.docker") is not None
 
 
 def test_agent_models_split_protocol_adapters_and_transports():

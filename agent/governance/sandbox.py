@@ -78,6 +78,12 @@ class SandboxPolicy:
             raise PermissionError("path escapes workspace: %s" % path) from exc
         return resolved
 
+    def relative_workspace_path(self, path: str | Path) -> str:
+        root = self.workspace_root.resolve()
+        resolved = self.resolve_workspace_path(path)
+        relative = resolved.relative_to(root)
+        return relative.as_posix() or "."
+
     def authorize_file_read(self, path: str | Path) -> SandboxDecision:
         self.resolve_workspace_path(path)
         if not self.allow_file_read:
@@ -109,9 +115,11 @@ class SandboxPolicy:
 def classify_tool_risk(name: str) -> ToolRisk:
     if name.startswith("filesystem.read") or name.startswith("filesystem.list"):
         return ToolRisk.LOW
+    if name.startswith("search."):
+        return ToolRisk.LOW
     if name.startswith("filesystem.write"):
         return ToolRisk.MEDIUM
-    if name.startswith("shell.") or name.startswith("git."):
+    if name.startswith("shell.") or name.startswith("git.") or name.startswith("test."):
         return ToolRisk.HIGH
     if name.startswith("mcp_"):
         return ToolRisk.MEDIUM
