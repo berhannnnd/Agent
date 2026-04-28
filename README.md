@@ -18,6 +18,14 @@ agent   -> no gateway, FastAPI, or UI dependency
 
 `cli/` and `web/` are interfaces. They should not implement agent logic.
 
+## Technical Documentation
+
+- [Architecture](docs/architecture.md): top-level package boundaries and request flow.
+- [Technical design](docs/technical-design.md): control/data/execution plane, sandbox reasoning, and the code-snippet executor tradeoff.
+- [Module map](docs/module-map.md): module-by-module responsibilities, rationale, and extension points.
+- [TODO plan](docs/roadmap.md): staged roadmap toward a complete long-running agent system.
+- [Module notes](docs/modules/README.md): focused notes for sandbox, runtime, and tools.
+
 ## Current Capabilities
 
 - Multi-provider model layer: OpenAI Chat Completions, OpenAI Responses, Claude Messages, Gemini.

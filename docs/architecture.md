@@ -1,5 +1,12 @@
 # 框架架构
 
+相关文档：
+
+- [技术设计说明](technical-design.md)
+- [模块技术地图](module-map.md)
+- [TODO Plan](roadmap.md)
+- [模块文档索引](modules/README.md)
+
 ```mermaid
 graph TB
     CLI["cli 终端界面"] --> Agent["agent 智能体核心"]
