@@ -18,6 +18,7 @@ from gateway.app import create_app
 from agent.specs import AgentSpec
 from agent.runtime import AgentResult, InMemoryCheckpointStore, RuntimeCheckpoint
 from agent.schema import Message, RuntimeEvent, ToolCall
+from agent.tasks import TaskStepRecord
 
 
 class FakeSession:
@@ -153,6 +154,43 @@ def test_agent_run_api_returns_404_for_unknown_run():
     assert response.status_code == 404
 
 
+def test_agent_task_api_creates_reads_and_runs_task(monkeypatch):
+    async def create_session(**kwargs):
+        return FakeSession()
+
+    monkeypatch.setattr(api_agent, "create_agent_session", create_session)
+    client = TestClient(create_app())
+
+    create_response = client.post(
+        "/api/v1/agent/tasks",
+        json={
+            "message": "complete the foundation",
+            "title": "Foundation task",
+            "tenant_id": "tenant-1",
+            "user_id": "user-1",
+            "agent_id": "agent-1",
+        },
+    )
+    task = create_response.json()["data"]
+    run_response = client.post(f"/api/v1/agent/tasks/{task['task_id']}/run")
+    get_response = client.get(f"/api/v1/agent/tasks/{task['task_id']}")
+
+    assert create_response.status_code == 200
+    assert task["title"] == "Foundation task"
+    assert run_response.status_code == 200
+    assert run_response.json()["data"]["task"]["status"] == "finished"
+    assert run_response.json()["data"]["step"]["status"] == "succeeded"
+    assert get_response.json()["data"]["steps"][0]["output"] == "ok: complete the foundation"
+
+
+def test_agent_task_api_returns_404_for_unknown_task():
+    client = TestClient(create_app())
+
+    response = client.post("/api/v1/agent/tasks/missing/run")
+
+    assert response.status_code == 404
+
+
 def test_agent_run_approval_api_resumes_checkpoint(monkeypatch):
     async def create_session(**kwargs):
         return FakeApprovalSession()
@@ -173,6 +211,10 @@ def test_agent_run_approval_api_resumes_checkpoint(monkeypatch):
         record = await api_agent.run_service.store.create_run(AgentSpec.from_overrides(agent_id="agent-1"), run_id="run-approval")
         await api_agent.run_service.record_event(record.run_id, RuntimeEvent(type="tool_approval_required", name="echo", payload={"approval_id": "call-1"}))
         await api_agent.run_service.pause_for_approval(record.run_id)
+        task = await api_agent.persistence.tasks.create_task(record.to_agent_spec(), title="Approval task", input="approve")
+        await api_agent.persistence.tasks.add_step(
+            TaskStepRecord.create(task_id=task.task_id, index=0, name="execute", run_id=record.run_id)
+        )
         return store
 
     monkeypatch.setattr(api_agent, "checkpoint_store", asyncio.run(seed()))
@@ -185,3 +227,7 @@ def test_agent_run_approval_api_resumes_checkpoint(monkeypatch):
     data = response.json()["data"]
     assert data["status"] == "finished"
     assert [event["type"] for event in data["events"]] == ["tool_approval_decision", "model_message"]
+    step = asyncio.run(api_agent.persistence.tasks.load_step_for_run("run-approval"))
+    task = asyncio.run(api_agent.persistence.tasks.load_task(step.task_id))
+    assert step.status.value == "succeeded"
+    assert task.status.value == "finished"

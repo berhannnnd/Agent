@@ -13,7 +13,8 @@ from agent.capabilities.tools.context import ToolRuntimeContext
 from agent.capabilities.tools.registry import ToolRegistry
 
 
-def register_builtin_tools(registry: ToolRegistry, context: ToolRuntimeContext) -> None:
+def register_builtin_tools(registry: ToolRegistry, context: ToolRuntimeContext) -> list[str]:
+    names = ["filesystem.read", "filesystem.list", "filesystem.write", "shell.run"]
     registry.register(
         "filesystem.read",
         "Read a UTF-8 text file from the current workspace.",
@@ -38,6 +39,7 @@ def register_builtin_tools(registry: ToolRegistry, context: ToolRuntimeContext) 
         RUN_COMMAND_SCHEMA,
         lambda command, timeout_seconds=20.0: run_command(context, command, timeout_seconds=timeout_seconds),
     )
+    return names
 
 
 __all__ = [

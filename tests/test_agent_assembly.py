@@ -12,6 +12,7 @@ import asyncio
 import json
 
 from agent.assembly import create_agent_session, create_agent_session_async
+from agent.capabilities.memory import InMemoryMemoryStore, MemoryRecord, MemoryScope
 from agent.config import resolve_model_client_config
 from agent.specs import AgentSpec
 
@@ -46,6 +47,12 @@ class FakeAgentConfig:
     MAX_CONCURRENT_REQUESTS = 20
     TOOL_TIMEOUT = 60.0
     GUIDED_TOOLS = ""
+    BUILTIN_TOOLS = ""
+    SANDBOX_ALLOW_FILE_WRITE = False
+    SANDBOX_ALLOW_PROCESS = False
+    SANDBOX_ALLOW_NETWORK = False
+    SANDBOX_ALLOWED_COMMANDS = ""
+    MEMORY_CONTEXT_LIMIT = 20
     HTTP_PROXY = ""
     HTTPS_PROXY = ""
     ALL_PROXY = ""
@@ -187,6 +194,50 @@ def test_create_session_respects_explicit_enabled_tools(tmp_path, monkeypatch):
     session = create_agent_session(settings, AgentSpec.from_overrides(enabled_tools=["explicit_tool"]))
 
     assert session.runtime.enabled_tools == ["explicit_tool"]
+
+
+def test_create_session_uses_configured_builtin_tools_by_default(tmp_path, monkeypatch):
+    monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
+    settings = FakeSettings()
+    settings.server.ROOT_PATH = tmp_path
+    settings.agent.BUILTIN_TOOLS = "filesystem.read,filesystem.list"
+    settings.models.openai.API_KEY = "key"
+    settings.models.openai.MODEL = "model"
+
+    session = create_agent_session(settings, AgentSpec())
+
+    assert session.runtime.enabled_tools == ["filesystem.read", "filesystem.list"]
+
+
+def test_create_session_injects_memory_context(tmp_path, monkeypatch):
+    monkeypatch.setattr("agent.assembly.session.ModelClient", lambda config: FakeRuntimeClient())
+    settings = FakeSettings()
+    settings.server.ROOT_PATH = tmp_path
+    settings.models.openai.API_KEY = "key"
+    settings.models.openai.MODEL = "model"
+    store = InMemoryMemoryStore()
+
+    async def create():
+        await store.save(
+            MemoryRecord.create(
+                tenant_id="default",
+                user_id="user-1",
+                agent_id="agent-1",
+                workspace_id="default",
+                scope=MemoryScope.WORKSPACE,
+                content="User wants concise implementation notes.",
+            )
+        )
+        return await create_agent_session_async(
+            settings,
+            AgentSpec.from_overrides(user_id="user 1", agent_id="agent 1"),
+            memory_store=store,
+        )
+
+    session = asyncio.run(create())
+
+    assert "## memory: memory." in session.system_prompt
+    assert "User wants concise implementation notes." in session.system_prompt
 
 
 def test_create_session_uses_agent_spec(tmp_path, monkeypatch):

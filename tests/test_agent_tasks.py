@@ -1,12 +1,18 @@
 import asyncio
 
 from agent.specs import AgentSpec
+from agent.runtime import AgentResult
+from agent.schema import Message, RuntimeEvent
+from agent.state.runs import InMemoryRunStore, RunStatus
 from agent.tasks import (
     InMemoryTaskStore,
     SQLiteTaskStore,
     TaskAttemptRecord,
     TaskAttemptStatus,
     TaskEngine,
+    TaskRunner,
+    InMemoryTaskQueue,
+    TaskWorker,
     TaskStatus,
     TaskStepRecord,
     TaskStepStatus,
@@ -76,3 +82,78 @@ def test_sqlite_task_store_persists_tasks_steps_and_attempts(tmp_path):
     assert steps[0].error == "boom"
     assert attempts[0].status == TaskAttemptStatus.FAILED
     assert attempts[0].ended_at is not None
+
+
+class FakeRunCoordinator:
+    def __init__(self):
+        self.store = InMemoryRunStore()
+
+    async def start(self, spec):
+        run = await self.store.create_run(spec, run_id="run-task")
+        return await self.store.set_status(run.run_id, RunStatus.RUNNING)
+
+    async def record_events(self, run_id, events):
+        for event in events:
+            await self.store.append_event(run_id, event)
+
+    async def pause_for_approval(self, run_id):
+        await self.store.set_status(run_id, RunStatus.AWAITING_APPROVAL)
+
+    async def finish(self, run_id, error=""):
+        await self.store.set_status(run_id, RunStatus.ERROR if error else RunStatus.FINISHED)
+
+
+class FakeSessionFactory:
+    async def create(self, task):
+        return FakeTaskSession()
+
+
+class FakeTaskSession:
+    async def send(self, text, run_id=None):
+        return AgentResult(
+            content="done: %s" % text,
+            messages=[Message.from_text("assistant", "done")],
+            events=[RuntimeEvent(type="model_message", name="assistant", payload={"content": "done"})],
+        )
+
+
+def test_task_runner_executes_task_through_run_coordinator():
+    store = InMemoryTaskStore()
+    coordinator = FakeRunCoordinator()
+
+    async def execute():
+        spec = AgentSpec.from_overrides(tenant_id="tenant-1", user_id="user-1", agent_id="agent-1")
+        task = await store.create_task(spec, title="Run it", input="work")
+        result = await TaskRunner(store, coordinator, FakeSessionFactory()).run_task(task.task_id)
+        run = await coordinator.store.load_run(result.run.run_id)
+        steps = await store.list_steps(task.task_id)
+        return result, run, steps
+
+    result, run, steps = asyncio.run(execute())
+
+    assert result.task.status == TaskStatus.FINISHED
+    assert result.step.status == TaskStepStatus.SUCCEEDED
+    assert result.step.output == "done: work"
+    assert run.status == RunStatus.FINISHED
+    assert [event.type for event in run.events] == ["model_message"]
+    assert steps[0].run_id == "run-task"
+
+
+def test_task_worker_runs_queued_tasks_until_empty():
+    store = InMemoryTaskStore()
+    queue = InMemoryTaskQueue()
+    coordinator = FakeRunCoordinator()
+
+    async def execute():
+        spec = AgentSpec.from_overrides(tenant_id="tenant-1", user_id="user-1", agent_id="agent-1")
+        first = await store.create_task(spec, title="First", input="one")
+        second = await store.create_task(spec, title="Second", input="two")
+        await queue.enqueue(first.task_id)
+        await queue.enqueue(second.task_id)
+        results = await TaskWorker(queue, TaskRunner(store, coordinator, FakeSessionFactory())).run_until_empty()
+        return results, await queue.size()
+
+    results, size = asyncio.run(execute())
+
+    assert [result.task.status for result in results] == [TaskStatus.FINISHED, TaskStatus.FINISHED]
+    assert size == 0

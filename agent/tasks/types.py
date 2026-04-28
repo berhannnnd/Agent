@@ -229,6 +229,9 @@ class TaskStore(Protocol):
     async def list_steps(self, task_id: str) -> List[TaskStepRecord]:
         raise NotImplementedError()
 
+    async def load_step_for_run(self, run_id: str) -> Optional[TaskStepRecord]:
+        raise NotImplementedError()
+
     async def update_step_status(
         self,
         step_id: str,

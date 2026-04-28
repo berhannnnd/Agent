@@ -16,13 +16,14 @@ class AgentSession:
         runtime: AgentRuntime,
         system_prompt: str = "",
         max_context_tokens: int = 256000,
+        compaction_target_tokens: int | None = None,
         context_trace: Optional[List[ContextTraceItem]] = None,
         workspace: Optional[WorkspaceContext] = None,
     ):
         self.runtime = runtime
         self.context_trace = list(context_trace or [])
         self.workspace = workspace
-        self.context_window = ContextWindowManager(system_prompt, max_context_tokens)
+        self.context_window = ContextWindowManager(system_prompt, max_context_tokens, compaction_target_tokens)
         self.messages: List[Message] = []
         self.clear()
 

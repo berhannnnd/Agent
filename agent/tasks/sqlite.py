@@ -108,6 +108,14 @@ class SQLiteTaskStore:
             ).fetchall()
         return [_step_from_row(row) for row in rows]
 
+    async def load_step_for_run(self, run_id: str) -> Optional[TaskStepRecord]:
+        with self.database.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM task_steps WHERE run_id = ? ORDER BY created_at DESC, step_id DESC LIMIT 1",
+                (run_id,),
+            ).fetchone()
+        return _step_from_row(row) if row is not None else None
+
     async def update_step_status(
         self,
         step_id: str,

@@ -28,8 +28,10 @@ agent   -> no gateway, FastAPI, or UI dependency
 - `AgentSpec` spec layer for model overrides, enabled tools, skills, workspace scope, tool permissions, memory profile, and metadata.
 - Tool approval flow with `auto`, `ask`, and `deny` modes, checkpoint-backed pause/resume, run status `awaiting_approval`, and web Approve/Deny controls.
 - Long-running task foundation with task, step, attempt records and memory/SQLite stores.
+- Task queue/worker primitives for background execution over the same task runner.
 - Workspace-scoped builtin tool foundation for file read/list/write and shell execution, guarded by sandbox policy.
-- Memory retrieval and deterministic context compaction interfaces for long-context runs.
+- Memory retrieval and deterministic context compaction integrated into session assembly/windowing for long-context runs.
+- Multi-agent role/router and workflow DAG primitives for future planner/worker/reviewer orchestration.
 - Governance security primitives for secret redaction and pluggable payload protection providers.
 - Workspace isolation under `tenant_id / user_id / agent_id / workspace_id`.
 - Run tracking through `RunStore`, backed by memory, local JSON files, or SQLite.
@@ -185,6 +187,18 @@ data: {"type":"run_created","name":"run","payload":{"run_id":"run_..."}}
 
 Then the stream emits runtime events such as `text_delta`, `reasoning_delta`, `tool_approval_required`, `tool_approval_decision`, `tool_start`, `tool_result`, `error`, and `done`.
 
+Create and run a long-running task through the gateway:
+
+```bash
+curl -X POST http://127.0.0.1:8010/api/v1/agent/tasks \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Inspect workspace","message":"List the files in my workspace"}'
+
+curl -X POST http://127.0.0.1:8010/api/v1/agent/tasks/task_.../run
+```
+
+Task records contain task status, step status, the backing `run_id`, and the final step output. This is the durable task layer that future background workers and schedule runners build on.
+
 Query a run:
 
 ```bash
@@ -220,6 +234,8 @@ Modes:
 | `auto` | Execute allowed tools without pausing. |
 | `ask` | Pause before tool execution and emit `tool_approval_required`. |
 | `deny` | Return denied tool results without executing tools. |
+
+Builtin tools are registered for every session, but only configured enabled tools are sent to the model. The default `AGENT_BUILTIN_TOOLS` is `filesystem.read,filesystem.list`. `filesystem.write` and `shell.run` are available only when enabled and allowed by sandbox settings.
 
 When a tool requires approval, the run is marked `awaiting_approval` and the runtime checkpoint keeps the pending tool calls. Resume the same run:
 

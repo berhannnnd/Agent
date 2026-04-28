@@ -55,3 +55,8 @@ class RunApprovalRequest(AppSchema):
     tool_call_ids: Optional[List[str]] = Field(None, description="Approval ids to decide; empty means all pending calls")
     approvals: Optional[Dict[str, bool]] = Field(None, description="Explicit approval id to decision map")
     reason: Optional[str] = Field(None, description="Optional audit reason")
+
+
+class AgentTaskCreateRequest(AgentChatRequest):
+    title: Optional[str] = Field(None, description="Task title; defaults to the message prefix")
+    metadata: Optional[Dict[str, str]] = Field(None, description="Task metadata")

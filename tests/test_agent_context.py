@@ -1,4 +1,6 @@
 from agent.context import ContextBuilder, ContextFragment, ContextLayer, ContextPack, ContextScope
+from agent.context.window import ContextWindowManager
+from agent.schema import Message
 from agent.state.workspaces import LocalWorkspaceStore
 
 
@@ -86,3 +88,19 @@ def test_local_workspace_store_builds_stable_safe_paths(tmp_path):
         tmp_path / "tenant-1" / "user-1" / "agent-1" / "AGENTS.md",
         tmp_path / "tenant-1" / "user-1" / "agent-1" / "workspace-1" / "AGENTS.md",
     ]
+
+
+def test_context_window_compacts_before_trimming_turns():
+    manager = ContextWindowManager("System prompt.", max_context_tokens=60, compaction_target_tokens=20)
+    messages = manager.initial_messages() + [
+        Message.from_text("user", "old request " * 80),
+        Message.from_text("assistant", "old answer " * 80),
+        Message.from_text("user", "new request"),
+    ]
+
+    fitted = manager.fit(messages)
+
+    assert fitted[0].content_text() == "System prompt."
+    assert "Prior conversation summary" in fitted[1].content_text()
+    assert fitted[-1].content_text() == "new request"
+    assert manager.estimate_tokens(fitted) <= manager.max_context_tokens

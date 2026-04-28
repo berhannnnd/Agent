@@ -20,7 +20,8 @@ from agent.assembly import create_agent_session_async as _create_agent_session_a
 from agent.governance.audit import ApprovalAuditRecord
 from agent.config import AgentConfigError
 from agent.schema import RuntimeEvent
-from gateway.api.agent.schemas import AgentChatRequest, RunApprovalRequest
+from agent.tasks import TaskRunner, TaskStatus, TaskStepStatus
+from gateway.api.agent.schemas import AgentChatRequest, AgentTaskCreateRequest, RunApprovalRequest
 from gateway.core.config import settings
 from gateway.services import create_gateway_persistence
 from gateway.sessions import (
@@ -42,7 +43,17 @@ approval_audit_store = persistence.approval_audit
 
 
 async def create_agent_session(**kwargs):
-    return await _create_agent_session_async(settings, checkpoint_store=checkpoint_store, **kwargs)
+    return await _create_agent_session_async(
+        settings,
+        checkpoint_store=checkpoint_store,
+        memory_store=persistence.memories,
+        **kwargs,
+    )
+
+
+class _TaskSessionFactory:
+    async def create(self, task):
+        return await create_agent_session(spec=task.to_agent_spec())
 
 
 @router.post("/chat")
@@ -142,6 +153,77 @@ async def get_run_trace(run_id: str):
     )
 
 
+@router.post("/tasks")
+async def create_task(request_data: AgentTaskCreateRequest):
+    spec = request_data.to_agent_spec()
+    task = await persistence.tasks.create_task(
+        spec,
+        title=request_data.title or _default_task_title(request_data.message),
+        input=request_data.message,
+        metadata=request_data.metadata,
+    )
+    return resp.ok(response=resp.Resp(data=task.to_dict()))
+
+
+@router.get("/tasks")
+async def list_tasks(tenant_id: str = "", user_id: str = "", agent_id: str = ""):
+    tasks = await persistence.tasks.list_tasks(tenant_id, user_id=user_id, agent_id=agent_id)
+    return resp.ok(response=resp.Resp(data={"tasks": [task.to_dict() for task in tasks]}))
+
+
+@router.get("/tasks/{task_id}")
+async def get_task(task_id: str):
+    task = await persistence.tasks.load_task(task_id)
+    if task is None:
+        return resp.fail(resp.Resp(code="404", detail="task not found: %s" % task_id, http_status=404))
+    steps = await persistence.tasks.list_steps(task_id)
+    return resp.ok(
+        response=resp.Resp(
+            data={
+                "task": task.to_dict(),
+                "steps": [step.to_dict() for step in steps],
+            }
+        )
+    )
+
+
+@router.post("/tasks/{task_id}/run")
+async def run_task(task_id: str):
+    async with _agent_semaphore:
+        task = await persistence.tasks.load_task(task_id)
+        if task is None:
+            return resp.fail(resp.Resp(code="404", detail="task not found: %s" % task_id, http_status=404))
+        try:
+            result = await TaskRunner(persistence.tasks, run_service, _TaskSessionFactory()).run_task(task_id)
+        except AgentConfigError as exc:
+            return resp.fail(resp.Resp(code="400", detail={"task_id": task_id, "message": str(exc)}, http_status=400))
+        except Exception as exc:  # noqa: BLE001 - task API must report persisted runner failures.
+            return resp.fail(resp.Resp(code="500", detail={"task_id": task_id, "message": str(exc)}, http_status=500))
+        return resp.ok(
+            response=resp.Resp(
+                data={
+                    "task": result.task.to_dict(),
+                    "step": result.step.to_dict(),
+                    "run": (await run_service.store.load_run(result.run.run_id) or result.run).to_dict(),
+                    "result": {
+                        "status": result.result.status,
+                        "content": result.result.content,
+                        "events": [event.to_dict() for event in result.result.events],
+                    },
+                }
+            )
+        )
+
+
+@router.post("/tasks/{task_id}/cancel")
+async def cancel_task(task_id: str):
+    task = await persistence.tasks.load_task(task_id)
+    if task is None:
+        return resp.fail(resp.Resp(code="404", detail="task not found: %s" % task_id, http_status=404))
+    canceled = await TaskRunner(persistence.tasks, run_service, _TaskSessionFactory()).cancel_task(task_id)
+    return resp.ok(response=resp.Resp(data=canceled.to_dict()))
+
+
 @router.post("/runs/{run_id}/approval")
 async def approve_run_tools(run_id: str, request_data: RunApprovalRequest):
     async with _agent_semaphore:
@@ -160,7 +242,8 @@ async def approve_run_tools(run_id: str, request_data: RunApprovalRequest):
             result = await session.resume(run_id, approvals=approvals)
             new_events = _new_runtime_events(record.events, result.events)
             await run_service.record_events(run_id, new_events)
-            await _complete_or_pause(run_id, result.status, result.events)
+            await _complete_or_pause(run_id, result.status, new_events)
+            await _sync_task_for_run(run_id, result.status, result.content, new_events)
         except AgentConfigError as exc:
             await _fail_run(run_id, "config", str(exc))
             return resp.fail(resp.Resp(code="400", detail={"run_id": run_id, "message": str(exc)}, http_status=400))
@@ -185,6 +268,11 @@ def _sse(event: str, data: dict) -> str:
     return "event: %s\ndata: %s\n\n" % (event, json.dumps(data, ensure_ascii=False))
 
 
+def _default_task_title(message: str) -> str:
+    text = " ".join(str(message or "").split())
+    return text[:80] or "Untitled task"
+
+
 def _result_error(events) -> str:
     for event in events:
         if event.type == "error":
@@ -197,6 +285,23 @@ async def _complete_or_pause(run_id: str, status: str, events) -> None:
         await run_service.pause_for_approval(run_id)
         return
     await run_service.finish(run_id, _result_error(events))
+
+
+async def _sync_task_for_run(run_id: str, status: str, content: str, events) -> None:
+    step = await persistence.tasks.load_step_for_run(run_id)
+    if step is None:
+        return
+    if status == "awaiting_approval" or any(event.type == "tool_approval_required" for event in events):
+        await persistence.tasks.update_step_status(step.step_id, TaskStepStatus.AWAITING_APPROVAL)
+        await persistence.tasks.set_task_status(step.task_id, TaskStatus.AWAITING_APPROVAL)
+        return
+    error = _result_error(events)
+    if error or status not in {"finished", ""}:
+        await persistence.tasks.update_step_status(step.step_id, TaskStepStatus.FAILED, error=error or content)
+        await persistence.tasks.set_task_status(step.task_id, TaskStatus.ERROR)
+        return
+    await persistence.tasks.update_step_status(step.step_id, TaskStepStatus.SUCCEEDED, output=content)
+    await persistence.tasks.set_task_status(step.task_id, TaskStatus.FINISHED)
 
 
 async def _fail_run(run_id: str, kind: str, message: str) -> None:

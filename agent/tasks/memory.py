@@ -66,6 +66,14 @@ class InMemoryTaskStore:
             key=lambda step: (step.index, step.created_at, step.step_id),
         )
 
+    async def load_step_for_run(self, run_id: str) -> Optional[TaskStepRecord]:
+        steps = sorted(
+            [step for step in self._steps.values() if step.run_id == run_id],
+            key=lambda step: (step.created_at, step.step_id),
+            reverse=True,
+        )
+        return steps[0] if steps else None
+
     async def update_step_status(
         self,
         step_id: str,

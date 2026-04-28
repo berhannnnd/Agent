@@ -65,10 +65,10 @@ graph TB
 - `agent.capabilities.tools`: 工具注册表、本地工具执行、MCP stdio 工具接入；`builtin` 提供 workspace-scoped filesystem/shell 基础工具。
 - `agent.hooks`: Runtime 扩展点，支持意图引导、thinking 提取、审批拦截和组合 hook。
 - `agent.capabilities.skills`: skill manifest、prompt fragment、工具名声明加载。
-- `agent.orchestration`: 多智能体 planner/router/supervisor 的归属边界。
-- `agent.tasks`: 长程任务引擎地基。定义 task、step、attempt 状态机与 memory/SQLite stores，后续 background runner 和 task API 以此为中心。
+- `agent.orchestration`: 多智能体 planner/router/supervisor 的归属边界。当前定义 agent roles、handoff decision 和 router 协议。
+- `agent.tasks`: 长程任务引擎地基。定义 task、step、attempt 状态机、memory/SQLite stores、TaskRunner 和 task queue/worker。
 - `agent.capabilities.memory`: session memory 和 long-term memory 的归属边界。当前定义 `MemoryRecord` 和 memory store，后续由 `agent.context` 按作用域注入上下文。
-- `agent.workflows`: DAG、计划执行、多步骤任务流的归属边界。
+- `agent.workflows`: DAG、计划执行、多步骤任务流的归属边界。当前定义 workflow node/edge/plan 和拓扑校验。
 
 ## Gateway 网关层
 
@@ -99,7 +99,8 @@ graph TB
 13. `gateway.services.GatewayPersistence` 统一持有 run/checkpoint/trace/audit/identity/profile/workspace/memory/credential/task stores，避免 API 层散装持久化依赖。
 14. `agent.state.runs.RunStore` 记录 run events 和最终状态；`agent.governance.tracing.TraceStore` 记录 run/model/tool/approval span；`agent.governance.audit.ApprovalAuditStore` 记录审批决策。
 15. `GET /api/v1/agent/runs/{run_id}` 可查询 run 记录；`GET /api/v1/agent/runs/{run_id}/trace` 可查询 trace spans 和 approval audit。
-16. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
+16. `POST /api/v1/agent/tasks` 创建 durable task；`POST /api/v1/agent/tasks/{task_id}/run` 通过 `agent.tasks.TaskRunner` 创建 step/attempt/run 并复用同一个 `AgentSession` 执行。
+17. `gateway` 将结果包装为统一 HTTP 响应或 SSE 事件；流式响应的第一条事件是 `run_created`。
 
 ## 新模块接入流程
 

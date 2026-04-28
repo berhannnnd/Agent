@@ -9,8 +9,10 @@ def test_top_level_packages_define_runtime_gateway_and_cli_boundaries():
 
 def test_agent_system_exposes_future_multi_agent_boundaries():
     assert importlib.util.find_spec("agent.orchestration") is not None
+    assert importlib.util.find_spec("agent.orchestration.types") is not None
     assert importlib.util.find_spec("agent.capabilities.memory") is not None
     assert importlib.util.find_spec("agent.workflows") is not None
+    assert importlib.util.find_spec("agent.workflows.types") is not None
     assert importlib.util.find_spec("agent.context") is not None
     assert importlib.util.find_spec("agent.state") is not None
     assert importlib.util.find_spec("agent.state.workspaces") is not None

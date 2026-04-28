@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Optional
 
+from agent.capabilities.memory import MemoryStore
 from agent.config import resolve_model_client_config
 from agent.context.builder import ContextBuilder
+from agent.context.memory import MemoryContextRetriever, MemoryRetrievalScope
 from agent.context.sources import build_context_pack
 from agent.specs import AgentSpec
 from agent.hooks import AgentHooks, hooks_from_settings
@@ -22,6 +24,7 @@ async def create_agent_session_async(
     spec: AgentSpec,
     hooks: Optional[AgentHooks] = None,
     checkpoint_store: Optional[CheckpointStore] = None,
+    memory_store: Optional[MemoryStore] = None,
 ) -> AgentSession:
     resolved_spec = spec.with_workspace_defaults()
     config = resolve_model_client_config(
@@ -40,15 +43,17 @@ async def create_agent_session_async(
         agent_id=resolved_spec.workspace.agent_id,
         workspace_id=resolved_spec.workspace.workspace_id,
     )
-    register_builtin_tools(registry, ToolRuntimeContext.for_workspace(workspace))
+    builtin_tools = register_builtin_tools(registry, ToolRuntimeContext.from_settings(settings, workspace))
     await load_configured_mcp(settings, registry)
 
-    active_tools = resolve_active_tools(settings, skill_registry, resolved_spec.enabled_tools)
+    active_tools = _resolve_active_tools(settings, skill_registry, resolved_spec.enabled_tools, builtin_tools)
+    memory_fragments = await _memory_fragments(settings, memory_store, workspace)
     context_pack = build_context_pack(
         system_prompt=settings.agent.SYSTEM_PROMPT if resolved_spec.system_prompt is None else resolved_spec.system_prompt,
         skill_registry=skill_registry,
         enabled_tools=active_tools,
         workspace=workspace,
+        memory_fragments=memory_fragments,
     )
     compiled_context = ContextBuilder().compile(context_pack, budget_tokens=settings.agent.MAX_CONTEXT_TOKENS)
     active_hooks = hooks if hooks is not None else hooks_from_settings(settings)
@@ -68,6 +73,7 @@ async def create_agent_session_async(
         runtime=runtime,
         system_prompt=compiled_context.system_text,
         max_context_tokens=settings.agent.MAX_CONTEXT_TOKENS,
+        compaction_target_tokens=int(getattr(settings.agent, "CONTEXT_COMPACTION_TARGET_TOKENS", 0) or 0) or None,
         context_trace=compiled_context.trace,
         workspace=workspace,
     )
@@ -78,9 +84,61 @@ def create_agent_session(
     spec: AgentSpec,
     hooks: Optional[AgentHooks] = None,
     checkpoint_store: Optional[CheckpointStore] = None,
+    memory_store: Optional[MemoryStore] = None,
 ) -> AgentSession:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(create_agent_session_async(settings, spec, hooks=hooks, checkpoint_store=checkpoint_store))
+        return asyncio.run(
+            create_agent_session_async(
+                settings,
+                spec,
+                hooks=hooks,
+                checkpoint_store=checkpoint_store,
+                memory_store=memory_store,
+            )
+        )
     raise RuntimeError("create_agent_session cannot run inside an active event loop; use create_agent_session_async")
+
+
+def _resolve_active_tools(settings: Any, skill_registry, enabled_tools: Optional[list[str]], builtin_tools: list[str]) -> list[str]:
+    if enabled_tools is not None:
+        return resolve_active_tools(settings, skill_registry, enabled_tools)
+    configured_tools = str(getattr(settings.agent, "ENABLED_TOOLS", "") or "").strip()
+    active_tools = resolve_active_tools(settings, skill_registry, None)
+    if configured_tools:
+        return active_tools
+    builtin_defaults = [name for name in _csv_setting(getattr(settings.agent, "BUILTIN_TOOLS", "")) if name in builtin_tools]
+    return _merge_unique(builtin_defaults, active_tools)
+
+
+async def _memory_fragments(settings: Any, memory_store: Optional[MemoryStore], workspace) -> list:
+    if memory_store is None or not workspace.tenant_id or not workspace.user_id:
+        return []
+    limit = int(getattr(settings.agent, "MEMORY_CONTEXT_LIMIT", 20) or 0)
+    if limit <= 0:
+        return []
+    return await MemoryContextRetriever(memory_store).fragments_for_scope(
+        MemoryRetrievalScope(
+            tenant_id=workspace.tenant_id,
+            user_id=workspace.user_id,
+            agent_id=workspace.agent_id,
+            workspace_id=workspace.workspace_id,
+            limit=limit,
+        )
+    )
+
+
+def _csv_setting(raw: str) -> list[str]:
+    return [item.strip() for item in str(raw or "").split(",") if item.strip()]
+
+
+def _merge_unique(*groups: list[str]) -> list[str]:
+    names: list[str] = []
+    seen = set()
+    for group in groups:
+        for name in group:
+            if name not in seen:
+                seen.add(name)
+                names.append(name)
+    return names

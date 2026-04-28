@@ -36,6 +36,13 @@ class AgentConfig(BaseSettings):
     MAX_CONCURRENT_REQUESTS: int = 20
     TOOL_TIMEOUT: float = 60.0
     GUIDED_TOOLS: str = ""
+    BUILTIN_TOOLS: str = "filesystem.read,filesystem.list"
+    SANDBOX_ALLOW_FILE_WRITE: bool = False
+    SANDBOX_ALLOW_PROCESS: bool = False
+    SANDBOX_ALLOW_NETWORK: bool = False
+    SANDBOX_ALLOWED_COMMANDS: str = ""
+    MEMORY_CONTEXT_LIMIT: int = 20
+    CONTEXT_COMPACTION_TARGET_TOKENS: int = 32000
 
     # Claude provider 的备选配置（优先级高于 ANTHROPIC_*）
     CLAUDE_API_KEY: str = ""

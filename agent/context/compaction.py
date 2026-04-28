@@ -52,7 +52,7 @@ class HeuristicContextCompactor:
             kept_tokens += message_tokens
         kept.reverse()
         dropped = messages[: len(messages) - len(kept)]
-        summary = _summarize_messages(dropped)
+        summary = _summarize_messages(dropped, max_chars=max(200, target_tokens * 4))
         return ConversationCompaction(
             summary=summary,
             kept_messages=kept,
@@ -61,7 +61,7 @@ class HeuristicContextCompactor:
         )
 
 
-def _summarize_messages(messages: List[Message]) -> str:
+def _summarize_messages(messages: List[Message], max_chars: int) -> str:
     if not messages:
         return ""
     lines = ["Prior conversation summary:"]
@@ -72,4 +72,7 @@ def _summarize_messages(messages: List[Message]) -> str:
         if not text:
             continue
         lines.append("- %s: %s" % (message.role, text[:500]))
-    return "\n".join(lines)
+    summary = "\n".join(lines)
+    if len(summary) <= max_chars:
+        return summary
+    return summary[: max(0, max_chars - len("\n[summary truncated]"))].rstrip() + "\n[summary truncated]"
