@@ -14,7 +14,7 @@ import { approvalFromEvent, compact, createId, errorText, mergeApproval, safeJso
 export function createAgentSession() {
   const [baseUrl, setBaseUrl] = createSignal(window.location.origin);
   const [token, setToken] = createSignal("");
-  const [provider, setProvider] = createSignal("openai-chat");
+  const [provider, setProvider] = createSignal("openai-responses");
   const [model, setModel] = createSignal("");
   const [modelBaseUrl, setModelBaseUrl] = createSignal("");
   const [apiKey, setApiKey] = createSignal("");
