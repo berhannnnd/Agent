@@ -144,11 +144,14 @@ class TerminalUI:
         profile_list = list(profiles)
         workspace = getattr(session, "workspace", None)
         workspace_path = Path(str(workspace.path)) if workspace is not None else None
+        retry_policy = getattr(getattr(session.runtime, "model_client", None), "retry_policy", None)
         rows = {
             "env file": env_file,
             "model": "%s · %s" % (session.runtime.protocol, session.runtime.model),
             "model profile": model_profile or "custom override",
             "endpoint": _model_endpoint(session) or "not exposed",
+            "max retries": str(getattr(retry_policy, "max_attempts", "unknown")),
+            "retry base delay": str(getattr(retry_policy, "base_delay", "unknown")),
             "configured profiles": str(len([profile for profile in profile_list if getattr(profile, "configured", False)])),
             "enabled tools": str(len(list(tools))),
             "workspace": str(workspace_path) if workspace_path is not None else "not bound",

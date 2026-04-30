@@ -6,12 +6,14 @@
 
 ```text
 web  -> gateway -> agent
+tui  -> cli.bridge -> agent
 cli  -> agent
 ```
 
 - `agent` 是核心 SDK/kernel，不依赖 FastAPI、web UI 或 CLI。
 - `gateway` 是 HTTP/SSE 服务适配层，负责外部协议、run 生命周期和持久化组合。
-- `cli` 是本地终端界面。
+- `tui` 是 TypeScript/Ink 本地终端前端，负责高质量交互体验。
+- `cli` 是 Python 本地适配层，包含 TUI NDJSON bridge 和 Python fallback CLI。
 - `web` 是浏览器界面。
 
 ## agent.assembly
@@ -326,24 +328,70 @@ agent/capabilities/sandbox/
 - approval/websocket protocol。
 - background worker service。
 
+## tui
+
+职责：
+
+- 本地终端前端体验。
+- 渲染欢迎页、消息流、tool timeline、model profiles、approval prompt。
+- 提供 slash command、`@file` 输入补全和快捷键。
+- 通过 NDJSON 与 `cli.bridge` 通信。
+
+当前结构：
+
+```text
+tui/src/
+  App.tsx                 会话级状态、bridge event 路由、全局快捷键
+  protocol/               NDJSON bridge client/types
+  ui/                     命令定义、显示格式、主题 token、runtime event/markdown/diff/text helpers
+  hooks/                  输入状态机、@file suggestions、输入队列、tool timeline、live draft、ticker/blink hooks
+  components/design/      Dialog、Select、Divider、StatusIcon 等 TUI 设计系统
+  components/messages/    user/assistant/thinking/tool/status/table/model 消息族
+  components/prompt/      输入框、footer、slash/file suggestions、history search
+  components/permissions/ permission request body/options/dialog family
+  components/tools/       tool action/target/result preview、unified diff preview
+```
+
+为什么这样做：
+
+- TUI 是产品界面，应该可以使用 Ink/React 组件化表达，而不是把复杂交互压进 Python print/Rich。
+- 前端只关心显示协议，不直接耦合 agent runtime 内部对象。
+- 可以更接近 Claude Code/Codex/Nexus Code 的终端交互质量。
+- design/messages/prompt 分层后，后续对齐 Claude Code/Nexus Code 时可以逐个模块替换，而不是改一个巨大终端脚本。
+- live turn 层单独处理 `text_delta/reasoning_delta`，避免最终 `model_message` 和 streaming draft 重复渲染。
+- `ui/runtimeEvents.ts` 只做 runtime event 到 transcript 的纯转换，避免 `App.tsx` 继续膨胀。
+- `components/MarkdownBlock.tsx` + `ui/markdown.ts` 负责终端 Markdown 渲染，assistant/thinking 消息不再只是纯文本输出。
+- `components/tools/DiffPreview.tsx` + `ui/diff.ts` 负责 patch/git unified diff 预览，文件修改结果不再混在 JSON raw output 里。
+- `ui/textBuffer.ts` 收束 Unicode-safe 输入编辑操作，slash picker 和 prompt input 共享同一套字符处理。
+- `hooks/useFileSuggestions.ts` 只在 TUI 层索引本地文件，用 `@file` 提升输入体验，不把文件联想逻辑塞进 agent runtime。
+
+后续方向：
+
+- transcript folding 视觉继续接近 Claude Code。
+- tool detail expand/collapse 继续补 code preview 和 shell output progress。
+- model/profile picker 已具备基础 fuzzy search，后续补 provider health 和延迟诊断。
+- running turn input queue 已具备基础排队，后续补 interrupt/cancel。
+- task run monitor。
+
 ## cli
 
 职责：
 
-- 本地终端交互。
-- 直接复用 `agent.assembly`。
+- `cli.bridge`：TUI 与 agent 的本地 NDJSON 协议适配。
+- `cli.main`：Python fallback 终端入口。
+- 解析本地 profile、workspace、permission、model profile 参数。
+- 将 slash commands 转为 agent/session 操作。
 
 为什么这样做：
 
-- CLI 不需要 HTTP round trip。
-- 本地开发可以更接近 Codex/Claude Code 的交互模式。
+- 本地交互不需要走 HTTP round trip，但 UI 也不应该直接 import agent 内部 Python 对象。
+- bridge 把“本地进程协议”和“agent SDK 装配”收束在 Python 侧，保持 `agent/` 不依赖 UI。
 
 后续方向：
 
-- 多轮 session state。
-- approval prompt。
-- workspace selector。
-- task run monitor。
+- approval resume event 更细粒度。
+- task run monitor bridge events。
+- workspace selector bridge events。
 
 ## web
 

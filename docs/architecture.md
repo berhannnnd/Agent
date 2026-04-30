@@ -9,7 +9,9 @@
 
 ```mermaid
 graph TB
-    CLI["cli 终端界面"] --> Agent["agent 智能体核心"]
+    TUI["tui Ink 终端界面"] --> CLIBridge["cli.bridge NDJSON 适配层"]
+    CLI["cli Python fallback"] --> Agent["agent 智能体核心"]
+    CLIBridge --> Agent
     Web["web 浏览器界面"] --> Gateway["gateway 后端网关"]
     Gateway --> Agent
     Gateway --> Core["gateway.core 配置/日志/中间件/异常"]
@@ -46,7 +48,8 @@ graph TB
 
 - `agent`: 智能体系统核心。按 specs、runtime、context、models、capabilities 主链路组织，并用 `state` 收束长期状态，用 `governance` 收束权限、凭证、审计和追踪。该层不依赖 FastAPI。
 - `gateway`: 后端网关。负责 HTTP API、请求/响应协议转换、鉴权、中间件、异常处理、日志、服务生命周期、SSE 和 Web UI 静态产物挂载。
-- `cli`: 终端界面。面向本地交互，直接复用 `agent` 核心能力。
+- `tui`: TypeScript/Ink 终端前端。负责 Claude Code/Codex 风格的输入、渲染、slash commands、tool/approval 状态展示，不 import Python agent。
+- `cli`: Python 本地适配层。`cli.bridge` 通过 NDJSON 连接 `tui` 与 `agent`，`cli.main` 保留 Python fallback 终端入口。
 - `web`: 浏览器界面。通过 gateway HTTP/SSE API 调用智能体能力。
 
 ## Agent 核心层
@@ -95,10 +98,10 @@ graph TB
 
 ## 调用链
 
-1. `web` 通过 HTTP/SSE 调用 `gateway.api`；`cli` 直接调用 `agent.assembly`。
-2. `gateway.api` 和 CLI 将外部参数转换成 `AgentSpec`。
+1. `web` 通过 HTTP/SSE 调用 `gateway.api`；`tui` 通过 NDJSON 调用 `cli.bridge`；Python fallback CLI 直接调用 `agent.assembly`。
+2. `gateway.api`、`cli.bridge` 和 Python fallback CLI 将外部参数转换成 `AgentSpec`。
 3. `gateway.sessions.GatewayRunService` 创建 run，生成 `run_id`，并将该 ID 传入 AgentSession。
-4. `gateway.api` 将 `AgentSpec` 传给 `agent.assembly.create_agent_session_async()`；CLI 使用同步 `create_agent_session()`。
+4. `gateway.api` 和 `cli.bridge` 将 `AgentSpec` 传给 `agent.assembly.create_agent_session_async()`；Python fallback CLI 使用同步 `create_agent_session()`。
 5. `agent.config` 解析模型配置；`agent.assembly` 创建 `ModelClient`、`ToolRegistry` 和 hooks。
 6. `agent.capabilities` 装配 skills/MCP；`agent.state.workspaces` 根据 `AgentSpec.workspace` 解析 workspace。
 7. `agent.capabilities.sandbox` 根据 workspace、sandbox policy 和 provider 配置创建 `SandboxClient`；builtin tools 只持有该 client，不直接访问宿主路径或本机 subprocess。
@@ -125,5 +128,5 @@ graph TB
 7. 新增长程任务能力：放入 `agent/tasks/`；gateway 只负责 task API、stream 和权限入口。
 8. 新增记忆能力：先扩展 `agent/capabilities/memory/`，再通过 `agent.context.memory` 或 `agent.context.sources` 接入 prompt context。
 9. 新增 HTTP 协议能力：放入 `gateway/api/`，必要时配合 `gateway/services`、`gateway/sessions/` 或 `gateway/streaming/`。
-10. 新增终端交互：放入 `cli/`。
+10. 新增终端前端组件：放入 `tui/`；新增 Python 本地协议适配或 fallback 命令：放入 `cli/`。
 11. 新增浏览器界面：放入 `web/`。

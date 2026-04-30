@@ -6,6 +6,7 @@ The project boundary is intentionally strict:
 
 ```text
 web  -> gateway HTTP/SSE -> agent
+tui  -> cli bridge -> agent
 cli  -> agent
 
 gateway -> agent
@@ -16,7 +17,7 @@ agent   -> no gateway, FastAPI, or UI dependency
 
 `gateway/` is the service adapter. It exposes the agent core over HTTP/SSE, owns request/response schemas, service concurrency, run lifecycle tracking, and future auth/session persistence.
 
-`cli/` and `web/` are interfaces. They should not implement agent logic.
+`tui/`, `cli/`, and `web/` are interfaces. They should not implement agent logic. The default terminal client is a TypeScript Ink UI that talks to the Python agent core through an NDJSON bridge in `cli.bridge`.
 
 ## Technical Documentation
 
@@ -48,7 +49,7 @@ agent   -> no gateway, FastAPI, or UI dependency
 - Long-term data stores for tenants/users, agent profiles, workspace records, memories, sandbox leases, and credential references.
 - Traceable run timelines through `agent.governance.tracing`, with separate approval audit records through `agent.governance.audit`.
 - Gateway chat APIs return `run_id`; streaming emits a `run_created` event before model/tool events.
-- CLI coding profile runs directly on the agent core, binds a local workspace, enables read/write/patch/search/git/test/shell tools, and handles terminal approval prompts.
+- Terminal coding profile runs on the agent core through a local NDJSON bridge, binds a local workspace, enables read/write/patch/search/git/test/shell tools, and keeps terminal UI concerns outside `agent/`.
 
 ## Repository Layout
 
@@ -80,7 +81,8 @@ gateway/
   streaming/      Future SSE/WebSocket protocol helpers
   static_ui.py    Mounts web/dist at /ui
 
-cli/              Typer terminal interface
+tui/              TypeScript Ink terminal interface
+cli/              Python fallback CLI and NDJSON bridge for tui/
 web/              SolidJS + Vite browser interface
 tests/            Unit and boundary tests
 docs/             Architecture notes
@@ -93,7 +95,7 @@ make setup
 cp .env.example .env
 ```
 
-Edit `.env` and configure at least one model protocol API key and model.
+Edit `.env` and configure at least one model protocol API key and model. `make setup` installs Python dependencies, the web frontend dependencies, and the Ink TUI dependencies when `bun` is available.
 
 Start the gateway:
 
@@ -106,25 +108,31 @@ Start the terminal chat:
 
 ```bash
 make cli
+```
+
+`make cli` starts the TypeScript Ink terminal frontend. It launches the Python bridge locally, binds the current directory as the workspace, enables coding tools, and asks before write/execute tools. The older Python terminal is still available for debugging:
+
+```bash
+make cli-python
 # or
 agents chat --model-profile openai-chat
 ```
 
-By default, `agents chat` starts in local `coding` profile. It binds the current directory as the workspace, enables coding tools, and asks before write/execute tools. For a different workspace:
+For a different workspace:
 
 ```bash
-agents chat --workspace-path ./sandbox-game
+make cli ARGS="--workspace-path ./sandbox-game"
 ```
 
-Useful CLI switches:
+Useful terminal switches are forwarded to the Python bridge:
 
 ```bash
-agents chat --profile chat                  # read-oriented chat profile
-agents chat --profile coding                # local coding profile, default
-agents chat --profile browser               # coding tools plus browser/web tools
-agents chat --permission auto               # run enabled tools without approval prompts
-agents chat --permission guarded            # read automatically, confirm writes/commands
-agents chat --tools filesystem.read,patch.apply,test.run
+make cli ARGS="--profile chat"                  # read-oriented chat profile
+make cli ARGS="--profile coding"                # local coding profile, default
+make cli ARGS="--profile browser"               # coding tools plus browser/web tools
+make cli ARGS="--permission auto"               # run enabled tools without approval prompts
+make cli ARGS="--permission guarded"            # read automatically, confirm writes/commands
+make cli ARGS="--tools filesystem.read,patch.apply,test.run"
 ```
 
 Inside the terminal chat:
@@ -139,9 +147,34 @@ Inside the terminal chat:
 /tools      show enabled tools
 /context    show context window usage
 /trace      show context assembly trace
+/fold       collapse long thinking/assistant/tool blocks
+/unfold     expand long thinking/assistant/tool blocks
+/queue      show queued messages
+/cancel     clear queued messages
 /clear      reset conversation messages
 /exit       leave the chat
 ```
+
+Ink TUI shortcuts:
+
+```text
+up/down    browse input history, or move inside an active picker/suggestion list
+tab        complete the selected slash command or @file reference
+ctrl+r     search prompt history
+ctrl+o     toggle folded/expanded transcript rendering
+ctrl+t     focus the next tool call in the transcript
+ctrl+d     expand/collapse the focused tool call detail
+ctrl+w     delete the previous word
+ctrl/alt+← move to the previous word
+ctrl/alt+→ move to the next word
+ctrl+u     clear text before the cursor
+ctrl+k     clear text after the cursor
+esc        close the active picker or clear current input
+```
+
+`/model` opens a filterable model picker. `/model <profile>` still switches directly. If a turn is running, normal user messages are queued and sent after the current turn finishes.
+
+The terminal UI streams reasoning/text deltas while a turn is running, shows retry attempts as status events, renders assistant Markdown/list/table/code output, previews patch/git diffs, supports @file references, and keeps tool approval/detail rendering separate from the agent core.
 
 Run tests:
 
@@ -201,7 +234,7 @@ AGENT_MODEL_PROFILE_KIMI_API_KEY=
 AGENT_MODEL_PROFILE_KIMI_ALIASES=moonshot
 ```
 
-Then switch the whole protocol/base URL/model/key group with `/model kimi`, or start directly with `agents chat --model-profile kimi`.
+Then switch the whole protocol/base URL/model/key group with `/model kimi`, or start directly with `make cli ARGS="--model-profile kimi"`.
 
 Run records use memory by default. To keep run records as local JSON files:
 
@@ -442,7 +475,7 @@ make dev-web
 
 ## Development Rules
 
-- Put agent logic in `agent/`, not in `gateway/`, `cli/`, or `web/`.
+- Put agent logic in `agent/`, not in `gateway/`, `tui/`, `cli/`, or `web/`.
 - Put HTTP/session/auth protocol code in `gateway/`.
 - Add model protocol adapters under `agent/models/adapters/`; keep shared stream semantics in `agent/models/protocol/`.
 - Add tools under `agent/capabilities/tools/` or load them through MCP.

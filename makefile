@@ -4,11 +4,12 @@ PORT ?= 8010
 VENV ?= .venv
 PYTHON_BIN ?= $(shell command -v python3.12 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3.10 2>/dev/null)
 UV ?= $(shell command -v uv 2>/dev/null)
+BUN ?= $(shell command -v bun 2>/dev/null)
 HOST_PIP ?= $(shell command -v pip3 2>/dev/null || command -v pip 2>/dev/null)
 PYTHON ?= $(VENV)/bin/python
 PIP ?= $(PYTHON) -m pip
 
-.PHONY: check-python venv setup run cli dev-web stop test build up down log
+.PHONY: check-python venv setup setup-tui run cli cli-python dev-web stop test build up down log
 
 check-python:
 	@test -n "$(PYTHON_BIN)" || (echo "Python 3.10+ is required." && exit 1)
@@ -33,11 +34,20 @@ venv: check-python
 setup: venv
 	$(PIP) install -e .
 	@if [ -f web/package-lock.json ]; then cd web && npm ci; else cd web && npm install; fi
+	@if [ -n "$(BUN)" ]; then cd tui && $(BUN) install; else echo "bun is required for the Ink TUI; install bun or run make cli-python."; fi
+
+setup-tui:
+	@test -n "$(BUN)" || (echo "bun is required for the Ink TUI." && exit 1)
+	cd tui && $(BUN) install
 
 run: venv
 	$(PYTHON) main.py
 
 cli: venv
+	@test -n "$(BUN)" || (echo "bun is required for make cli. Use make cli-python for the Python fallback." && exit 1)
+	@cd tui && $(BUN) run src/main.tsx --repo-root .. --python $(PYTHON) $(ARGS)
+
+cli-python: venv
 	@$(PYTHON) -m cli.main chat
 
 dev-web: venv

@@ -16,6 +16,7 @@
 - run/task/checkpoint/trace/audit/memory/credential/workspace SQLite foundation。
 - gateway HTTP/SSE run lifecycle。
 - basic web approval controls。
+- TypeScript/Ink terminal frontend shell and Python NDJSON bridge。
 
 ## Phase 1: Sandbox Execution Closure
 
@@ -136,14 +137,19 @@ TODO:
 
 ## Phase 9: Product Interfaces
 
-目标：让 CLI 和 Web 都能真实操作长程 agent。
+目标：让 TUI/CLI 和 Web 都能真实操作长程 agent。
 
 TODO:
 
 - [x] CLI 多轮 session。
 - [x] CLI approval prompt。
 - [x] CLI 启动页、状态/工具/上下文小命令。
-- [ ] CLI task monitor。
+- [x] TUI NDJSON bridge。
+- [x] TUI model profile list/switch 和 interactive picker。
+- [x] TUI approval allow once / allow for run / deny。
+- [x] TUI command palette、status line、thinking/tool 中间状态和长内容折叠。
+- [x] TUI input history、tool focus 和逐项 detail expand/collapse。
+- [ ] TUI task monitor。
 - [ ] Web run timeline。
 - [ ] Web tool approval panel。
 - [ ] Web workspace file/artifact browser。
